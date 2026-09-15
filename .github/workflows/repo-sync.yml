@@ -21,19 +21,20 @@ jobs:
       - name: Push to Public Open Source Repository
         env:
           TARGET_REPO_URL: "github.com/mscprpcem/Quiz-Platform-MSCPRPCEM.git"
-          SYNC_TOKEN: ${{ secrets.SYNC_PAT || secrets.PUBLIC_REPO_PAT || secrets.GITHUB_TOKEN }}
+          SYNC_TOKEN: ${{ secrets.SYNC_PAT || secrets.PUBLIC_REPO_PAT }}
         run: |
+          # Verify token availability for cross-repository sync
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo "::notice title=SYNC_PAT Not Configured::Automatic sync to public repo is paused because SYNC_PAT secret is not configured. To enable sync, add a GitHub PAT with 'repo' scope as repository secret 'SYNC_PAT'."
+            echo "Skipping cross-repository sync cleanly."
+            exit 0
+          fi
+
           echo "Starting automatic synchronization to public open-source repository..."
           
           # Configure Git credentials
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Check token availability
-          if [ -z "${{ secrets.SYNC_PAT }}" ] && [ -z "${{ secrets.PUBLIC_REPO_PAT }}" ]; then
-            echo "::warning ::SYNC_PAT or PUBLIC_REPO_PAT secret is not set in repository settings. Pushing using default GITHUB_TOKEN."
-            echo "If the push fails with 403 Forbidden, add a GitHub Personal Access Token (PAT) with 'repo' scope as a secret named 'SYNC_PAT'."
-          fi
 
           # Create a dedicated sync branch for public open-source distribution
           echo "Preparing clean open-source release branch..."
