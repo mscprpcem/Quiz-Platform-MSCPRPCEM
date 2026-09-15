@@ -1203,108 +1203,166 @@ router.post('/admin/cumulative-leaderboard', authMiddleware, handleCumulativeLea
 router.get('/admin/cumulative-leaderboard', authMiddleware, handleCumulativeLeaderboard);
 
 // =========================================================================
-// Practice Lab Telemetry & Learner Reach Analytics
+// Practice Lab Telemetry & Unique SQL Learner Reach Analytics
+// Zero-cost client-side SQL model: Tracks unique active users without
+// saving heavy per-question attempt logs to disk or database.
 // =========================================================================
 const fs = require('fs');
 const path = require('path');
+const LEARNERS_FILE = path.join(__dirname, '../data/sql_learners.json');
 const ATTEMPTS_FILE = path.join(__dirname, '../data/practice_attempts.json');
 
-function loadPracticeAttempts() {
+function loadSqlLearners() {
   try {
-    if (!fs.existsSync(ATTEMPTS_FILE)) return [];
-    const raw = fs.readFileSync(ATTEMPTS_FILE, 'utf8');
-    return raw ? JSON.parse(raw) : [];
+    if (!fs.existsSync(LEARNERS_FILE)) {
+      // One-time migration: extract distinct learners from historical attempts if file exists
+      if (fs.existsSync(ATTEMPTS_FILE)) {
+        try {
+          const raw = fs.readFileSync(ATTEMPTS_FILE, 'utf8');
+          const attempts = raw ? JSON.parse(raw) : [];
+          const migrated = {};
+          for (const a of attempts) {
+            const email = (a.studentEmail || '').toLowerCase().trim();
+            if (!email || email.includes('anonymous') || email.includes('guest')) continue;
+            if (!migrated[email]) {
+              migrated[email] = {
+                studentEmail: email,
+                studentName: a.studentName || email.split('@')[0],
+                studentUsername: a.studentUsername || email.split('@')[0],
+                firstSeen: a.timestamp || new Date().toISOString(),
+                lastActive: a.timestamp || new Date().toISOString(),
+                sessionCount: 1
+              };
+            } else {
+              migrated[email].lastActive = a.timestamp || migrated[email].lastActive;
+              migrated[email].sessionCount = (migrated[email].sessionCount || 1) + 1;
+            }
+          }
+          saveSqlLearners(migrated);
+          return migrated;
+        } catch (_) {}
+      }
+      return {};
+    }
+    const raw = fs.readFileSync(LEARNERS_FILE, 'utf8');
+    return raw ? JSON.parse(raw) : {};
   } catch (err) {
-    console.error('Error loading practice attempts:', err);
-    return [];
+    console.error('Error loading SQL learners:', err);
+    return {};
   }
 }
 
-function savePracticeAttempts(attempts) {
+function saveSqlLearners(learners) {
   try {
-    fs.writeFileSync(ATTEMPTS_FILE, JSON.stringify(attempts.slice(-5000), null, 2), 'utf8');
+    const dir = path.dirname(LEARNERS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(LEARNERS_FILE, JSON.stringify(learners, null, 2), 'utf8');
   } catch (err) {
-    console.error('Error saving practice attempts:', err);
+    console.error('Error saving SQL learners:', err);
   }
 }
 
-// Telemetry: Record student question attempt / solve
-router.post('/practice-attempt', (req, res) => {
+// Session-level ping: Registers or refreshes a student using the SQL module
+router.post('/sql-learner-ping', (req, res) => {
   try {
-    const {
-      studentEmail,
-      studentName,
-      studentUsername,
-      challengeId,
-      challengeTitle,
-      moduleTitle,
-      action,
-      status,
-      executionTimeMs
-    } = req.body;
-
-    if (!challengeId) {
-      return res.status(400).json({ error: 'challengeId is required' });
+    const { studentEmail, studentName, studentUsername } = req.body;
+    if (!studentEmail || studentEmail.includes('anonymous') || studentEmail.includes('guest')) {
+      return res.json({ success: true, message: 'Anonymous session skipped' });
     }
 
-    const cleanEmail = studentEmail ? studentEmail.toLowerCase().trim() : 'anonymous@guest.local';
-    const cleanName = studentName ? studentName.trim() : (studentUsername || cleanEmail.split('@')[0]);
+    const cleanEmail = studentEmail.toLowerCase().trim();
+    const cleanName = studentName ? studentName.trim() : cleanEmail.split('@')[0];
+    const cleanUsername = studentUsername ? studentUsername.trim() : cleanEmail.split('@')[0];
 
-    const attemptRecord = {
-      id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-      studentEmail: cleanEmail,
-      studentName: cleanName,
-      studentUsername: studentUsername || cleanEmail.split('@')[0],
-      challengeId,
-      challengeTitle: challengeTitle || challengeId,
-      moduleTitle: moduleTitle || 'SQL Practice',
-      action: action || 'run',
-      status: status || 'attempted',
-      executionTimeMs: Number(executionTimeMs) || 0,
-      timestamp: new Date().toISOString()
-    };
+    const learners = loadSqlLearners();
+    const nowIso = new Date().toISOString();
 
-    const attempts = loadPracticeAttempts();
-    attempts.push(attemptRecord);
-    savePracticeAttempts(attempts);
+    if (!learners[cleanEmail]) {
+      learners[cleanEmail] = {
+        studentEmail: cleanEmail,
+        studentName: cleanName,
+        studentUsername: cleanUsername,
+        firstSeen: nowIso,
+        lastActive: nowIso,
+        sessionCount: 1
+      };
+    } else {
+      learners[cleanEmail].studentName = cleanName || learners[cleanEmail].studentName;
+      learners[cleanEmail].studentUsername = cleanUsername || learners[cleanEmail].studentUsername;
+      learners[cleanEmail].lastActive = nowIso;
+      learners[cleanEmail].sessionCount = (learners[cleanEmail].sessionCount || 0) + 1;
+    }
 
-    return res.json({ success: true, record: attemptRecord });
+    saveSqlLearners(learners);
+    return res.json({
+      success: true,
+      uniqueLearnersCount: Object.keys(learners).length
+    });
   } catch (error) {
-    console.error('Failed to log practice attempt:', error);
-    return res.status(500).json({ error: 'Failed to record attempt' });
+    console.error('Failed to process SQL learner ping:', error);
+    return res.status(500).json({ error: 'Failed to record learner activity' });
   }
 });
 
-// Analytics: Learner reach and live activity feed
+// Legacy backward-compatible endpoint: Does not write massive per-attempt logs
+router.post('/practice-attempt', (req, res) => {
+  try {
+    const { studentEmail, studentName, studentUsername } = req.body;
+    if (studentEmail && !studentEmail.includes('anonymous')) {
+      const cleanEmail = studentEmail.toLowerCase().trim();
+      const learners = loadSqlLearners();
+      const nowIso = new Date().toISOString();
+      if (!learners[cleanEmail]) {
+        learners[cleanEmail] = {
+          studentEmail: cleanEmail,
+          studentName: studentName || cleanEmail.split('@')[0],
+          studentUsername: studentUsername || cleanEmail.split('@')[0],
+          firstSeen: nowIso,
+          lastActive: nowIso,
+          sessionCount: 1
+        };
+      } else {
+        learners[cleanEmail].lastActive = nowIso;
+      }
+      saveSqlLearners(learners);
+    }
+    return res.json({ success: true, message: 'Execution processed client-side.' });
+  } catch (_) {
+    return res.json({ success: true });
+  }
+});
+
+// Analytics: Learner reach and unique user count
 router.get('/practice-activity', (req, res) => {
   try {
-    const attempts = loadPracticeAttempts();
+    const learners = loadSqlLearners();
+    const learnerList = Object.values(learners).sort(
+      (a, b) => new Date(b.lastActive || 0) - new Date(a.lastActive || 0)
+    );
 
-    const uniqueStudentEmails = new Set();
-    const moduleMap = {};
-    let totalSolved = 0;
-
-    for (const a of attempts) {
-      if (a.studentEmail && !a.studentEmail.includes('anonymous')) {
-        uniqueStudentEmails.add(a.studentEmail);
-      }
-      const mod = a.moduleTitle || 'General';
-      moduleMap[mod] = (moduleMap[mod] || 0) + 1;
-      if (a.status === 'passed') totalSolved++;
-    }
-
-    const moduleBreakdown = Object.entries(moduleMap).map(([name, count]) => ({
-      name,
-      count
-    })).sort((a, b) => b.count - a.count);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const activeToday = learnerList.filter(l => new Date(l.lastActive) >= oneDayAgo).length;
 
     return res.json({
       success: true,
-      totalAttempts: attempts.length,
-      uniqueStudents: uniqueStudentEmails.size,
-      totalSolved,
-      moduleBreakdown,
-      recentAttempts: attempts.slice(-100).reverse()
+      uniqueStudents: learnerList.length,
+      totalLearners: learnerList.length,
+      activeToday,
+      learners: learnerList,
+      // Backward-compatible fields for any existing view
+      totalAttempts: learnerList.reduce((acc, l) => acc + (l.sessionCount || 1), 0),
+      recentAttempts: learnerList.slice(0, 100).map((l, idx) => ({
+        id: `usr_${idx}_${l.studentEmail}`,
+        studentName: l.studentName,
+        studentEmail: l.studentEmail,
+        studentUsername: l.studentUsername,
+        challengeId: `SESSIONS: ${l.sessionCount || 1}`,
+        challengeTitle: 'SQL Browser Engine (WASM)',
+        moduleTitle: 'SQL Mastery & Practice',
+        action: 'session',
+        status: 'active',
+        timestamp: l.lastActive
+      }))
     });
   } catch (error) {
     console.error('Failed to fetch practice reach activity:', error);

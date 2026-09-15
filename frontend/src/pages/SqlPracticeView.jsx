@@ -752,21 +752,7 @@ export default function SqlPracticeView({
       } else {
         setRawExpectedResult(null);
       }
-
-      // Record telemetry attempt for Admin reach analytics
-      try {
-        api.post('/api/analytics/practice-attempt', {
-          studentEmail: studentAccount?.email || user?.email || 'student@prpcem.edu',
-          studentName: studentAccount?.name || user?.name || 'Student Learner',
-          studentUsername: studentAccount?.username || studentAccount?.email?.split('@')[0],
-          challengeId: activeChallenge.id,
-          challengeTitle: activeChallenge.title,
-          moduleTitle: activeChallenge.moduleTitle || 'SQL Practice',
-          action: 'run',
-          status: userRes.success ? 'attempted' : 'failed',
-          executionTimeMs: userRes.executionTimeMs || 0
-        }).catch(() => {});
-      } catch (_) {}
+      // Zero server cost: Execution runs 100% locally in browser WebAssembly
     } catch (err) {
       setRawExecutionResult({
         success: false,
@@ -816,21 +802,7 @@ export default function SqlPracticeView({
           }).catch(() => {});
         }
       }
-
-      // Record submit attempt for Admin reach analytics
-      try {
-        api.post('/api/analytics/practice-attempt', {
-          studentEmail: studentAccount?.email || user?.email || 'student@prpcem.edu',
-          studentName: studentAccount?.name || user?.name || 'Student Learner',
-          studentUsername: studentAccount?.username || studentAccount?.email?.split('@')[0],
-          challengeId: activeChallenge.id,
-          challengeTitle: activeChallenge.title,
-          moduleTitle: activeChallenge.moduleTitle || 'SQL Practice',
-          action: 'submit',
-          status: result.passed ? 'passed' : 'failed',
-          executionTimeMs: 0
-        }).catch(() => {});
-      } catch (_) {}
+      // Zero server cost: Validation runs 100% locally in browser WebAssembly
     } catch (err) {
       setSubmissionResult({
         passed: false,

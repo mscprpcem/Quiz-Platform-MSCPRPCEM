@@ -13,6 +13,8 @@ import { SQL_CHALLENGES } from '../data/sqlChallenges';
 import { SQL_30_DAY_ROADMAP } from '../data/sqlRoadmapData';
 import { SQL_INTERVIEW_PROBLEMS } from '../data/sqlInterviewData';
 import { executeSqlQuery, getTablesPreview } from '../services/sqlEngine';
+import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import SqlLandingPage from './SqlLandingPage';
 import SqlLearningView from './SqlLearningView';
 import SqlPracticeView from './SqlPracticeView';
@@ -90,6 +92,26 @@ export default function SqlCourseHub() {
   const location = useLocation();
   const params = useParams();
   const [searchParams] = useSearchParams();
+  const { studentAccount, user } = useAuth();
+
+  // Lightweight SQL user activity ping (at most once per browser session to eliminate server costs)
+  useEffect(() => {
+    const studentEmail = studentAccount?.email || user?.email;
+    if (!studentEmail) return;
+
+    try {
+      const sessionKey = `msc_sql_ping_${studentEmail.toLowerCase()}`;
+      const alreadyPinged = sessionStorage.getItem(sessionKey);
+      if (!alreadyPinged) {
+        sessionStorage.setItem(sessionKey, Date.now().toString());
+        api.post('/api/analytics/sql-learner-ping', {
+          studentEmail: studentEmail,
+          studentName: studentAccount?.name || user?.name || studentEmail.split('@')[0],
+          studentUsername: studentAccount?.username || studentEmail.split('@')[0]
+        }).catch(() => {});
+      }
+    } catch (_) {}
+  }, [studentAccount?.email, user?.email]);
 
   // Active Mode: 'overview' | 'learn' | 'practice' | 'roadmap' | 'interview' | 'quiz'
   const currentMode = useMemo(() => {

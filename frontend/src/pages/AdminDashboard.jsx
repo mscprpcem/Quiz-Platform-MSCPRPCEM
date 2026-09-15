@@ -688,70 +688,53 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
               <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
                 <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                  <span>Unique Learners Reached</span>
+                  <span>Unique SQL Learners</span>
                   <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                     <Users size={16} />
                   </div>
                 </div>
                 <div className="text-3xl font-black text-slate-900">
-                  {practiceActivity?.uniqueStudents || 0}
+                  {practiceActivity?.uniqueStudents || practiceActivity?.totalLearners || 0}
                 </div>
-                <p className="text-[11.5px] text-slate-500 font-medium">Distinct verified students solving questions</p>
+                <p className="text-[11.5px] text-slate-500 font-medium">Verified students accessing the SQL platform</p>
               </div>
 
               <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
                 <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                  <span>Total Question Submissions</span>
+                  <span>Active Learners Today</span>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <Sparkles size={16} />
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-emerald-600">
+                  {practiceActivity?.activeToday ?? 0}
+                </div>
+                <p className="text-[11.5px] text-slate-500 font-medium">Students active in the last 24 hours</p>
+              </div>
+
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                  <span>Browser Engine Status</span>
                   <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
                     <Database size={16} />
                   </div>
                 </div>
-                <div className="text-3xl font-black text-slate-900">
-                  {practiceActivity?.totalAttempts || 0}
+                <div className="text-2xl font-black text-purple-700 flex items-center space-x-2">
+                  <span>100% Client WASM</span>
                 </div>
-                <p className="text-[11.5px] text-slate-500 font-medium">Interactive queries evaluated & tested</p>
-              </div>
-
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                  <span>Challenges Passed</span>
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <CheckCircle2 size={16} />
-                  </div>
-                </div>
-                <div className="text-3xl font-black text-emerald-600">
-                  {practiceActivity?.totalSolved || 0}
-                </div>
-                <p className="text-[11.5px] text-slate-500 font-medium">Successful testcase completions</p>
+                <p className="text-[11.5px] text-slate-500 font-medium">Zero server cost — queries run in browser</p>
               </div>
             </div>
 
-            {/* Module Breakdown */}
-            {practiceActivity?.moduleBreakdown && practiceActivity.moduleBreakdown.length > 0 && (
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3">
-                <h3 className="text-xs font-black uppercase text-slate-500 tracking-wider">Reach by Module & Topic</h3>
-                <div className="flex flex-wrap gap-2">
-                  {practiceActivity.moduleBreakdown.map((item, idx) => (
-                    <div key={idx} className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                      <span className="font-bold text-slate-800">{item.name}</span>
-                      <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-mono font-black text-[11px]">
-                        {item.count} attempts
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Live Attempts Feed Table */}
+            {/* SQL Learners Directory Table */}
             <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
               <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-black text-slate-900">Live Learner Attempts Stream</h3>
-                  <p className="text-xs text-slate-500 font-medium">Real-time log of questions attempted across SQL Practice & Lab</p>
+                  <h3 className="text-sm font-black text-slate-900">Registered SQL Learners</h3>
+                  <p className="text-xs text-slate-500 font-medium">Students actively learning and practicing SQL in their browsers</p>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-400">
-                  Showing latest {practiceActivity?.recentAttempts?.length || 0} events
+                <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                  {practiceActivity?.learners?.length || practiceActivity?.uniqueStudents || 0} Total Learners
                 </span>
               </div>
 
@@ -761,63 +744,54 @@ export default function AdminDashboard() {
                     <tr>
                       <th className="px-4 py-3">Learner</th>
                       <th className="px-4 py-3">Email</th>
-                      <th className="px-4 py-3">Challenge / Question</th>
-                      <th className="px-4 py-3">Module</th>
-                      <th className="px-4 py-3">Action</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3 text-right">Time</th>
+                      <th className="px-4 py-3">First Visited</th>
+                      <th className="px-4 py-3">Last Active</th>
+                      <th className="px-4 py-3 text-center">Sessions</th>
+                      <th className="px-4 py-3 text-right">Engine Mode</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {(!practiceActivity?.recentAttempts || practiceActivity.recentAttempts.length === 0) ? (
+                    {(!practiceActivity?.learners || practiceActivity.learners.length === 0) && (!practiceActivity?.recentAttempts || practiceActivity.recentAttempts.length === 0) ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-12 text-center text-slate-400 text-xs">
-                          No student practice attempts logged yet. As students practice in the SQL lab, their activity will stream here in real time.
+                        <td colSpan={6} className="px-4 py-12 text-center text-slate-400 text-xs">
+                          No SQL learners registered yet. As students open the SQL Course Hub and practice queries, their profiles will appear here.
                         </td>
                       </tr>
                     ) : (
-                      practiceActivity.recentAttempts.map((att) => (
-                        <tr key={att.id} className="hover:bg-slate-50/70 transition-colors">
+                      (practiceActivity.learners || practiceActivity.recentAttempts).map((lrn, idx) => (
+                        <tr key={lrn.id || lrn.studentEmail || idx} className="hover:bg-slate-50/70 transition-colors">
                           <td className="px-4 py-3 font-bold text-slate-900">
                             <div className="flex items-center space-x-1.5">
-                              <span>{att.studentName}</span>
-                              {att.studentUsername && (
+                              <span>{lrn.studentName || 'Student Learner'}</span>
+                              {lrn.studentUsername && (
                                 <a
-                                  href={`https://verify.mscprpcem.tech/u/${encodeURIComponent(att.studentUsername)}`}
+                                  href={`https://verify.mscprpcem.tech/u/${encodeURIComponent(lrn.studentUsername)}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-[10px] text-blue-600 font-mono hover:underline"
                                   title="View on Verification Portal"
                                 >
-                                  @{att.studentUsername}
+                                  @{lrn.studentUsername}
                                 </a>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-slate-600 font-mono text-[11px]">{att.studentEmail}</td>
-                          <td className="px-4 py-3 font-bold text-slate-800">
-                            <div className="flex items-center space-x-1.5">
-                              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">
-                                {att.challengeId}
-                              </span>
-                              <span className="truncate max-w-[220px]">{att.challengeTitle}</span>
-                            </div>
+                          <td className="px-4 py-3 text-slate-600 font-mono text-[11px]">{lrn.studentEmail}</td>
+                          <td className="px-4 py-3 text-slate-500 text-[11px]">
+                            {lrn.firstSeen ? new Date(lrn.firstSeen).toLocaleDateString() : 'Active'}
                           </td>
-                          <td className="px-4 py-3 text-slate-500 text-[11px]">{att.moduleTitle}</td>
-                          <td className="px-4 py-3 uppercase text-[10px] font-black text-slate-600">{att.action}</td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2.5 py-1 rounded-full text-[10.5px] font-black uppercase ${
-                              att.status === 'passed'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : att.status === 'failed'
-                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                : 'bg-blue-50 text-blue-700 border border-blue-200'
-                            }`}>
-                              {att.status}
+                          <td className="px-4 py-3 text-slate-700 font-mono text-[11px]">
+                            {lrn.lastActive || lrn.timestamp ? new Date(lrn.lastActive || lrn.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Recently'}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono font-bold text-[11px]">
+                              {lrn.sessionCount || 1}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right text-slate-400 font-mono text-[11px]">
-                            {new Date(att.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          <td className="px-4 py-3 text-right">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Client WASM
+                            </span>
                           </td>
                         </tr>
                       ))

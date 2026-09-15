@@ -167,21 +167,7 @@ export default function SqlPractice() {
     try {
       const result = await executeSqlQuery(activeChallenge.setupSql, userQuery);
       setQueryResult(result);
-
-      // Record telemetry attempt for Admin reach analytics
-      try {
-        api.post('/api/analytics/practice-attempt', {
-          studentEmail: studentAccount?.email || user?.email || 'student@prpcem.edu',
-          studentName: studentAccount?.name || user?.name || 'Student Learner',
-          studentUsername: studentAccount?.username || studentAccount?.email?.split('@')[0],
-          challengeId: activeChallenge.id,
-          challengeTitle: activeChallenge.title,
-          moduleTitle: activeChallenge.moduleTitle || 'SQL Practice Lab',
-          action: 'run',
-          status: result.success ? 'attempted' : 'failed',
-          executionTimeMs: result.executionTimeMs || 0
-        }).catch(() => {});
-      } catch (_) {}
+      // Zero server cost: Execution runs 100% locally in browser WebAssembly
     } catch (err) {
       setQueryResult({
         success: false,
@@ -230,21 +216,7 @@ export default function SqlPractice() {
           }
         }
       }
-
-      // Record submit attempt for Admin reach analytics
-      try {
-        api.post('/api/analytics/practice-attempt', {
-          studentEmail: studentAccount?.email || user?.email || 'student@prpcem.edu',
-          studentName: studentAccount?.name || user?.name || 'Student Learner',
-          studentUsername: studentAccount?.username || studentAccount?.email?.split('@')[0],
-          challengeId: activeChallenge.id,
-          challengeTitle: activeChallenge.title,
-          moduleTitle: activeChallenge.moduleTitle || 'SQL Practice Lab',
-          action: 'submit',
-          status: valRes.passed ? 'passed' : 'failed',
-          executionTimeMs: 0
-        }).catch(() => {});
-      } catch (_) {}
+      // Zero server cost: Validation runs 100% locally in browser WebAssembly
     } catch (err) {
       setValidationResult({
         passed: false,
