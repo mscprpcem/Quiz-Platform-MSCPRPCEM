@@ -1,7 +1,7 @@
 # System Architecture & Technical Design Document (Detailed Specification)
 
 **Project Name**: Microsoft Student Club (MSC PRPCEM) — Real-Time Live & Scheduled Quiz Assessment Platform  
-**System Version**: 2.3.0  
+**System Version**: 2.3.1 (Release v1.8.2)  
 **Document Classification**: Engineering Architecture & Technical Design Specification  
 **Primary Maintainer**: Microsoft Student Club Technical Architecture Team  
 **Target Environments**: Node.js 18+ LTS, React 18+ (Vite), Sequelize ORM 6+, Socket.io 4+, Azure Blob Storage, SQLite 3 (Dev/Local) & Neon Serverless PostgreSQL 15/16+ (Production)
@@ -25,6 +25,8 @@
    - 5.9 [Centralized SSO & OAuth 2.0 / OpenID Connect Provider](#59-centralized-sso--oauth-20--openid-connect-provider)
    - 5.10 [Multi-Format Question Bank & Excel Ingestion Pipeline](#510-multi-format-question-bank--excel-ingestion-pipeline)
    - 5.11 [Azure Blob Storage & Asset Management Pipeline](#511-azure-blob-storage--asset-management-pipeline)
+   - 5.12 [Body Portal Modal Architecture & Background Scroll-Lock Subsystem](#512-body-portal-modal-architecture--background-scroll-lock-subsystem)
+   - 5.13 [Public Open-Source Distribution & Automated Sync Sanitization](#513-public-open-source-distribution--automated-sync-sanitization)
 6. [Exhaustive Database Architecture & Data Dictionary](#6-exhaustive-database-architecture--data-dictionary)
    - 6.1 [Entity-Relationship Diagram (ERD)](#61-entity-relationship-diagram-erd)
    - 6.2 [Data Dictionary & Model Specifications](#62-data-dictionary--model-specifications)
@@ -110,13 +112,13 @@ Quiz-platform/
 │   │   │   ├── auth.js                # Admin authentication & token verification
 │   │   │   ├── branding.js            # Dynamic chapter themes, club logos, color tokens
 │   │   │   ├── emailDispatch.js       # Targeted mass email broadcasting & templating
-│   │   │   ├── eventsApi.js           # Event lifecycle, schedule dates & registration
+│   │   │   ├── eventsApi.js           # Event lifecycle, attendee registrations, quiz linkage & delinkage
 │   │   │   ├── export.js              # CSV and Excel export generators
 │   │   │   ├── quiz.js                # Synchronized Live Quiz operations
 │   │   │   ├── scheduledQuiz.js       # Asynchronous Scheduled Quiz operations
 │   │   │   ├── sso.js                 # OAuth 2.0 / OpenID Connect Identity Provider
 │   │   │   ├── studentSync.js         # Student authentication, OTPs & certificates
-│   │   │   └── userDirectory.js       # Paginated student directory & bulk actions
+│   │   │   └── userDirectory.js       # Student directory, verification toggles, bulk actions & sample seeding
 │   │   ├── services/
 │   │   │   ├── azureBlobService.js    # Azure Blob Storage integration for poster uploads
 │   │   │   ├── emailService.js        # Nodemailer SMTP transport & cryptographic OTPs
@@ -129,10 +131,11 @@ Quiz-platform/
 │   │   ├── components/
 │   │   │   ├── AdminLayout.jsx        # Unified administrative sidebar & topbar
 │   │   │   ├── DigitalBadgeCard.jsx   # Credential certificate card with sharing & download
-│   │   │   ├── EventSelector.jsx      # Reusable event attachment dropdown
+│   │   │   ├── EventSelector.jsx      # Reusable event attachment dropdown & quick create modal
 │   │   │   ├── Navbar.jsx             # Responsive mobile drawer & student chip
 │   │   │   ├── Footer.jsx             # Legal links & 2-column mobile footer
 │   │   │   ├── QRScanner.jsx          # Camera-based HTML5 QR code reader
+│   │   │   ├── ThemeDropdown.jsx      # 100% opaque theme dropdown selector with elevated shadow
 │   │   │   └── Timer.jsx              # Circular SVG countdown timer
 │   │   ├── context/
 │   │   │   ├── AuthContext.jsx        # Centralized student & admin authentication
@@ -319,15 +322,26 @@ The platform features a unified, high-DPI canvas generator ([`qrCardGenerator.js
 - Full event lifecycle management supporting start/end datetimes, registration deadlines, and seat capacity.
 - Automatic status evaluation: if `new Date(event.end_date || event.start_date) < new Date()`, the event automatically moves to **Completed / Past Events** and closes registrations.
 - Public registration endpoint (`POST /api/events/register`) automatically syncs attendees into matching live and scheduled quiz tracks.
+- **Event-Quiz Linkage & Delinking Architecture**:
+  - Links live and scheduled quizzes to technical events (`POST /api/events/:id/link-quiz`), setting `event_id` and `event_name`.
+  - **Decoupled Card Surface**: Removed cluttered in-card quiz links and scheduled test buttons. Quiz management and delinking are encapsulated inside the dedicated Event Management modal (`POST /api/events/:id/delink-quiz`) with safety confirmations.
+  - **Cascading Attendee Purge**: Deleting an event registration record automatically cascades across associated `QuizAttempt` and `Participant` rows, ensuring zero ghost attendee data lingers in event leaderboards or mailing audiences.
 
 ### 5.8. Targeted Email Dispatch & Broadcast Subsystem
 - Mass email delivery powered by Nodemailer SMTP transport.
 - Dynamic placeholder replacement engine:
   - `{name}` → Recipient student name
   - `{college}` → Student institution
+  - `{branch}` → Academic department
+  - `{phone}` → Contact phone number
   - `{quiz_title}` → Associated challenge title
   - `{join_code}` → 6-character room PIN
   - `{score}` → Participant test score
+- **Unified Institutional Live Email Preview Engine**:
+  - 1:1 layout match with backend `emailService.js` `renderHtmlWrapper`: deep navy `#0f172a` banner, 3px brand blue `#2563eb` accent rule, pill badge `MICROSOFT STUDENT CLUB • PRPCEM`, elevated CTA action button with drop shadow, and official chapter footer.
+  - **Responsive Dual-Viewport Simulator**: Interactive toggle between **Desktop View (580px)** and **Mobile View (375px phone chassis)** with realistic smartphone framing and scroll containers.
+  - **Smart Greeting Deduplication**: Dynamically inspects custom template content and omits prepending `"Hello {name},"` if the author already provided an opening greeting.
+  - **Audience Cascading Sanitation**: Strict recipient resolution prevents ghost attempt injections and eliminated arbitrary database fallbacks, ensuring mailings strictly mirror active registrations.
 
 ### 5.9. Centralized SSO & OAuth 2.0 / OpenID Connect Provider
 - Authorization code grant flow with cryptographic PKCE verification (`code_challenge` / `code_verifier`).
@@ -344,6 +358,24 @@ The platform features a unified, high-DPI canvas generator ([`qrCardGenerator.js
 ### 5.11. Azure Blob Storage & Asset Management Pipeline
 - Integrates `@azure/storage-blob` for event posters, quiz media banners, and digital badge graphics.
 - Generates cryptographically unique blob filenames with sanitized content-type headers and CORS-enabled Azure CDN endpoints.
+
+### 5.12. Body Portal Modal Architecture & Background Scroll-Lock Subsystem
+- **Root Cause Problem**: In administrative layouts featuring nested scrollable viewports (`<main className="flex-1 overflow-y-auto">`), traditional `fixed inset-0` dialogs cause browsers to reset container `scrollTop` to 0 upon mounting, causing disorienting viewport jumps to the top of the page.
+- **Architectural Solution**:
+  1. **React Body Portals**: All administrative modals across User Directory (`AdminUsers.jsx`), Event Selector (`EventSelector.jsx`), Scheduled Quizzes (`AdminScheduledQuizzes.jsx`), Email Broadcaster (`AdminEmailDispatch.jsx`), and Event Management (`AdminEvents.jsx`) are mounted into `document.body` via `createPortal(..., document.body)` at `z-[10000]`.
+  2. **Active Viewport Centering**: Modals position directly within the administrator's current viewport using `fixed inset-0 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm`.
+  3. **Dual-Layer Scroll Lock**: A coordinated `useEffect` hook simultaneously locks `document.body.style.overflow = 'hidden'` and `<main>.style.overflow = 'hidden'`, intercepting `wheel` and `touchmove` events with propagation barriers.
+  4. **Preserved Table Scroll Coordinates**: Administrative actions (such as verification toggles or detail inspections) trigger silent background updates (`fetchUsers(true)`), preventing DOM destruction and maintaining scroll position.
+
+### 5.13. Public Open-Source Distribution & Automated Sync Sanitization
+- **Repository Separation**:
+  - `mscprpcem/Quiz-platform`: Internal production repository connected to Azure Static Web Apps (Frontend) and Azure App Service (Backend API).
+  - `mscprpcem/Quiz-Platform-MSCPRPCEM`: Public open-source mirror repository shared with students and external community contributors.
+- **Automated Workflow Sanitization Pipeline** ([`.github/workflows/repo-sync.yml`](file:///c:/Quiz-platform/.github/workflows/repo-sync.yml)):
+  1. **Branch Isolation**: The synchronization job checks out `main` and creates an isolated release branch (`public-sync-release`).
+  2. **Workflow Stripping**: Strips `.github/workflows/` (removing Azure deployment pipelines and internal sync triggers) so that the public open-source mirror repository never executes failing CI/CD builds or triggers missing-secret alerts.
+  3. **Graceful Secret Handling**: Checks for `SYNC_PAT`. If not configured, it emits an informative GitHub notice and exits with `exit 0` to preserve green status checks across all commits.
+  4. **Force Mirroring**: Pushes the sanitized release branch to `Quiz-Platform-MSCPRPCEM.git` (`main:main --force`), keeping the open-source community up-to-date with complete application features.
 
 ---
 
@@ -455,12 +487,18 @@ erDiagram
 | **Events** | `/api/events` | GET | Public | Flagship events catalog |
 | **Events** | `/api/events` | POST | Bearer JWT | Create new technical event |
 | **Events** | `/api/events/:id` | PUT/DELETE | Bearer JWT | Update/delete technical event |
+| **Events** | `/api/events/:id/link-quiz` | POST | Bearer JWT | Link live/scheduled quiz to event |
+| **Events** | `/api/events/:id/delink-quiz` | POST | Bearer JWT | Safely delink quiz from event |
 | **Events** | `/api/events/:id/registrations` | GET | Bearer JWT | Attendee PII & contact list |
 | **Events** | `/api/events/upload-poster` | POST | Bearer JWT | Upload image to Azure Blob Storage |
 | **Events** | `/api/events/register` | POST | Public | Attendee event registration |
 | **Email Dispatch** | `/api/admin/email-dispatch/send` | POST | Bearer JWT | Targeted broadcast dispatch |
 | **User Directory** | `/api/admin/users` | GET | Bearer JWT | Paginated student user directory |
-| **User Directory** | `/api/admin/users/:id` | DELETE | Bearer JWT | Single student deletion |
+| **User Directory** | `/api/admin/users/:id` | DELETE | Bearer JWT | Cascading single student deletion |
+| **User Directory** | `/api/admin/users/bulk-delete` | POST | Bearer JWT | Cascading bulk student deletion |
+| **User Directory** | `/api/users-directory/:id/verify` | PATCH | Bearer JWT | Confirmed student verification toggle |
+| **User Directory** | `/api/users-directory/bulk-verify` | POST | Bearer JWT | Bulk student verification / revocation |
+| **User Directory** | `/api/admin/users/seed-samples` | POST | Bearer JWT | Demo student account seeding |
 | **Analytics** | `/api/analytics/public/leaderboard` | GET | Public | Public top-10 leaderboard |
 | **SSO** | `/oauth/userinfo` | GET | Bearer Token | OpenID Connect profile |
 
@@ -469,6 +507,9 @@ erDiagram
 ## 8. Client-Side UX & Performance Engineering
 
 - **Mobile First Responsive Design**: Fluid typography (`clamp()`), safe-area padding for notches, and minimum 44px touch targets.
+- **Body Portal Modal Geometry**: All administrative dialogs rendered via `createPortal(..., document.body)` with `z-[10000]`, backdrop blur, and dual-layer background scroll lock on both `document.body` and `<main>` containers, preventing page jumps and scroll bleed.
+- **100% Solid Opaque Theme Selectors**: `ThemeDropdown.jsx` eliminates background bleed-through with 100% solid white geometry, elevated shadows (`shadow-2xl shadow-slate-900/20`), and active check indicators across both light and dark themes.
+- **Responsive Email Preview Chassis**: Embedded desktop (580px) and smartphone (375px) device viewport switcher for live visual validation of broadcast emails before dispatch.
 - **Top 3 Podium Architecture**: Responsive Gold (#1 on top), Silver (#2), and Bronze (#3) leaderboard layout with particle animations.
 - **High-DPI QR Card Rendering**: Pure HTML5 Canvas pipeline producing crisp 400×650 PNG cards with brand colors and center logo excavation.
 - **Vite Bundle Optimization**: Vendor chunk splitting for React, Socket.io, Lucide icons, SheetJS, and QRCode generators.
@@ -477,11 +518,14 @@ erDiagram
 
 ## 9. Security Architecture & Threat Modeling
 
-- **100% Remediated Scorecard**: All 19 audited vulnerabilities patched and verified.
+- **100% Remediated Scorecard**: All 31 audited vulnerabilities, architectural bottlenecks, and UX bugs patched and verified in `report.md`.
+- **Destructive Action Confirmation Guardrails**: Critical verification revocations and bulk un-verifications protected by explicit modal challenges to prevent accidental loss of verified student access.
+- **Cascading Deletion Hygiene**: Removal of attendees and student accounts cascades across `QuizAttempt`, `Participant`, and `Subscriber` records, preventing ghost data accumulation in email broadcasts.
 - **Strict Authorization**: `authMiddleware` guards all admin-facing endpoints.
 - **Sanitized Payloads**: Plaintext answers stripped from all public endpoints.
 - **Brute-Force Throttling**: 10 requests per 15-minute window on auth and OTP routes.
 - **Cryptographic Security**: Node.js `crypto` used for all OTPs and random join codes.
+- **CI/CD Sync Isolation**: Cross-repository sync strips production deployment workflows, preventing credential leaks and spurious build failures on public mirrors.
 
 ---
 

@@ -7,7 +7,7 @@
 - [`certificate-verification`](file:///C:/certificate-verification) (Credential Wallet & Public Verification Engine)
 - [`mscprpcem-website`](file:///C:/mscprpcem-website) (Official Club Portal & Event Registrations)
 
-**Overall Status**: 🟢 **25 IDENTIFIED VULNERABILITIES, ARCHITECTURAL WEAKNESSES & UX BOTTLENECKS REMEDIATED & VERIFIED**
+**Overall Status**: 🟢 **31 IDENTIFIED VULNERABILITIES, ARCHITECTURAL WEAKNESSES & UX BOTTLENECKS REMEDIATED & VERIFIED**
 
 ---
 
@@ -16,10 +16,10 @@
 | Severity Category | Total Identified | Remediated & Verified | Open Items | Status |
 | :--- | :---: | :---: | :---: | :---: |
 | 🔴 **CRITICAL** (Auth Bypass, Answer Leak, RCE/Crash) | 6 | 6 | 0 | ✅ 100% Remediated |
-| 🟠 **HIGH** (Socket Security, Rate Limits, Data Bleed, Account Creation) | 7 | 7 | 0 | ✅ 100% Remediated |
-| 🟡 **MEDIUM / ARCHITECTURAL** (Mobile Overflow, Encoding, DoS, State Loss) | 9 | 9 | 0 | ✅ 100% Remediated |
-| 🔵 **OPTIMIZATION & UX** (Tag Density, Search Indexing, Non-blocking SMTP) | 3 | 3 | 0 | ✅ 100% Optimized |
-| **Total Items Audited** | **25** | **25** | **0** | ✅ **100% PRODUCTION READY** |
+| 🟠 **HIGH** (Socket Security, Rate Limits, Data Bleed, Account Creation, Cascades, Guardrails) | 9 | 9 | 0 | ✅ 100% Remediated |
+| 🟡 **MEDIUM / ARCHITECTURAL** (Mobile Overflow, Encoding, DoS, State Loss, Portals, Sync Workflows) | 12 | 12 | 0 | ✅ 100% Remediated |
+| 🔵 **OPTIMIZATION & UX** (Tag Density, Search Indexing, Non-blocking SMTP, Opaque Theme System) | 4 | 4 | 0 | ✅ 100% Optimized |
+| **Total Items Audited** | **31** | **31** | **0** | ✅ **100% PRODUCTION READY** |
 
 ---
 
@@ -196,6 +196,35 @@ if (isAllowed) {
 
 ---
 
+### V-27: Accidental Verification Revocation & Lack of Destructive Confirmation Guardrails
+- **Severity**: 🟠 HIGH (Data Integrity & Administrative Safety)
+- **Status**: ✅ **RESOLVED**
+- **Files Modified**: [`frontend/src/pages/AdminUsers.jsx`](file:///c:/Quiz-platform/frontend/src/pages/AdminUsers.jsx), [`backend/src/routes/userDirectory.js`](file:///c:/Quiz-platform/backend/src/routes/userDirectory.js)
+- **Vulnerability**: In the administrative User Directory, clicking the verification toggle on verified student accounts immediately issued `PATCH /api/users-directory/:id/verify` without a confirmation challenge. An accidental click by an administrator would silently strip a student's verification badge, lock them out of verified-only tournaments, and break their public Verification Portal profile. Furthermore, the floating bulk action bar allowed instant bulk un-verification without safety dialogs.
+- **Remediation**:
+  1. Implemented a dedicated confirmation modal (`revokeTarget`) when clicking to unverify any verified account. The modal highlights student credentials, warns of badge and access forfeiture, and requires explicit confirmation before transmitting the PATCH request.
+  2. Created a dedicated bulk revocation confirmation modal (`showBulkRevokeModal`) displaying exact selected counts and security impact warnings before executing batch unverifications.
+  3. Preserved 1-click verification for unverified / pending accounts for rapid administrative onboarding.
+- **Verification**: Verified via UI inspection that clicking verified badges triggers confirmation modals, while pending badges toggle with 1 click.
+
+---
+
+### V-28: Ghost Mail Recipients & Data Inconsistency via Incomplete Deletion Cascades
+- **Severity**: 🟠 HIGH (Data Hygiene & Privacy Breach)
+- **Status**: ✅ **RESOLVED**
+- **Files Modified**: [`backend/src/routes/eventsApi.js`](file:///c:/Quiz-platform/backend/src/routes/eventsApi.js), [`backend/src/routes/userDirectory.js`](file:///c:/Quiz-platform/backend/src/routes/userDirectory.js), [`backend/src/routes/emailDispatch.js`](file:///c:/Quiz-platform/backend/src/routes/emailDispatch.js)
+- **Vulnerability**: Deleting attendee registrations or user accounts left lingering entries across related tables:
+  1. `DELETE /api/events/registrations/:regId` deleted the `EventRegistration` record but left linked `QuizAttempt` and `Participant` rows intact. When administrators navigated to the Email Dispatch hub, the attendee's email was still fetched from attempt records and included in targeted broadcasts.
+  2. Deleting a user in `userDirectory.js` (single or bulk) did not cascade across `EventRegistration`, `QuizAttempt`, `Participant`, and `Subscriber` records.
+  3. `emailDispatch.js` included an arbitrary fallback that fetched 50 random database users whenever attendee lists were empty, blasting unverified students with irrelevant event notifications.
+- **Remediation**:
+  - Implemented cascading cleanup in `eventsApi.js`: Removing an attendee now cascades across `QuizAttempt` and `Participant` records on linked event quizzes.
+  - Implemented comprehensive cascading cleanup in `userDirectory.js`: Deleting user accounts (single or bulk) cascades across `EventRegistration`, `QuizAttempt`, `Participant`, and `Subscriber` records.
+  - Cleaned recipient resolution in `emailDispatch.js`: Eliminated the 50-user arbitrary database fallback and ghost participant injections, ensuring dispatch lists strictly reflect active, verified registrations.
+- **Verification**: Tested attendee deletion; verified email is immediately purged from Email Dispatch recipient counts and subsequent broadcasts.
+
+---
+
 ## 🟡 Medium & Architectural Vulnerabilities (Remediated)
 
 ---
@@ -298,6 +327,47 @@ if (isAllowed) {
 
 ---
 
+### V-26: Viewport Jump & DOM Disruption via Un-Portaled Admin Modals
+- **Severity**: 🟡 MEDIUM / ARCHITECTURAL UX
+- **Status**: ✅ **RESOLVED**
+- **Files Modified**: [`frontend/src/pages/AdminUsers.jsx`](file:///c:/Quiz-platform/frontend/src/pages/AdminUsers.jsx), [`frontend/src/components/EventSelector.jsx`](file:///c:/Quiz-platform/frontend/src/components/EventSelector.jsx), [`frontend/src/pages/AdminScheduledQuizzes.jsx`](file:///c:/Quiz-platform/frontend/src/pages/AdminScheduledQuizzes.jsx), [`frontend/src/pages/AdminEmailDispatch.jsx`](file:///c:/Quiz-platform/frontend/src/pages/AdminEmailDispatch.jsx), [`frontend/src/pages/AdminEvents.jsx`](file:///c:/Quiz-platform/frontend/src/pages/AdminEvents.jsx), [`frontend/src/components/AdminLayout.jsx`](file:///c:/Quiz-platform/frontend/src/components/AdminLayout.jsx)
+- **Vulnerability**: Inside `AdminLayout.jsx`, `<main className="flex-1 overflow-y-auto">` acts as a scrollable container. When traditional `fixed inset-0` modal dialogs mounted inside `<main>`, the browser reset the container's `scrollTop` to 0, causing the page to jump to the top and disorient the administrator. Additionally, mouse wheel and touch scrolling bled through to background table rows, and table data refreshes collapsed row height, losing scroll coordinates.
+- **Remediation**:
+  1. **Body Portal Encapsulation**: Migrated all administrative dialogs across User Directory, Event Manager, Quick Create Event, QR Card viewer, and Email Dispatch confirmation into React portals (`createPortal(..., document.body)`).
+  2. **Active Viewport Centering**: Styled modals with `fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm`, ensuring modals are centered directly in the active viewport regardless of page scroll offset.
+  3. **Dual-Layer Scroll Lock**: Implemented synchronized locking on both `document.body.style.overflow = 'hidden'` and `<main>.style.overflow = 'hidden'`, intercepting `wheel` and `touchmove` events with propagation barriers while any modal is open.
+  4. **Preserved Table Scroll**: Shifted user actions to silent background refreshes (`fetchUsers(true)`), maintaining rendered DOM rows and scroll positions.
+- **Verification**: Tested opening user details, event manage dialogs, and QR codes at various scroll depths; verified 0px viewport shift and rock-solid background scroll lock.
+
+---
+
+### V-29: Institutional Email Live Preview Discrepancy & Desktop/Mobile Viewport Misalignment
+- **Severity**: 🟡 MEDIUM / BRANDING & ACCESSIBILITY
+- **Status**: ✅ **RESOLVED**
+- **Files Modified**: [`frontend/src/pages/AdminEmailDispatch.jsx`](file:///c:/Quiz-platform/frontend/src/pages/AdminEmailDispatch.jsx), [`backend/src/services/emailService.js`](file:///c:/Quiz-platform/backend/src/services/emailService.js)
+- **Vulnerability**: The Live Email Preview in the Email Dispatch broadcaster did not match the official HTML email generated by backend `emailService.js`. Discrepancies included missing brand header banners, unstyled CTA links instead of elevated buttons, lack of mobile viewport simulation, and duplicate `"Hello {name},"` salutations when authors included greetings in custom message bodies.
+- **Remediation**:
+  1. **1:1 Institutional Layout Alignment**: Completely overhauled the preview card to mirror `renderHtmlWrapper`: deep navy `#0f172a` banner with 3px brand blue accent rule, `MICROSOFT STUDENT CLUB • PRPCEM` pill badge, styled CTA button with elevation shadow and fallback URL box, and institutional chapter footer (`mlsc@prpotepatilengg.ac.in`).
+  2. **Responsive Device Viewport Switcher**: Built an interactive toggle supporting **Desktop View (580px)** and **Mobile View (375px phone)** with realistic smartphone device chassis framing.
+  3. **Smart Greeting Deduplication**: Dynamically inspects template text and only prepends `"Hello {name},"` if the body does not already open with `"Hello"` or `"Dear"`.
+  4. **Realistic Envelope Simulation**: Displayed simulated `From`, `To`, and `Subject` header fields for authentic verification before sending.
+- **Verification**: Compared live preview against production HTML test emails across desktop and 375px viewports; verified pixel-accurate consistency.
+
+---
+
+### V-31: Cross-Repository CI/CD Build & Deploy Workflow Leakage to Public Open-Source Mirror
+- **Severity**: 🟡 MEDIUM / CI/CD & REPO ARCHITECTURE
+- **Status**: ✅ **RESOLVED**
+- **Files Modified**: [`.github/workflows/repo-sync.yml`](file:///c:/Quiz-platform/.github/workflows/repo-sync.yml), [`.github/workflows/main_quiz-api-sea.yml`](file:///c:/Quiz-platform/.github/workflows/main_quiz-api-sea.yml)
+- **Vulnerability**: The automated sync workflow (`repo-sync.yml`) mirrored the entire `main` branch to the public open-source repository (`mscprpcem/Quiz-Platform-MSCPRPCEM`), including internal Azure deployment workflows (`azure-static-web-apps-*.yml` and `main_quiz-api-sea.yml`). In the public repository, these workflows triggered on every push and failed due to missing Azure secrets, giving the open-source repository failing build badges. Furthermore, if `SYNC_PAT` was not configured in repository secrets, `repo-sync.yml` crashed with HTTP 403 Forbidden and turned PR checks red.
+- **Remediation**:
+  1. **Workflow Sanitization**: Updated `repo-sync.yml` to create a dedicated release branch (`public-sync-release`), strip all `.github/workflows/` files, and push the clean application codebase to `Quiz-Platform-MSCPRPCEM`.
+  2. **Graceful Status Handling**: Configured `repo-sync.yml` to check for `SYNC_PAT` and exit cleanly with `exit 0` and an informative notice when missing, ensuring repository status checks remain green.
+  3. **Defense-in-Depth Repository Guardrail**: Added `if: github.repository == 'mscprpcem/Quiz-platform'` to the `deploy` job in `main_quiz-api-sea.yml`.
+- **Verification**: Verified via GitHub Actions API that all status checks complete with `success` (`03b9591`) and that the public open-source repository contains clean source code with zero deployment workflow files.
+
+---
+
 ## 🔵 Optimization, UX & Performance Remediations
 
 ---
@@ -325,6 +395,17 @@ if (isAllowed) {
 
 ---
 
+### V-30: Dropdown Bleed-Through & Semi-Transparent Backdrop Glitch across Themes
+- **Severity**: 🔵 UI DESIGN & THEME COMPLIANCE
+- **Status**: ✅ **OPTIMIZED**
+- **Files Modified**: [`frontend/src/components/ThemeDropdown.jsx`](file:///c:/Quiz-platform/frontend/src/components/ThemeDropdown.jsx), [`frontend/src/index.css`](file:///c:/Quiz-platform/frontend/src/index.css)
+- **Bottleneck**: The global theme selector dropdown across public and administrative navigation bars suffered from semi-transparent grey container backdrops. This caused underlying text, table headings, and interactive elements to bleed through, degrading visual polish and readability across both light and dark modes.
+- **Optimization**:
+  - Created a dedicated `ThemeDropdown.jsx` component engineered with a 100% solid white background (`backgroundColor: '#ffffff'`, `opacity: 1`, `z-[70]`, `shadow-2xl shadow-slate-900/20`), completely eliminating underlying text bleed-through.
+  - Standardized theme item styling with active check indicators, hover highlights, and smooth micro-interactions.
+
+---
+
 ## 🛡️ Complete Endpoint Access Control & Protection Matrix
 
 | Endpoint Route | HTTP Method | Access Level | Protection Mechanism | Data / Action Protected |
@@ -341,15 +422,20 @@ if (isAllowed) {
 | `/api/scheduled-quizzes/occurrences/:id` | GET | Public | Stripped (`sanitizeQuizForPublic`) | Questions Sheet (Answers Omitted) |
 | `/api/scheduled-quizzes/:id/notify` | POST | Admin | Bearer JWT | Scheduled Quiz Reminder Dispatch |
 | `/api/admin/users` | GET | Admin | Bearer JWT | Paginated User Directory & Roles |
-| `/api/admin/users/:id` | DELETE | Admin | Bearer JWT | Single Student/User Removal |
-| `/api/admin/users/bulk-delete` | POST | Admin | Bearer JWT | Bulk User Deletion |
+| `/api/admin/users/:id` | DELETE | Admin | Bearer JWT | Cascading Single Student/User Removal |
+| `/api/admin/users/bulk-delete` | POST | Admin | Bearer JWT | Cascading Bulk User Deletion |
+| `/api/users-directory/:id/verify` | PATCH | Admin | Bearer JWT + Guardrail | Toggle Student Verification Status |
+| `/api/users-directory/bulk-verify` | POST | Admin | Bearer JWT + Guardrail | Bulk Toggle Student Verification Status |
+| `/api/admin/users/seed-samples` | POST | Admin | Bearer JWT | Demo Student Seed Generator |
 | `/api/admin/email-dispatch/audiences` | GET | Admin | Bearer JWT | Audience Aggregate Counts |
 | `/api/admin/email-dispatch/send` | POST | Admin | Bearer JWT | Custom Broadcast Email Dispatch |
 | `/api/events` | GET | Public | None (Sanitized) | Event Metadata, Dates & Registration URLs |
 | `/api/events` | POST | Admin | Bearer JWT (Strict) | Create Event |
 | `/api/events/:id` | PUT/DELETE | Admin | Bearer JWT (Strict) | Edit / Delete Event |
+| `/api/events/:id/link-quiz` | POST | Admin | Bearer JWT (Strict) | Link Quiz to Event |
+| `/api/events/:id/delink-quiz` | POST | Admin | Bearer JWT (Strict) | Safely Delink Quiz from Event |
 | `/api/events/:id/registrations` | GET | Admin | Bearer JWT (Strict) | Attendee PII (Phone, Email, College) |
-| `/api/events/registrations/:id` | DELETE | Admin | Bearer JWT (Strict) | Delete Event Registration Record |
+| `/api/events/registrations/:id` | DELETE | Admin | Bearer JWT (Strict) | Cascading Event Registration Removal |
 | `/api/events/upload-poster` | POST | Admin | Bearer JWT + Multer 10MB Limit | Azure Blob Storage Poster Upload |
 | `/api/events/register` | POST | Public | Input Validation + Async Email | Public Attendee Event Registration |
 | `/api/student/register` | POST | Public | `authLimiter` + OTP Verification | Student Account Onboarding |
