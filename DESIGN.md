@@ -84,96 +84,41 @@ The **MSC PRPCEM Quiz & Assessment Platform** is an enterprise-grade testing and
 
 ## 3. Codebase & Module Topology
 
+To maintain clean separation of concerns and ease of maintenance, the platform is architected as a decoupled client-server monorepo. Below is the streamlined repository structure and module responsibility map:
+
 ```
 Quiz-platform/
-├── backend/
-│   ├── src/
-│   │   ├── config/
-│   │   │   └── database.js            # Sequelize database connection & dialect config
-│   │   ├── middleware/
-│   │   │   └── auth.js                # Centralized JWT verification & session guards
-│   │   ├── models/
-│   │   │   ├── Admin.js               # Admin credentials & role flags
-│   │   │   ├── Answer.js              # Live quiz participant answer submissions
-│   │   │   ├── AttemptAnswer.js       # Scheduled quiz candidate answer selections
-│   │   │   ├── AttemptViolation.js    # Scheduled quiz proctoring violation logs
-│   │   │   ├── Event.js               # Flagship event metadata, dates, capacity & fees
-│   │   │   ├── EventRegistration.js   # Student event registrations & participant PII
-│   │   │   ├── Participant.js         # Live quiz participant records & scores
-│   │   │   ├── Question.js            # Question bank (MCQ, Multi-select, Code, Media)
-│   │   │   ├── Quiz.js                # Quiz parent metadata, mode, PIN, timer settings
-│   │   │   ├── QuizAttempt.js         # Scheduled quiz attempt instance & final score
-│   │   │   ├── ScheduledOccurrence.js # Time-window occurrence schedule
-│   │   │   ├── User.js                # Synchronized student accounts & credentials
-│   │   │   ├── Violation.js           # Live quiz proctoring violation events
-│   │   │   └── index.js               # Model relationships & foreign key mappings
-│   │   ├── routes/
-│   │   │   ├── analytics.js           # Quiz metrics, question difficulty, export
-│   │   │   ├── auth.js                # Admin authentication & token verification
-│   │   │   ├── branding.js            # Dynamic chapter themes, club logos, color tokens
-│   │   │   ├── emailDispatch.js       # Targeted mass email broadcasting & templating
-│   │   │   ├── eventsApi.js           # Event lifecycle, attendee registrations, quiz linkage & delinkage
-│   │   │   ├── export.js              # CSV and Excel export generators
-│   │   │   ├── quiz.js                # Synchronized Live Quiz operations
-│   │   │   ├── scheduledQuiz.js       # Asynchronous Scheduled Quiz operations
-│   │   │   ├── sso.js                 # OAuth 2.0 / OpenID Connect Identity Provider
-│   │   │   ├── studentSync.js         # Student authentication, OTPs & certificates
-│   │   │   └── userDirectory.js       # Student directory, verification toggles, bulk actions & sample seeding
-│   │   ├── services/
-│   │   │   ├── azureBlobService.js    # Azure Blob Storage integration for poster uploads
-│   │   │   ├── emailService.js        # Nodemailer SMTP transport & cryptographic OTPs
-│   │   │   └── socket.js              # Socket.io real-time live game & timer engine
-│   │   └── server.js                  # Express app, HTTP server, and Socket.io init
-│   └── package.json
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── AdminLayout.jsx        # Unified administrative sidebar & topbar
-│   │   │   ├── DigitalBadgeCard.jsx   # Credential certificate card with sharing & download
-│   │   │   ├── EventSelector.jsx      # Reusable event attachment dropdown & quick create modal
-│   │   │   ├── Navbar.jsx             # Responsive mobile drawer & student chip
-│   │   │   ├── Footer.jsx             # Legal links & 2-column mobile footer
-│   │   │   ├── QRScanner.jsx          # Camera-based HTML5 QR code reader
-│   │   │   ├── ThemeDropdown.jsx      # 100% opaque theme dropdown selector with elevated shadow
-│   │   │   └── Timer.jsx              # Circular SVG countdown timer
-│   │   ├── context/
-│   │   │   ├── AuthContext.jsx        # Centralized student & admin authentication
-│   │   │   ├── SocketContext.jsx      # Centralized Socket.io client instance
-│   │   │   └── ToastContext.jsx       # Global notification toasts
-│   │   ├── pages/
-│   │   │   ├── AdminDashboard.jsx     # Master admin control center
-│   │   │   ├── AdminEmailDispatch.jsx # Mass email broadcaster interface
-│   │   │   ├── AdminEvents.jsx        # Flagship event CRUD & attendee tables
-│   │   │   ├── AdminScheduledQuizzes.jsx # Scheduled exams manager with quick QR modal
-│   │   │   ├── AdminUsers.jsx         # User directory & role oversight
-│   │   │   ├── CreateScheduledQuiz.jsx# Scheduled quiz creation wizard with live preview
-│   │   │   ├── EventRegister.jsx      # Public event registration page with timer
-│   │   │   ├── Home.jsx               # Landing page with join code entry & catalog
-│   │   │   ├── JoinQuiz.jsx           # Student pin/slug entrance & authentication
-│   │   │   ├── LiveQuiz.jsx           # Real-time contestant gameplay screen
-│   │   │   ├── QuestionManagement.jsx # Question builder (Options, Points, Media)
-│   │   │   ├── QuizManagement.jsx     # Live Quiz catalog & host controls
-│   │   │   ├── Results.jsx            # Live podium & scorecard rankings
-│   │   │   ├── RunQuiz.jsx            # Admin live host control dashboard & lobby QR
-│   │   │   ├── ScheduledQuizDetails.jsx # Scheduled quiz occurrences & candidate results
-│   │   │   ├── ScheduledQuizTake.jsx  # Candidate test-taking proctored environment
-│   │   │   ├── StudentAuth.jsx        # Student portal login & registration
-│   │   │   └── VanityRedirect.jsx     # Short vanity link resolver (/q/:slug)
-│   │   ├── utils/
-│   │   │   ├── dateUtils.js           # IST timezone normalization & date formatting
-│   │   │   ├── pkce.js                # Cryptographic PKCE challenge generator
-│   │   │   └── qrCardGenerator.js     # Unified Branded QR Card Canvas renderer & downloader
-│   │   ├── services/
-│   │   │   └── api.js                 # Axios client with JWT interceptors
-│   │   ├── App.jsx                    # Route switchboard & layout wrappers
-│   │   └── index.css                  # Tailwind CSS, Fluent design tokens & responsive rules
-│   └── package.json
-│
-├── report.md                          # Full security vulnerability audit & remediation scorecard
-├── DESIGN.md                          # This architecture specification document
-└── README.md                          # Project documentation & quickstart guide
+├── backend/                   # Node.js + Express REST API & Socket.io real-time engine
+│   └── src/
+│       ├── config/            # Database connection & Sequelize dialect configuration
+│       ├── middleware/        # JWT authentication guards & rate-limiting middleware
+│       ├── models/            # Relational database schemas (Sequelize ORM)
+│       ├── routes/            # REST API route controllers (Auth, Quizzes, Events, Users)
+│       ├── services/          # Real-time WebSockets, email delivery & Azure Blob storage
+│       └── server.js          # Express app, HTTP server, and Socket.io gateway initialization
+├── frontend/                  # React 18 + Vite Single Page Application (SPA)
+│   └── src/
+│       ├── components/        # Reusable UI elements, body modal portals, & layout chrome
+│       ├── context/           # Centralized React state (Auth, WebSockets, Toasts)
+│       ├── pages/             # Route-level views (Admin dashboards, Live/Scheduled quiz rooms)
+│       ├── services/          # Axios HTTP client configured with JWT interceptors
+│       ├── utils/             # High-DPI QR card generator, date helpers & PKCE crypto
+│       └── App.jsx            # Application routing switchboard and protected routes
+├── report.md                  # Comprehensive security audit & 100% remediation scorecard
+├── DESIGN.md                  # System architecture, workflows, ERD & API specification
+└── README.md                  # Project overview, setup instructions & developer guide
 ```
+
+### Module Responsibilities at a Glance
+
+| Module / Layer | Primary Responsibility | Key Technologies |
+| :--- | :--- | :--- |
+| **`backend/src/models/`** | Defines all relational database entities (Quizzes, Questions, Attempts, Violations, Events, Registrations, Users) and cascade deletion constraints. | Sequelize ORM, PostgreSQL / SQLite |
+| **`backend/src/routes/`** | Exposes REST endpoints for quiz authoring, scheduled exam delivery, attendee management, email dispatch, and student directories. | Express.js, Express Validator |
+| **`backend/src/services/`** | Manages real-time room synchronization, speed-decay scoring, automated OTP email delivery, and Azure Blob asset uploads. | Socket.io, Nodemailer, `@azure/storage-blob` |
+| **`frontend/src/pages/`** | Renders student gameplay rooms, scheduled exam environments with proctoring hooks, and administrative management portals. | React 18, React Router 6, Tailwind CSS |
+| **`frontend/src/components/`**| Houses responsive UI components including body-level modal portals, 100% solid theme dropdowns, and timer animations. | React Portals, Lucide React |
+| **`frontend/src/utils/`** | Generates official MSC-branded 400×650 QR cards with center logo excavation via pure HTML5 Canvas; formats IST timestamps. | HTML5 Canvas API, QRCodeSVG |
 
 ---
 
