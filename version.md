@@ -51,6 +51,10 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 - **100% Solid Opaque Theme Dropdown System**:
   - Replaced semi-transparent and grey-toned theme selector dropdowns with a dedicated `ThemeDropdown.jsx` component.
   - Engineered 100% solid white background (`backgroundColor: '#ffffff'`, `opacity: 1`, `z-[70]`, `shadow-2xl shadow-slate-900/20`), completely eliminating underlying text bleed-through and grey artifacts across all pages.
+- **Public Open-Source Sync Sanitization**:
+  - Configured `repo-sync.yml` to automatically strip production build and deployment workflows (`.github/workflows/`) when synchronizing code to the public open-source repository (`Quiz-Platform-MSCPRPCEM`).
+  - Ensures external community contributors and students receive clean repository code without triggering failing Azure deployments or missing secret alerts.
+  - Added repository guardrails to `deploy` job in `main_quiz-api-sea.yml` as defense-in-depth against accidental remote executions.
 
 ---
 

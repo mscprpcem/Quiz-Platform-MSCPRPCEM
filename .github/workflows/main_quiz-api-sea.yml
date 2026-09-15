@@ -46,6 +46,7 @@ jobs:
           path: backend
 
   deploy:
+    if: github.repository == 'mscprpcem/Quiz-platform'
     runs-on: ubuntu-latest
     needs: build
 

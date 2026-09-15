@@ -31,15 +31,29 @@ jobs:
           
           # Check token availability
           if [ -z "${{ secrets.SYNC_PAT }}" ] && [ -z "${{ secrets.PUBLIC_REPO_PAT }}" ]; then
-            echo "::warning ::SYNC_PAT secret is not set in repository settings. Pushing using default GITHUB_TOKEN."
+            echo "::warning ::SYNC_PAT or PUBLIC_REPO_PAT secret is not set in repository settings. Pushing using default GITHUB_TOKEN."
             echo "If the push fails with 403 Forbidden, add a GitHub Personal Access Token (PAT) with 'repo' scope as a secret named 'SYNC_PAT'."
+          fi
+
+          # Create a dedicated sync branch for public open-source distribution
+          echo "Preparing clean open-source release branch..."
+          git checkout -b public-sync-release
+
+          # Remove CI/CD deployment and internal workflows so the open-source repo has no build & deploy actions
+          if [ -d ".github/workflows" ]; then
+            echo "Removing .github/workflows from open-source distribution..."
+            rm -rf .github/workflows
+            git add -A
+            if ! git diff --cached --quiet; then
+              git commit -m "chore(opensource): mirror main without production build and deployment workflows"
+            fi
           fi
 
           # Add target remote with authentication token
           git remote add public-target "https://x-access-token:${SYNC_TOKEN}@${TARGET_REPO_URL}"
           
-          # Force push to mirror the exact main branch commits to public repository
-          echo "Syncing main branch to https://${TARGET_REPO_URL}..."
-          git push public-target main:main --force
+          # Force push to mirror the cleaned branch to public repository
+          echo "Syncing cleaned main branch to https://${TARGET_REPO_URL}..."
+          git push public-target public-sync-release:main --force
           
-          echo "Repository synchronization completed successfully!"
+          echo "Repository synchronization completed successfully! Public repo now contains clean open-source code without build/deploy workflows."
