@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
@@ -19,6 +20,22 @@ export default function AdminScheduledQuizzes() {
   const [qrModalQuiz, setQrModalQuiz] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [branding, setBranding] = useState(null);
+
+  // Prevent background page scrolling while the QR modal is open
+  useEffect(() => {
+    if (qrModalQuiz) {
+      const originalBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      const mainEl = document.querySelector('main');
+      const prevMainOverflow = mainEl ? mainEl.style.overflow : '';
+      if (mainEl) mainEl.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.overflow = originalBodyOverflow;
+        if (mainEl) mainEl.style.overflow = prevMainOverflow;
+      };
+    }
+  }, [qrModalQuiz]);
 
   const fetchScheduledQuizzes = async () => {
     try {
@@ -373,9 +390,13 @@ export default function AdminScheduledQuizzes() {
       )}
 
       {/* ════════ QUICK QR CODE & BRANDED CARD MODAL ════════ */}
-      {qrModalQuiz && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-100 text-center relative my-auto max-h-[92vh] overflow-y-auto">
+      {qrModalQuiz && createPortal(
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-fade-in"
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-100 text-center relative my-auto max-h-[92vh] overflow-y-auto animate-scale-in">
             <button
               onClick={() => setQrModalQuiz(null)}
               className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
@@ -456,7 +477,8 @@ export default function AdminScheduledQuizzes() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

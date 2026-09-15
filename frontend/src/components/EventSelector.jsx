@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../services/api';
-import { Sparkles, Plus, Search, Check, ChevronDown, Calendar, Globe, MapPin, X, Image } from 'lucide-react';
+import { Sparkles, Plus, Search, Check, ChevronDown, Calendar, Globe, MapPin, X, Image, Unlink } from 'lucide-react';
 
 const POSTER_GALLERY = [
   {
@@ -98,6 +99,22 @@ export default function EventSelector({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Prevent background page scrolling while the create modal is open
+  useEffect(() => {
+    if (showCreateModal) {
+      const originalBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      const mainEl = document.querySelector('main');
+      const prevMainOverflow = mainEl ? mainEl.style.overflow : '';
+      if (mainEl) mainEl.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.overflow = originalBodyOverflow;
+        if (mainEl) mainEl.style.overflow = prevMainOverflow;
+      };
+    }
+  }, [showCreateModal]);
 
   const handleNameChange = (nameVal) => {
     const updated = { ...newEvent, name: nameVal };
@@ -215,18 +232,35 @@ export default function EventSelector({
             />
           </div>
 
-          {/* Quick Create Action */}
-          <button
-            type="button"
-            onClick={() => {
-              setShowCreateModal(true);
-              setIsOpen(false);
-            }}
-            className="flex items-center gap-2 px-3 py-2 text-purple-700 bg-purple-50/80 hover:bg-purple-100/80 rounded-xl font-bold mb-1.5 transition-colors shrink-0 text-xs cursor-pointer"
-          >
-            <Plus size={14} className="text-purple-600" />
-            <span>+ Create New Event</span>
-          </button>
+          {/* Quick Actions */}
+          <div className="flex flex-col gap-1 mb-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setShowCreateModal(true);
+                setIsOpen(false);
+              }}
+              className="flex items-center gap-2 px-3 py-2 text-purple-700 bg-purple-50/80 hover:bg-purple-100/80 rounded-xl font-bold transition-colors text-xs cursor-pointer"
+            >
+              <Plus size={14} className="text-purple-600" />
+              <span>+ Create New Event</span>
+            </button>
+
+            {Boolean(value || selectedEvent) && (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange({ eventId: null, eventName: '' });
+                  setIsOpen(false);
+                  setSearch('');
+                }}
+                className="flex items-center gap-2 px-3 py-2 text-rose-700 bg-rose-50/80 hover:bg-rose-100 rounded-xl font-bold transition-colors text-xs cursor-pointer border border-rose-200/60"
+              >
+                <Unlink size={14} className="text-rose-600" />
+                <span>Delink Event (Standalone Quiz)</span>
+              </button>
+            )}
+          </div>
 
           {/* Events List */}
           <div className="overflow-y-auto space-y-1 flex-1 pr-1">
@@ -283,9 +317,13 @@ export default function EventSelector({
       )}
 
       {/* Quick Create Event Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+      {showCreateModal && createPortal(
+        <div
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-[10000] animate-fade-in"
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
+          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 my-auto max-h-[90vh] overflow-y-auto animate-scale-in">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
@@ -466,7 +504,8 @@ export default function EventSelector({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

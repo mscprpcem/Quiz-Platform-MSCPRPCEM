@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { sequelize, User, Admin, QuizAttempt, EventRegistration } = require('../models');
+const { sequelize, User, Admin, QuizAttempt, EventRegistration, Participant, Subscriber } = require('../models');
 const { Op } = require('sequelize');
 const authMiddleware = require('../middleware/auth');
 
@@ -209,16 +209,41 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const userEmail = user.email;
+    const userEmail = user.email ? user.email.toLowerCase().trim() : null;
     const userName = user.name;
 
-    // Best-effort cleanup of associated attempts
+    // Cascade cleanup across all tables so user's email does not linger in mail sending or registrations
     try {
-      if (QuizAttempt) {
-        await QuizAttempt.destroy({ where: { email: userEmail } }).catch(() => {});
+      if (userEmail) {
+        if (EventRegistration) {
+          await EventRegistration.destroy({
+            where: {
+              [Op.or]: [
+                { email: userEmail },
+                { user_id: user.id }
+              ]
+            }
+          }).catch(() => {});
+        }
+        if (QuizAttempt) {
+          await QuizAttempt.destroy({
+            where: {
+              [Op.or]: [
+                { email: userEmail },
+                { participant_email: userEmail }
+              ]
+            }
+          }).catch(() => {});
+        }
+        if (Participant) {
+          await Participant.destroy({ where: { email: userEmail } }).catch(() => {});
+        }
+        if (Subscriber) {
+          await Subscriber.destroy({ where: { email: userEmail } }).catch(() => {});
+        }
       }
-    } catch (e) {
-      console.warn('Notice: associated attempt cleanup warning:', e.message);
+    } catch (cleanupErr) {
+      console.warn('Notice: associated records cleanup warning on user delete:', cleanupErr.message);
     }
 
     // Delete the user record
@@ -226,7 +251,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 
     return res.json({
       success: true,
-      message: `User ${userName} (${userEmail}) has been deleted successfully.`
+      message: `User ${userName} (${userEmail}) and all associated records have been deleted successfully.`
     });
   } catch (err) {
     console.error('Error deleting user:', err);
@@ -245,16 +270,45 @@ router.post('/bulk-delete', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Please provide an array of user IDs to delete.' });
     }
 
-    // Find users to clean up attempts
+    // Find users to clean up all related records
     const users = await User.findAll({
       where: { id: { [Op.in]: userIds } },
       attributes: ['id', 'email']
     });
 
-    const emails = users.map(u => u.email).filter(Boolean);
+    const emails = users.map(u => u.email ? u.email.toLowerCase().trim() : null).filter(Boolean);
 
-    if (QuizAttempt && emails.length > 0) {
-      await QuizAttempt.destroy({ where: { email: { [Op.in]: emails } } }).catch(() => {});
+    if (emails.length > 0) {
+      try {
+        if (EventRegistration) {
+          await EventRegistration.destroy({
+            where: {
+              [Op.or]: [
+                { email: { [Op.in]: emails } },
+                { user_id: { [Op.in]: userIds } }
+              ]
+            }
+          }).catch(() => {});
+        }
+        if (QuizAttempt) {
+          await QuizAttempt.destroy({
+            where: {
+              [Op.or]: [
+                { email: { [Op.in]: emails } },
+                { participant_email: { [Op.in]: emails } }
+              ]
+            }
+          }).catch(() => {});
+        }
+        if (Participant) {
+          await Participant.destroy({ where: { email: { [Op.in]: emails } } }).catch(() => {});
+        }
+        if (Subscriber) {
+          await Subscriber.destroy({ where: { email: { [Op.in]: emails } } }).catch(() => {});
+        }
+      } catch (cleanupErr) {
+        console.warn('Notice: bulk cleanup warning:', cleanupErr.message);
+      }
     }
 
     const deletedCount = await User.destroy({
@@ -263,12 +317,96 @@ router.post('/bulk-delete', authMiddleware, async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Successfully deleted ${deletedCount} user(s).`,
+      message: `Successfully deleted ${deletedCount} user(s) and cleared associated records.`,
       deletedCount
     });
   } catch (err) {
     console.error('Error bulk deleting users:', err);
     return res.status(500).json({ error: 'Failed to bulk delete users: ' + err.message });
+  }
+});
+
+// ==========================================
+// POST /api/admin/users/seed-samples — Quick seed for demo/testing
+// ==========================================
+router.post('/seed-samples', authMiddleware, async (req, res) => {
+  try {
+    const samples = [
+      {
+        name: 'Aarav Sharma',
+        email: 'aarav.sharma@prpcem.ac.in',
+        username: 'aarav_sharma',
+        college: 'PRPCEM Amravati',
+        role: 'student',
+        is_verified: true,
+        subject_id: 'PRP-2026-CSE-001'
+      },
+      {
+        name: 'Priya Deshmukh',
+        email: 'priya.deshmukh@prpcem.ac.in',
+        username: 'priya_d',
+        college: 'PRPCEM Amravati',
+        role: 'student',
+        is_verified: true,
+        subject_id: 'PRP-2026-CSE-014'
+      },
+      {
+        name: 'Rohan Patil',
+        email: 'rohan.patil@prpcem.ac.in',
+        username: 'rohan_patil',
+        college: 'PRPCEM Amravati',
+        role: 'student',
+        is_verified: false,
+        subject_id: 'PRP-2026-IT-008'
+      },
+      {
+        name: 'Ananya Verma',
+        email: 'ananya.verma@prpcem.ac.in',
+        username: 'ananya_v',
+        college: 'PRPCEM Amravati',
+        role: 'student',
+        is_verified: true,
+        subject_id: 'PRP-2026-AI-023'
+      },
+      {
+        name: 'Siddharth Kulkarni',
+        email: 'siddharth.k@prpcem.ac.in',
+        username: 'sid_kulkarni',
+        college: 'PRPCEM Amravati',
+        role: 'student',
+        is_verified: false,
+        subject_id: 'PRP-2026-EXTC-005'
+      },
+      {
+        name: 'Snehal Wankhede',
+        email: 'snehal.w@prpcem.ac.in',
+        username: 'snehal_w',
+        college: 'PRPCEM Amravati',
+        role: 'student',
+        is_verified: true,
+        subject_id: 'PRP-2026-CSE-042'
+      }
+    ];
+
+    let createdCount = 0;
+    for (const sample of samples) {
+      const exists = await User.findOne({ where: { email: sample.email } });
+      if (!exists) {
+        await User.create(sample);
+        createdCount++;
+      }
+    }
+
+    return res.json({
+      success: true,
+      createdCount,
+      message: createdCount > 0
+        ? `Successfully generated ${createdCount} demo student accounts.`
+        : 'Demo student accounts already exist.'
+    });
+  } catch (err) {
+    console.error('Error seeding demo students:', err);
+    return res.status(500).json({ error: 'Failed to seed sample students: ' + err.message });
   }
 });
 

@@ -158,7 +158,7 @@ export default function Footer() {
             </div>
             <span className="hidden md:inline text-zinc-200">|</span>
             <div className="flex items-center gap-x-3">
-              <span>Version 1.8.1</span>
+              <span>Version 1.8.2</span>
               <span className="text-zinc-200">|</span>
               <span className="text-zinc-500 font-bold">
                 Powered by Azure &amp; <a href="https://neon.com" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 text-zinc-600 transition-colors">Neon Postgres</a>

@@ -282,43 +282,7 @@ router.get('/event-participants', authMiddleware, async (req, res) => {
       }
     }
 
-    // 3. Add students from attempts who might have taken the quiz directly without EventRegistration
-    for (const [cleanEmail, att] of attemptsMap.entries()) {
-      if (!participantsMap.has(cleanEmail)) {
-        const st = (att.status || '').toLowerCase();
-        const isCompleted = st === 'completed' || st === 'finished';
-        participantsMap.set(cleanEmail, {
-          email: cleanEmail,
-          name: att.participant_name || cleanEmail.split('@')[0],
-          college: att.college || 'PRPCEM',
-          source: 'Quiz Assessment',
-          quiz_status: isCompleted ? 'completed' : (st === 'in_progress' ? 'in_progress' : 'not_completed'),
-          status: isCompleted ? 'Completed' : (st === 'in_progress' ? 'In Progress' : 'Registered (Not Attended)'),
-          score: att.score,
-          quiz_title: matchingQuizzes[0]?.title || 'Event Assessment'
-        });
-      }
-    }
-
-    // 4. Fallback: If no direct registrations found yet, check User table
-    if (participantsMap.size === 0) {
-      const users = await User.findAll({ limit: 50, order: [['createdAt', 'DESC']] }).catch(() => []);
-      for (const u of users) {
-        if (u.email && u.email.includes('@')) {
-          const clean = u.email.toLowerCase().trim();
-          participantsMap.set(clean, {
-            email: clean,
-            name: u.name || clean.split('@')[0],
-            college: u.college || 'PRPCEM',
-            source: 'Student Portal User',
-            quiz_status: 'not_completed',
-            status: 'Registered (Not Attended)',
-            quiz_title: matchingQuizzes[0]?.title || 'Event Assessment'
-          });
-        }
-      }
-    }
-
+    // The participants list for an event strictly reflects current active Event Registrations
     const allParticipantsList = Array.from(participantsMap.values());
     const totalCount = allParticipantsList.length;
     const completedCount = allParticipantsList.filter(p => p.quiz_status === 'completed').length;
@@ -839,28 +803,6 @@ router.post('/send', authMiddleware, async (req, res) => {
         }
       }
 
-      // 3. Add direct attempts if any
-      for (const [cleanEmail, att] of attemptsMap.entries()) {
-        if (excludedSet.has(cleanEmail)) continue;
-        if (!targetRecipientsMap.has(cleanEmail)) {
-          const st = (att.status || '').toLowerCase();
-          const isCompleted = st === 'completed' || st === 'finished';
-          const quizStatus = isCompleted ? 'completed' : (st === 'in_progress' ? 'in_progress' : 'not_completed');
-          const isNotAttendedTarget = participantFilter === 'not_attended' || participantFilter === 'not_completed' || participantFilter === 'registered_not_attended';
-
-          if (participantFilter === 'completed' && quizStatus !== 'completed') continue;
-          if (isNotAttendedTarget && quizStatus !== 'not_completed') continue;
-          if (participantFilter === 'in_progress' && quizStatus !== 'in_progress') continue;
-
-          targetRecipientsMap.set(cleanEmail, {
-            email: cleanEmail,
-            name: att.participant_name || cleanEmail.split('@')[0],
-            college: att.college || 'PRPCEM',
-            score: att.score,
-            status: isCompleted ? 'Completed' : (st === 'in_progress' ? 'In Progress' : 'Registered (Not Attended)')
-          });
-        }
-      }
     } else if (audienceType === 'quiz_participants') {
       if (!quizId && !occurrenceId) {
         return res.status(400).json({ error: 'Please select a quiz to dispatch emails.' });

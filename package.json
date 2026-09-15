@@ -1,6 +1,6 @@
 {
   "name": "msc-live-quiz-platform",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Live Quiz Platform for Microsoft Student Club events",
   "scripts": {
     "install-all": "npm install && npm install --prefix backend && npm install --prefix frontend",

@@ -3,12 +3,13 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
+import ThemeDropdown from '../components/ThemeDropdown';
 import {
   Sparkles, Plus, Search, Calendar, MapPin, Globe, Users,
   Trash2, Edit3, ExternalLink, Mail, ArrowRight, ShieldCheck,
   AlertCircle, RefreshCw, X, Radio, BookOpen, Image, Check, Download, FileText,
   Copy, Link as LinkIcon, Upload, CloudUpload, CheckCircle2, Clock, Timer,
-  Lock, Unlock, Tag, AlertTriangle, QrCode
+  Lock, Unlock, Tag, AlertTriangle, QrCode, Unlink
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -100,6 +101,27 @@ export default function AdminEvents() {
   const [qrCopied, setQrCopied] = useState(false);
   const [branding, setBranding] = useState(null);
 
+  // Manage Quizzes Modal & Delink States
+  const [quizModalEvent, setQuizModalEvent] = useState(null);
+  const [quizModalTab, setQuizModalTab] = useState('attached');
+  const [allQuizzes, setAllQuizzes] = useState([]);
+  const [loadingAllQuizzes, setLoadingAllQuizzes] = useState(false);
+  const [quizSearch, setQuizSearch] = useState('');
+  const [delinkingQuizId, setDelinkingQuizId] = useState(null);
+  const [linkingQuizId, setLinkingQuizId] = useState(null);
+
+  // Custom Confirm Dialog State (Replaces native browser window.confirm)
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    description: '',
+    quiz: null,
+    event: null,
+    confirmLabel: 'Confirm',
+    confirmVariant: 'danger',
+    onConfirm: null
+  });
+
   useEffect(() => {
     fetchBrandingConfig().then(b => setBranding(b)).catch(err => console.error(err));
   }, []);
@@ -130,17 +152,25 @@ export default function AdminEvents() {
     setTimeout(() => setQrCopied(false), 2000);
   };
 
-  // Lock body scroll when either modal is open
+  // Lock body and workspace scroll when any modal is open
+  const isAnyModalOpen = Boolean(
+    modalOpen || regsModalOpen || qrModalEvent || quizModalEvent || confirmDialog.isOpen
+  );
+
   useEffect(() => {
-    if (modalOpen || regsModalOpen || qrModalEvent) {
+    if (isAnyModalOpen) {
+      const originalBodyOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      const mainEl = document.querySelector('main');
+      const prevMainOverflow = mainEl ? mainEl.style.overflow : '';
+      if (mainEl) mainEl.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.overflow = originalBodyOverflow;
+        if (mainEl) mainEl.style.overflow = prevMainOverflow;
+      };
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [modalOpen, regsModalOpen, qrModalEvent]);
+  }, [isAnyModalOpen]);
 
   const handlePosterUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -185,16 +215,8 @@ export default function AdminEvents() {
     }
   };
 
-  const handleDeleteRegistration = async (regId) => {
-    if (!window.confirm('Are you sure you want to remove this attendee registration?')) {
-      return;
-    }
-    try {
-      await api.delete(`/api/events/registrations/${regId}`);
-      setRegistrations(prev => prev.filter(r => r.id !== regId));
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to delete registration');
-    }
+  const handleDeleteRegistration = (regId) => {
+    handleDeleteReg(regId, 'Attendee');
   };
 
   const fetchEvents = async () => {
@@ -372,30 +394,189 @@ export default function AdminEvents() {
     toast.success('Registration list downloaded as CSV!', 'Export Complete');
   };
 
-  const handleDeleteEvent = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete event "${name}"? Linked quizzes will remain safe.`)) {
-      return;
-    }
+  const handleDeleteEvent = (id, name) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Event?',
+      description: `Are you sure you want to permanently delete event "${name}"? Linked quizzes will remain safe.`,
+      quiz: null,
+      event: null,
+      isDelink: false,
+      safeNote: 'Linked quizzes, questions, and standalone attempts will remain completely safe and intact.',
+      cancelLabel: 'Cancel',
+      confirmLabel: 'Delete Event',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/events/${id}`);
+          setEvents(prev => prev.filter(e => e.id !== id));
+          toast.success(`Event "${name}" deleted successfully.`);
+        } catch (err) {
+          toast.error(err.response?.data?.error || 'Failed to delete event');
+        }
+      }
+    });
+  };
+
+  const fetchAllQuizzes = async () => {
     try {
-      await api.delete(`/api/events/${id}`);
-      setEvents(prev => prev.filter(e => e.id !== id));
-      toast.success(`Event "${name}" deleted successfully.`);
+      setLoadingAllQuizzes(true);
+      const res = await api.get('/api/quizzes?all=true');
+      if (Array.isArray(res.data)) {
+        setAllQuizzes(res.data);
+      } else if (res.data?.quizzes) {
+        setAllQuizzes(res.data.quizzes);
+      }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to delete event');
+      console.warn('Failed to fetch quizzes list:', err.message);
+    } finally {
+      setLoadingAllQuizzes(false);
     }
   };
 
-  const handleDeleteReg = async (regId, fullName) => {
-    if (!window.confirm(`Are you sure you want to delete the registration for "${fullName || 'this participant'}"?`)) {
-      return;
-    }
+  const openManageQuizzesModal = (ev) => {
+    setQuizModalEvent(ev);
+    setQuizSearch('');
+    setQuizModalTab((ev.quizzes && ev.quizzes.length > 0) ? 'attached' : 'link_new');
+    fetchAllQuizzes();
+  };
+
+  const promptDelinkQuiz = (ev, quiz) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delink Quiz Track?',
+      description: `Are you sure you want to detach "${quiz.title}" from "${ev.name}"?`,
+      quiz: quiz,
+      event: ev,
+      isDelink: true,
+      safeNote: 'The quiz, questions, student attempts, and past scores will remain 100% intact as an independent assessment.',
+      cancelLabel: 'Cancel / Keep Linked',
+      confirmLabel: 'Yes, Delink Quiz',
+      confirmVariant: 'danger',
+      onConfirm: () => executeDelinkQuiz(ev, quiz)
+    });
+  };
+
+  const executeDelinkQuiz = async (ev, quiz) => {
+    if (!ev || !quiz) return;
     try {
-      await api.delete(`/api/events/registrations/${regId}`);
-      setRegistrations(prev => prev.filter(r => r.id !== regId));
-      toast.success('Registration deleted successfully.');
+      setDelinkingQuizId(quiz.id);
+      const res = await api.post(`/api/events/${encodeURIComponent(ev.id)}/delink-quiz`, {
+        quiz_id: quiz.id
+      });
+
+      if (res.data?.success) {
+        toast.success(`Quiz "${quiz.title}" successfully delinked from "${ev.name}".`);
+
+        // Immediately update local events state
+        setEvents(prev => prev.map(e => {
+          if (e.id === ev.id) {
+            const currentQuizzes = e.quizzes || [];
+            const nextQuizzes = currentQuizzes.filter(q => q.id !== quiz.id);
+            return {
+              ...e,
+              quizzes: nextQuizzes,
+              total_quizzes: nextQuizzes.length
+            };
+          }
+          return e;
+        }));
+
+        // Also update quizModalEvent if open
+        setQuizModalEvent(prev => {
+          if (!prev || prev.id !== ev.id) return prev;
+          const nextQuizzes = (prev.quizzes || []).filter(q => q.id !== quiz.id);
+          return {
+            ...prev,
+            quizzes: nextQuizzes,
+            total_quizzes: nextQuizzes.length
+          };
+        });
+
+        fetchAllQuizzes();
+      } else {
+        toast.error(res.data?.error || 'Failed to delink quiz.');
+      }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to delete registration.');
+      console.error('Delink quiz error:', err);
+      toast.error(err.response?.data?.error || err.message || 'Failed to delink quiz.');
+    } finally {
+      setDelinkingQuizId(null);
     }
+  };
+
+  const handleLinkExistingQuiz = async (ev, quizId) => {
+    if (!ev || !quizId) return;
+    try {
+      setLinkingQuizId(quizId);
+      const res = await api.post(`/api/events/${encodeURIComponent(ev.id)}/link-quiz`, {
+        quiz_id: quizId
+      });
+
+      if (res.data?.success) {
+        toast.success(res.data.message || 'Quiz linked to event successfully.');
+
+        const linkedQuizObj = res.data.quiz || allQuizzes.find(q => q.id === quizId) || { id: quizId, title: 'Linked Quiz' };
+
+        // Update events state in UI
+        setEvents(prev => prev.map(e => {
+          if (e.id === ev.id) {
+            const currentQuizzes = e.quizzes || [];
+            const nextQuizzes = [...currentQuizzes, linkedQuizObj];
+            return {
+              ...e,
+              quizzes: nextQuizzes,
+              total_quizzes: nextQuizzes.length
+            };
+          }
+          return e;
+        }));
+
+        // Update quizModalEvent if open
+        setQuizModalEvent(prev => {
+          if (!prev || prev.id !== ev.id) return prev;
+          const nextQuizzes = [...(prev.quizzes || []), linkedQuizObj];
+          return {
+            ...prev,
+            quizzes: nextQuizzes,
+            total_quizzes: nextQuizzes.length
+          };
+        });
+
+        fetchAllQuizzes();
+      } else {
+        toast.error(res.data?.error || 'Failed to link quiz.');
+      }
+    } catch (err) {
+      console.error('Link quiz error:', err);
+      toast.error(err.response?.data?.error || err.message || 'Failed to link quiz.');
+    } finally {
+      setLinkingQuizId(null);
+    }
+  };
+
+  const handleDeleteReg = (regId, fullName) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Registration?',
+      description: `Are you sure you want to delete the registration for "${fullName || 'this participant'}"? This attendee will also be removed from the event mail dispatch list.`,
+      quiz: null,
+      event: null,
+      isDelink: false,
+      safeNote: null,
+      cancelLabel: 'Cancel',
+      confirmLabel: 'Delete Registration',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/events/registrations/${regId}`);
+          setRegistrations(prev => prev.filter(r => r.id !== regId));
+          toast.success('Registration deleted successfully.');
+        } catch (err) {
+          toast.error(err.response?.data?.error || 'Failed to delete registration.');
+        }
+      }
+    });
   };
 
   const handleCopyLink = (slugOrId) => {
@@ -730,15 +911,27 @@ export default function AdminEvents() {
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
-                <BookOpen size={13} className="text-slate-400 shrink-0" />
-                <span>
-                  {ev.total_quizzes > 0 ? (
-                    <span className="text-slate-700 font-bold">{ev.total_quizzes} Quiz Track(s) Attached</span>
-                  ) : (
-                    <span className="text-slate-400 font-medium">Standalone Event (0 Quizzes Attached)</span>
-                  )}
-                </span>
+              {/* Attached Quizzes Information on Card (Clean row, no card clutter) */}
+              <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <BookOpen size={13} className="text-purple-600 shrink-0" />
+                  <span>
+                    {ev.total_quizzes > 0 ? (
+                      <span className="text-slate-800 font-bold">
+                        {ev.total_quizzes} Quiz Track{ev.total_quizzes > 1 ? 's' : ''} Attached
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 font-medium">Standalone Event (0 Quizzes Attached)</span>
+                    )}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openManageQuizzesModal(ev)}
+                  className="text-[11px] font-black text-purple-600 hover:text-purple-800 hover:bg-purple-50 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  {ev.total_quizzes > 0 ? `Manage (${ev.total_quizzes})` : '+ Attach'}
+                </button>
               </div>
             </div>
           </div>
@@ -747,12 +940,12 @@ export default function AdminEvents() {
         {/* Footer Action Buttons */}
         <div className="p-5 pt-0 grid grid-cols-3 gap-2 text-xs font-bold mt-2">
           <button
-            onClick={() => navigate(`/admin/scheduled-quizzes/create?event=${encodeURIComponent(ev.name)}`)}
+            onClick={() => openManageQuizzesModal(ev)}
             className="py-2 px-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
-            title="Attach Quiz Track"
+            title="Manage & Link/Delink Quizzes"
           >
             <Plus size={13} />
-            <span className="truncate">Quiz</span>
+            <span className="truncate">Quiz Track</span>
           </button>
 
           <button
@@ -907,19 +1100,21 @@ export default function AdminEvents() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 mr-2">
                   <span className="text-[11px] font-bold text-slate-400">Show:</span>
-                  <select
+                  <ThemeDropdown
                     value={eventsLimit}
-                    onChange={(e) => {
-                      setEventsLimit(parseInt(e.target.value, 10));
+                    onChange={(val) => {
+                      setEventsLimit(Number(val));
                       setEventsPage(1);
                     }}
-                    className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
-                  >
-                    <option value={9}>9 / page</option>
-                    <option value={18}>18 / page</option>
-                    <option value={27}>27 / page</option>
-                    <option value={0}>All events</option>
-                  </select>
+                    options={[
+                      { value: 9, label: '9 / page' },
+                      { value: 18, label: '18 / page' },
+                      { value: 27, label: '27 / page' },
+                      { value: 0, label: 'All events' }
+                    ]}
+                    size="sm"
+                    buttonClassName="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100/70 border-slate-200"
+                  />
                 </div>
 
                 {eventsLimit > 0 && totalEventsPages > 1 && (
@@ -1009,18 +1204,20 @@ export default function AdminEvents() {
               />
               <div className="flex items-center gap-2 self-end sm:self-auto">
                 <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">Show:</span>
-                <select
+                <ThemeDropdown
                   value={regsLimit}
-                  onChange={(e) => {
-                    setRegsLimit(parseInt(e.target.value, 10));
+                  onChange={(val) => {
+                    setRegsLimit(Number(val));
                     setRegsPage(1);
                   }}
-                  className="px-2.5 py-2 bg-blue-50 text-blue-700 font-bold border border-blue-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
+                  options={[
+                    { value: 10, label: '10' },
+                    { value: 20, label: '20' },
+                    { value: 50, label: '50' }
+                  ]}
+                  size="sm"
+                  buttonClassName="bg-blue-50/70 hover:bg-blue-100/70 text-blue-700 border-blue-200"
+                />
               </div>
             </div>
 
@@ -1534,46 +1731,49 @@ export default function AdminEvents() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">Category</label>
-                  <select
+                  <ThemeDropdown
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-hidden"
-                  >
-                    <option value="Innovation Challenge">Innovation Challenge</option>
-                    <option value="Flagship Event">Flagship Event</option>
-                    <option value="Technical Workshop">Technical Workshop</option>
-                    <option value="Hackathon">Hackathon</option>
-                    <option value="AI / Cloud Skill Fest">AI / Cloud Skill Fest</option>
-                    <option value="Conference">Conference</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, category: val })}
+                    options={[
+                      { value: 'Innovation Challenge', label: 'Innovation Challenge' },
+                      { value: 'Flagship Event', label: 'Flagship Event' },
+                      { value: 'Technical Workshop', label: 'Technical Workshop' },
+                      { value: 'Hackathon', label: 'Hackathon' },
+                      { value: 'AI / Cloud Skill Fest', label: 'AI / Cloud Skill Fest' },
+                      { value: 'Conference', label: 'Conference' }
+                    ]}
+                    className="w-full"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">Mode</label>
-                  <select
+                  <ThemeDropdown
                     value={formData.mode}
-                    onChange={(e) => setFormData({ ...formData, mode: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-hidden"
-                  >
-                    <option value="Hybrid">Hybrid</option>
-                    <option value="Offline">Offline</option>
-                    <option value="Online">Online</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, mode: val })}
+                    options={[
+                      { value: 'Hybrid', label: 'Hybrid', dotColor: 'bg-purple-500' },
+                      { value: 'Offline', label: 'Offline', dotColor: 'bg-emerald-500' },
+                      { value: 'Online', label: 'Online', dotColor: 'bg-blue-500' }
+                    ]}
+                    className="w-full"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">Event Status</label>
-                  <select
+                  <ThemeDropdown
                     value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-hidden"
-                  >
-                    <option value="upcoming">Upcoming</option>
-                    <option value="registration_open">Registration Open</option>
-                    <option value="registration_closed">Registration Closed</option>
-                    <option value="live">Live Now</option>
-                    <option value="completed">Completed / Past</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, status: val })}
+                    options={[
+                      { value: 'upcoming', label: 'Upcoming', dotColor: 'bg-blue-500' },
+                      { value: 'registration_open', label: 'Registration Open', dotColor: 'bg-emerald-500' },
+                      { value: 'registration_closed', label: 'Registration Closed', dotColor: 'bg-rose-500' },
+                      { value: 'live', label: 'Live Now', dotColor: 'bg-amber-500' },
+                      { value: 'completed', label: 'Completed / Past', dotColor: 'bg-slate-400' }
+                    ]}
+                    className="w-full"
+                  />
                 </div>
               </div>
 
@@ -1755,6 +1955,392 @@ export default function AdminEvents() {
                 className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Manage Quizzes Modal */}
+      {quizModalEvent && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto animate-scale-in">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-purple-50/90 via-indigo-50/50 to-white">
+              <div className="flex items-center gap-3 truncate">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-md shrink-0">
+                  <BookOpen size={20} />
+                </div>
+                <div className="truncate">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 truncate">
+                      Manage Quizzes
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200 truncate max-w-[200px]">
+                      {quizModalEvent.name}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Link challenge tracks to this event or safely detach existing quizzes.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setQuizModalEvent(null)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer shrink-0"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Segmented Tab Switcher */}
+            <div className="px-5 pt-4 pb-1">
+              <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/60">
+                <button
+                  type="button"
+                  onClick={() => setQuizModalTab('attached')}
+                  className={`flex-1 py-2 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    quizModalTab === 'attached'
+                      ? 'bg-white text-purple-700 shadow-sm border border-slate-200/60'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <BookOpen size={14} />
+                  <span>Attached Tracks ({quizModalEvent.quizzes?.length || 0})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuizModalTab('link_new')}
+                  className={`flex-1 py-2 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    quizModalTab === 'link_new'
+                      ? 'bg-white text-purple-700 shadow-sm border border-slate-200/60'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Plus size={14} />
+                  <span>Link More Quizzes</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
+              {/* TAB 1: Currently Attached Quizzes */}
+              {quizModalTab === 'attached' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-black text-slate-900 text-xs uppercase tracking-wider">
+                        Active Quizzes for this Event
+                      </h4>
+                      <p className="text-[11px] text-slate-400 font-medium">
+                        These quizzes appear on the official registration page for {quizModalEvent.name}.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const eventName = quizModalEvent.name;
+                        setQuizModalEvent(null);
+                        navigate(`/admin/scheduled-quizzes/create?event=${encodeURIComponent(eventName)}`);
+                      }}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-xl transition-colors cursor-pointer shrink-0"
+                    >
+                      <Plus size={13} />
+                      <span>Create New Quiz</span>
+                    </button>
+                  </div>
+
+                  {(!quizModalEvent.quizzes || quizModalEvent.quizzes.length === 0) ? (
+                    <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl space-y-2">
+                      <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
+                        <BookOpen size={22} />
+                      </div>
+                      <p className="font-bold text-slate-700 text-sm">No Quiz Tracks Attached Yet</p>
+                      <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                        This event is currently a standalone event. You can link any existing platform quiz or create a brand new challenge track.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setQuizModalTab('link_new')}
+                        className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl text-xs transition-colors cursor-pointer shadow-xs"
+                      >
+                        <Plus size={14} />
+                        <span>Link Existing Quiz</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {quizModalEvent.quizzes.map((quiz) => (
+                        <div
+                          key={quiz.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-purple-50/40 hover:bg-purple-50/80 border border-purple-200/80 rounded-2xl transition-all shadow-2xs group"
+                        >
+                          <div className="space-y-1.5 truncate">
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-slate-900 text-sm truncate">
+                                {quiz.title}
+                              </span>
+                              {quiz.mode && (
+                                <span className={`px-2 py-0.5 text-[9px] font-black uppercase rounded-md shadow-2xs ${
+                                  quiz.mode === 'LIVE'
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-purple-600 text-white'
+                                }`}>
+                                  {quiz.mode}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 text-[11px] text-slate-500 font-medium flex-wrap">
+                              {quiz.code && (
+                                <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-slate-200 text-slate-700 font-bold">
+                                  Join Code: {quiz.code}
+                                </span>
+                              )}
+                              {quiz.total_questions !== undefined && (
+                                <span className="text-slate-600 font-bold">{quiz.total_questions} Questions</span>
+                              )}
+                              {quiz.duration_minutes !== undefined && quiz.duration_minutes > 0 && (
+                                <span className="text-slate-600 font-bold">{quiz.duration_minutes} Mins</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Delink Action Inside Modal */}
+                          <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-purple-100">
+                            <button
+                              type="button"
+                              disabled={delinkingQuizId === quiz.id}
+                              onClick={() => promptDelinkQuiz(quizModalEvent, quiz)}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-black text-xs text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 transition-all cursor-pointer shadow-2xs hover:shadow-xs disabled:opacity-50"
+                              title="Delink this quiz from this event"
+                            >
+                              <Unlink size={13} />
+                              <span>Delink Quiz</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 2: Link Existing Quiz */}
+              {quizModalTab === 'link_new' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-black text-slate-900 text-xs uppercase tracking-wider">
+                        Available Platform Quizzes
+                      </h4>
+                      <p className="text-[11px] text-slate-400 font-medium">
+                        Search and attach an existing quiz from the platform to {quizModalEvent.name}.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const eventName = quizModalEvent.name;
+                        setQuizModalEvent(null);
+                        navigate(`/admin/scheduled-quizzes/create?event=${encodeURIComponent(eventName)}`);
+                      }}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-xl transition-colors cursor-pointer shrink-0"
+                    >
+                      <Plus size={13} />
+                      <span>Create New Quiz</span>
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3.5 top-3 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search platform quizzes by title or code..."
+                      value={quizSearch}
+                      onChange={(e) => setQuizSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                    />
+                  </div>
+
+                  <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                    {loadingAllQuizzes ? (
+                      <div className="text-center py-8 text-slate-400 flex items-center justify-center gap-2">
+                        <RefreshCw size={14} className="animate-spin text-purple-600" />
+                        <span>Loading platform quizzes...</span>
+                      </div>
+                    ) : (() => {
+                      const attachedIds = new Set((quizModalEvent.quizzes || []).map(q => q.id));
+                      const unlinkedQuizzes = allQuizzes.filter(q => {
+                        if (attachedIds.has(q.id)) return false;
+                        const qName = (q.event_name || '').toLowerCase().trim();
+                        const evName = (quizModalEvent.name || '').toLowerCase().trim();
+                        if (q.event_id === quizModalEvent.id || (qName && qName === evName)) return false;
+                        if (!quizSearch.trim()) return true;
+                        const s = quizSearch.toLowerCase();
+                        return (q.title || '').toLowerCase().includes(s) ||
+                               (q.join_code || '').toLowerCase().includes(s) ||
+                               (q.custom_slug || '').toLowerCase().includes(s);
+                      });
+
+                      if (unlinkedQuizzes.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-slate-400 font-medium text-[11px] bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                            {quizSearch ? 'No matching available quizzes found.' : 'No other standalone quizzes available to link.'}
+                          </div>
+                        );
+                      }
+
+                      return unlinkedQuizzes.map(q => (
+                        <div
+                          key={q.id}
+                          className="flex items-center justify-between p-3 bg-slate-50/70 hover:bg-white border border-slate-200 rounded-2xl hover:border-purple-300 transition-all shadow-2xs"
+                        >
+                          <div className="truncate mr-3 space-y-0.5">
+                            <div className="font-bold text-slate-900 truncate">{q.title}</div>
+                            <div className="text-[10px] text-slate-400 flex items-center gap-2">
+                              <span className="font-mono font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100">
+                                {q.join_code || q.custom_slug || 'NO CODE'}
+                              </span>
+                              <span>•</span>
+                              <span className="uppercase font-bold">{q.mode || 'LIVE'}</span>
+                              {q.event_name && (
+                                <>
+                                  <span>•</span>
+                                  <span className="truncate max-w-[140px] text-slate-500">Currently: {q.event_name}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={linkingQuizId === q.id}
+                            onClick={() => handleLinkExistingQuiz(quizModalEvent, q.id)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-black text-xs text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                          >
+                            <Plus size={13} />
+                            <span>{linkingQuizId === q.id ? 'Linking...' : 'Link to Event'}</span>
+                          </button>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400 font-medium">
+                {quizModalEvent.quizzes?.length || 0} quiz track(s) currently linked
+              </span>
+              <button
+                type="button"
+                onClick={() => setQuizModalEvent(null)}
+                className="py-2 px-5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-2xs"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Premium Custom Confirmation Modal (Replaces native browser alert) */}
+      {confirmDialog.isOpen && createPortal(
+        <div className="fixed inset-0 z-[10000] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5 my-auto animate-scale-in">
+            {/* Header Icon + Title */}
+            <div className="flex items-start gap-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
+                confirmDialog.confirmVariant === 'danger'
+                  ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                  : 'bg-purple-50 text-purple-600 border border-purple-100'
+              }`}>
+                {confirmDialog.confirmVariant === 'danger' ? (
+                  confirmDialog.isDelink ? (
+                    <Unlink size={22} className="text-rose-600" />
+                  ) : (
+                    <Trash2 size={22} className="text-rose-600" />
+                  )
+                ) : (
+                  <AlertTriangle size={22} className="text-purple-600" />
+                )}
+              </div>
+              <div className="space-y-1 flex-1">
+                <h3 className="text-base font-black text-slate-900 tracking-tight">
+                  {confirmDialog.title}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  {confirmDialog.description}
+                </p>
+              </div>
+            </div>
+
+            {/* Quiz Context Card (if quiz is present) */}
+            {confirmDialog.quiz && (
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-extrabold text-xs text-slate-800 truncate">
+                    {confirmDialog.quiz.title}
+                  </span>
+                  {confirmDialog.quiz.mode && (
+                    <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-md bg-purple-600 text-white shadow-2xs shrink-0">
+                      {confirmDialog.quiz.mode}
+                    </span>
+                  )}
+                </div>
+                {confirmDialog.event && (
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Currently linked to: <strong className="text-purple-700">{confirmDialog.event.name}</strong>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Safe Operation Guarantee Notice (if provided) */}
+            {confirmDialog.safeNote && (
+              <div className="flex items-start gap-2.5 bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3 text-[11px] text-emerald-800">
+                <ShieldCheck size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                <p className="font-medium leading-relaxed">
+                  <strong>Data Safe Guarantee:</strong> {confirmDialog.safeNote}
+                </p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+              >
+                {confirmDialog.cancelLabel || 'Cancel'}
+              </button>
+              <button
+                type="button"
+                disabled={delinkingQuizId !== null}
+                onClick={async () => {
+                  if (confirmDialog.onConfirm) {
+                    await confirmDialog.onConfirm();
+                  }
+                  setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                }}
+                className={`px-5 py-2.5 rounded-xl font-extrabold text-xs text-white shadow-md transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 ${
+                  confirmDialog.confirmVariant === 'danger'
+                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/25'
+                    : 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/25'
+                }`}
+              >
+                {delinkingQuizId ? (
+                  <RefreshCw size={14} className="animate-spin" />
+                ) : confirmDialog.isDelink ? (
+                  <Unlink size={14} />
+                ) : (
+                  <Trash2 size={14} />
+                )}
+                <span>{confirmDialog.confirmLabel || 'Confirm'}</span>
               </button>
             </div>
           </div>

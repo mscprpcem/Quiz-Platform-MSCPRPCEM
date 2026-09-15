@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import {
   Mail, Send, Users, CheckCircle2, AlertTriangle, Loader2, Sparkles,
   Filter, Search, RefreshCw, Eye, Edit3, ArrowRight, X, ExternalLink,
-  BookOpen, Calendar, Radio, Check, Info, Layers, Tag, Award, UserCheck, Folder
+  BookOpen, Calendar, Radio, Check, Info, Layers, Tag, Award, UserCheck, Folder,
+  Monitor, Smartphone
 } from 'lucide-react';
 
 export default function AdminEmailDispatch() {
@@ -53,6 +55,7 @@ export default function AdminEmailDispatch() {
 
   // UI state
   const [activeTab, setActiveTab] = useState('compose'); // 'compose' | 'preview'
+  const [previewDevice, setPreviewDevice] = useState('desktop'); // 'desktop' | 'mobile'
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [dispatching, setDispatching] = useState(false);
   const [dispatchResult, setDispatchResult] = useState(null);
@@ -73,6 +76,22 @@ export default function AdminEmailDispatch() {
   useEffect(() => {
     fetchAudiences();
   }, []);
+
+  // Prevent background page scrolling while confirm modal is open
+  useEffect(() => {
+    if (showConfirmModal) {
+      const originalBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      const mainEl = document.querySelector('main');
+      const prevMainOverflow = mainEl ? mainEl.style.overflow : '';
+      if (mainEl) mainEl.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.overflow = originalBodyOverflow;
+        if (mainEl) mainEl.style.overflow = prevMainOverflow;
+      };
+    }
+  }, [showConfirmModal]);
 
   const fetchAudiences = async () => {
     try {
@@ -425,11 +444,16 @@ export default function AdminEmailDispatch() {
       .replace(/\{student_name\}/gi, sampleRecipient.name || 'Amit Yadav')
       .replace(/\{email\}/gi, sampleRecipient.email || 'student@example.com')
       .replace(/\{college\}/gi, sampleRecipient.college || 'PRPCEM Amravati')
+      .replace(/\{branch\}/gi, sampleRecipient.branch || 'CSE')
+      .replace(/\{phone\}/gi, sampleRecipient.phone || '+91 9876543210')
       .replace(/\{quiz_title\}/gi, selectedQuizInfo?.title || currentEventTitle)
       .replace(/\{event_name\}/gi, currentEventTitle)
       .replace(/\{score\}/gi, sampleRecipient.score != null ? String(sampleRecipient.score) : '85')
       .replace(/\{status\}/gi, sampleRecipient.status || 'Registered');
   };
+
+  const cleanPreviewBody = (messageBody || '').trim();
+  const hasLeadingGreeting = /^(hello|dear|hi|hey|greetings|welcome)\b/i.test(cleanPreviewBody);
 
   return (
     <div className="space-y-6 animate-fade-in text-left pb-12 font-segoe max-w-7xl mx-auto">
@@ -1077,45 +1101,184 @@ export default function AdminEmailDispatch() {
             {/* LIVE PREVIEW TAB */}
             {activeTab === 'preview' && (
               <div className="space-y-4 animate-fade-in">
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-[11px] font-bold text-blue-800 flex items-center justify-between">
-                  <span>Showing dynamic preview for sample student: <strong>{sampleRecipient.name}</strong> ({sampleRecipient.email})</span>
-                  <span className="text-blue-600 font-extrabold">{sampleRecipient.college}</span>
-                </div>
-
-                {/* Rendered Email Template Mock */}
-                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs bg-[#f8fafc]">
-                  <div className="bg-[#0078D4] p-5 text-white flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center font-black text-sm">
-                        MS
+                {/* Header Controls: Sample student info + Device View toggle */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="flex items-center gap-2.5 text-xs">
+                    <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black flex-shrink-0">
+                      {(sampleRecipient.name || 'S').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
+                        <span>Previewing as:</span>
+                        <span className="text-blue-700 font-black">{sampleRecipient.name}</span>
+                        <span className="text-slate-400 font-mono text-[11px]">({sampleRecipient.email})</span>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-black tracking-tight">{renderPreviewText(heading || subject || 'MSC Announcement')}</h4>
-                        <p className="text-[10px] text-white/80 font-medium">Microsoft Student Club PRPCEM</p>
+                      <div className="text-[10px] text-slate-500 font-medium">
+                        Target Institution: <strong className="text-slate-700">{sampleRecipient.college || 'PRPCEM Amravati'}</strong>
+                        {sampleRecipient.score != null && (
+                          <span className="ml-2 text-emerald-700 font-bold">• Score: {sampleRecipient.score}</span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-6 bg-white space-y-4 text-xs text-slate-800 font-sans leading-relaxed">
-                    <div className="border-b border-slate-100 pb-2 text-[11px] text-slate-500">
-                      <strong>Subject:</strong> {renderPreviewText(subject || '(No Subject)')}
-                    </div>
+                  {/* Device Toggle (Desktop / Mobile) */}
+                  <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewDevice('desktop')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        previewDevice === 'desktop'
+                          ? 'bg-blue-600 text-white shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                      }`}
+                      title="Desktop view (580px container)"
+                    >
+                      <Monitor size={13} />
+                      <span className="text-[11px]">Desktop View</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewDevice('mobile')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        previewDevice === 'mobile'
+                          ? 'bg-blue-600 text-white shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                      }`}
+                      title="Mobile view (375px phone container)"
+                    >
+                      <Smartphone size={13} />
+                      <span className="text-[11px]">Mobile View</span>
+                    </button>
+                  </div>
+                </div>
 
-                    <div className="whitespace-pre-line text-slate-700">
-                      {renderPreviewText(messageBody || 'Your email message body will be rendered here with personalized tags.')}
-                    </div>
-
-                    {ctaText && (
-                      <div className="pt-3">
-                        <span className="inline-block px-5 py-2.5 bg-[#0078D4] text-white font-bold rounded-xl text-xs shadow-xs">
-                          {renderPreviewText(ctaText)} ↗
-                        </span>
+                {/* Email Client Simulated Window */}
+                <div className="border border-slate-200 rounded-3xl overflow-hidden shadow-md bg-slate-100/90">
+                  {/* Client Envelope Header */}
+                  <div className="bg-slate-50 border-b border-slate-200 px-4 sm:px-6 py-3 space-y-1.5 text-xs font-sans">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 border-b border-slate-200/60 pb-1.5 flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">From:</span>
+                        <span className="font-bold text-slate-800">Microsoft Student Club • PRPCEM</span>
+                        <span className="text-slate-400 font-mono text-[10px]">&lt;mlsc@prpotepatilengg.ac.in&gt;</span>
                       </div>
-                    )}
+                      <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 font-bold">
+                        Institutional SMTP Verified
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">To:</span>
+                      <span className="font-bold text-slate-700">{sampleRecipient.name}</span>
+                      <span className="text-blue-600 font-mono text-[10px]">&lt;{sampleRecipient.email}&gt;</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs pt-0.5">
+                      <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Subject:</span>
+                      <span className="font-extrabold text-slate-900 truncate">
+                        {renderPreviewText(subject || '(No Subject)')}
+                      </span>
+                    </div>
+                  </div>
 
-                    <div className="pt-4 border-t border-slate-100 text-[10px] text-slate-400 space-y-1">
-                      <p>© 2026 Microsoft Student Club PRPCEM. All rights reserved.</p>
-                      <p>P. R. Pote Patil College of Engineering & Management, Amravati.</p>
+                  {/* Canvas Wrap (100% matches #f1f5f9 institutional email canvas) */}
+                  <div className="p-4 sm:p-8 bg-[#f1f5f9] flex justify-center items-start min-h-[380px]">
+                    {/* Actual Institutional Email Card (Identical to backend renderHtmlWrapper) */}
+                    <div
+                      className={`w-full bg-white rounded-xl border border-slate-200 overflow-hidden shadow-md transition-all duration-300 text-left ${
+                        previewDevice === 'mobile' ? 'max-w-[375px]' : 'max-w-[580px]'
+                      }`}
+                      style={{
+                        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+                      }}
+                    >
+                      {/* Institutional Header Banner (#0f172a navy + 3px blue border) */}
+                      <div
+                        className="text-center p-6 text-white"
+                        style={{
+                          backgroundColor: '#0f172a',
+                          borderBottom: '3px solid #2563eb'
+                        }}
+                      >
+                        <div className="inline-block px-3.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-blue-300 border border-blue-500/40 bg-blue-600/20">
+                          Microsoft Student Club • PRPCEM
+                        </div>
+                        <h1
+                          className="mt-3 text-white font-bold leading-tight tracking-tight break-words"
+                          style={{
+                            fontSize: previewDevice === 'mobile' ? '18px' : '22px'
+                          }}
+                        >
+                          {renderPreviewText(heading || subject || 'MSC PRPCEM Announcement')}
+                        </h1>
+                      </div>
+
+                      {/* Institutional Body Content */}
+                      <div
+                        className="p-6 sm:p-8 text-slate-700 space-y-4"
+                        style={{
+                          fontSize: '15px',
+                          lineHeight: '1.65'
+                        }}
+                      >
+                        {/* Auto-Greeting (matches backend logic: only if not already started with greeting) */}
+                        {!hasLeadingGreeting && (
+                          <p className="text-slate-900 font-medium m-0">
+                            Hello <strong className="text-slate-900 font-bold">{sampleRecipient.name}</strong>,
+                          </p>
+                        )}
+
+                        <div className="whitespace-pre-line text-slate-700 leading-relaxed break-words">
+                          {renderPreviewText(
+                            messageBody ||
+                              'Your email message body will be rendered here with personalized tags.'
+                          )}
+                        </div>
+
+                        {/* Action CTA Button */}
+                        {ctaText && (
+                          <div className="pt-4 pb-2 text-center">
+                            <a
+                              href={ctaUrl ? renderPreviewText(ctaUrl) : '#'}
+                              onClick={(e) => e.preventDefault()}
+                              className="inline-block px-7 py-3 text-white font-bold rounded-lg shadow-md cursor-pointer text-center text-sm"
+                              style={{
+                                backgroundColor: '#2563eb',
+                                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
+                              }}
+                            >
+                              {renderPreviewText(ctaText)} &rarr;
+                            </a>
+                            {ctaUrl && (
+                              <p className="text-xs text-slate-400 text-center mt-2.5 break-all">
+                                Link: <span className="text-blue-600 underline">{renderPreviewText(ctaUrl)}</span>
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Institutional Footer */}
+                      <div
+                        className="p-5 text-center text-xs space-y-1"
+                        style={{
+                          backgroundColor: '#f8fafc',
+                          borderTop: '1px solid #e2e8f0',
+                          color: '#64748b'
+                        }}
+                      >
+                        <p className="font-bold text-slate-900 m-0 text-[13px]">
+                          Microsoft Student Club (MSC)
+                        </p>
+                        <p className="text-slate-500 m-0 text-xs">
+                          P.R. Pote (Patil) College of Engineering &amp; Management, Amravati
+                        </p>
+                        <p className="text-[11px] text-slate-400 m-0 pt-1">
+                          Support:{' '}
+                          <span className="text-blue-600 font-semibold">
+                            mlsc@prpotepatilengg.ac.in
+                          </span>
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1128,9 +1291,13 @@ export default function AdminEmailDispatch() {
       </div>
 
       {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 space-y-5 text-left">
+      {showConfirmModal && createPortal(
+        <div
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-[10000] animate-fade-in"
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 space-y-5 text-left my-auto max-h-[90vh] overflow-y-auto animate-scale-in">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
                 <Send size={20} />
@@ -1175,7 +1342,8 @@ export default function AdminEmailDispatch() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

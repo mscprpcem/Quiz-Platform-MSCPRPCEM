@@ -8,7 +8,8 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 | Version | Release Type | Key Highlights | Status |
 | :--- | :--- | :--- | :--- |
-| **v1.8.1** | **Patch (Current)** | User Directory responsive overhaul, 1-click & bulk verification toggles, profile modal, deferred account creation until OTP verification, admin credential lockdown | **Active Production** |
+| **v1.8.2** | **Patch (Current)** | Viewport-centered portal modals, verification revocation guardrails, event quiz delinking, cascade mail sync, institutional email preview, opaque theme system | **Active Production** |
+| **v1.8.1** | Patch | User Directory responsive overhaul, 1-click & bulk verification toggles, profile modal, deferred account creation until OTP verification, admin credential lockdown | Stable |
 | **v1.8.0** | Minor | Homepage UX streamlining, single info button, collapsed FAQ default, normalized footer styles, version registry | Stable |
 | **v1.7.0** | Minor | Light Theme UI overhaul, responsive FAQ accordion, Top 3 podium styling, scoring rules matrix modal | Stable |
 | **v1.6.0** | Minor | Neon Serverless Postgres integration, Open Source Program guide, universal responsive email engine | Stable |
@@ -23,7 +24,37 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 ## Detailed Changelog
 
-### Version 1.8.1 (Current Release)
+### Version 1.8.2 (Current Release)
+*Theme: Viewport Modal Portals, Revocation Guardrails, Event Quiz Delinking, Cascade Mail Sync & Unified Institutional Email Preview*
+
+- **Viewport Modal Architecture & Background Scroll Lock**:
+  - Migrated all administrative dialogs and modal cards across `AdminUsers.jsx`, `EventSelector.jsx`, `AdminScheduledQuizzes.jsx`, `AdminEmailDispatch.jsx`, and `AdminEvents.jsx` into React body portals (`createPortal(..., document.body)`).
+  - Resolved the critical browser viewport jump bug where opening a modal reset `<main>` container scroll position to `0`, ensuring the modal appears perfectly centered in the administrator's active viewport without page jumps.
+  - Implemented dual-layer background scroll lock (`document.body.style.overflow = 'hidden'` and `main.style.overflow = 'hidden'`) with touch/wheel event propagation barriers, preventing accidental background page scrolling while inspecting modals.
+  - Preserved table scroll position during administrative operations by shifting data refreshes to silent background updates (`fetchUsers(true)`) and restricting table skeleton loaders to initial cold loads.
+- **Verification Revocation Guardrails**:
+  - Implemented dedicated confirmation modals for revoking verified status on student accounts (`AdminUsers.jsx`), preventing accidental un-verification while keeping fast 1-click verification for pending accounts.
+  - Added a multi-user bulk revocation warning modal with item counts and safety confirmations before revoking verification in batches.
+- **Event Quiz Delinking & Card De-cluttering**:
+  - Moved quiz linkage and delinkage controls from direct event card buttons into the dedicated Event Management modal (`AdminEvents.jsx`), drastically reducing visual clutter on event dashboard cards.
+  - Added an interactive Delink Quiz confirmation dialog with warning cues to safely decouple scheduled quizzes from events without accidental data loss.
+  - Redesigned and polished all event action modals (Event Creation, Event Management, Link Quiz, Attendee Registrations) with consistent rounded geometry, typography, and backdrop blur.
+- **Cascading User & Registration Deletion Mail Synchronization**:
+  - Synchronized attendee removals in `eventsApi.js` to cascade-delete associated `QuizAttempt` and `Participant` records on linked quizzes, preventing orphaned participant entries.
+  - Synchronized user deletions in `userDirectory.js` (both single and bulk) to cascade across `EventRegistration`, `QuizAttempt`, `Participant`, and `Subscriber` records.
+  - Cleaned recipient resolution in `emailDispatch.js` by eliminating the 50-user database fallback and ghost participant injections, ensuring dispatch lists strictly reflect active verified registrations.
+- **Unified Institutional Live Email Preview**:
+  - Redesigned the Live Email Preview in `AdminEmailDispatch.jsx` to achieve a 1:1 pixel-accurate match with the backend `emailService.js` institutional HTML template.
+  - Integrated official MSC branding: deep navy header banner (`#0f172a`), 3px brand blue accent rule, `MICROSOFT STUDENT CLUB • PRPCEM` pill badge, styled CTA button with box shadow and fallback URL, and institutional footer.
+  - Added an interactive **Desktop (580px)** vs **Mobile (375px phone)** responsive viewport toggle with device chassis styling.
+  - Implemented smart greeting deduplication (avoids prepending `"Hello {name},"` if already present in custom templates) and added realistic email envelope headers (`From`, `To`, `Subject`).
+- **100% Solid Opaque Theme Dropdown System**:
+  - Replaced semi-transparent and grey-toned theme selector dropdowns with a dedicated `ThemeDropdown.jsx` component.
+  - Engineered 100% solid white background (`backgroundColor: '#ffffff'`, `opacity: 1`, `z-[70]`, `shadow-2xl shadow-slate-900/20`), completely eliminating underlying text bleed-through and grey artifacts across all pages.
+
+---
+
+### Version 1.8.1
 *Theme: User Directory Overhaul, OTP Verification Guardrails & Admin Credential Lockdown*
 
 - **User Directory Layout & Responsive Geometry**:

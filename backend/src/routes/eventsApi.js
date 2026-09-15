@@ -685,10 +685,58 @@ router.delete('/registrations/:regId', adminAuth, async (req, res) => {
       return res.status(404).json({ error: 'Event registration not found.' });
     }
 
+    const regEmail = registration.email ? registration.email.toLowerCase().trim() : null;
+    const regEventId = registration.event_id;
+    const regEventName = registration.event_name;
+
+    // Delete the event registration record
     await registration.destroy();
+
+    // Cascade: Clean up associated quiz attempts & live participants for this event
+    // so the deleted attendee is completely removed from the mail sending section
+    if (regEmail) {
+      try {
+        const orConditions = [];
+        if (regEventId) orConditions.push({ event_id: regEventId });
+        if (regEventName) orConditions.push({ event_name: regEventName });
+
+        if (orConditions.length > 0) {
+          const matchingQuizzes = await Quiz.findAll({
+            where: { [Op.or]: orConditions },
+            attributes: ['id']
+          }).catch(() => []);
+
+          if (matchingQuizzes.length > 0) {
+            const quizIds = matchingQuizzes.map(q => q.id);
+            if (QuizAttempt) {
+              await QuizAttempt.destroy({
+                where: {
+                  quiz_id: { [Op.in]: quizIds },
+                  [Op.or]: [
+                    { participant_email: regEmail },
+                    { email: regEmail }
+                  ]
+                }
+              }).catch(() => {});
+            }
+            if (Participant) {
+              await Participant.destroy({
+                where: {
+                  quiz_id: { [Op.in]: quizIds },
+                  email: regEmail
+                }
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch (cleanupErr) {
+        console.warn('Notice: event attempt cleanup warning during registration delete:', cleanupErr.message);
+      }
+    }
+
     return res.json({
       success: true,
-      message: 'Registration deleted successfully.'
+      message: 'Registration deleted successfully and removed from email audience.'
     });
   } catch (err) {
     console.error('Error deleting registration:', err);
@@ -1010,21 +1058,133 @@ router.delete('/:id', adminAuth, async (req, res) => {
   }
 });
 
+
 // ----------------------------------------------------
-// DELETE /api/events/registrations/:regId (Delete Registration)
+// POST /api/events/:id/delink-quiz (Delink a quiz from this event)
+// DELETE /api/events/:id/quizzes/:quizId (RESTful delink alias)
 // ----------------------------------------------------
-router.delete('/registrations/:regId', adminAuth, async (req, res) => {
+router.post('/:id/delink-quiz', adminAuth, async (req, res) => {
   try {
-    const { regId } = req.params;
-    const reg = await EventRegistration.findByPk(regId);
-    if (!reg) {
-      return res.status(404).json({ error: 'Registration record not found.' });
+    const { id } = req.params;
+    const { quiz_id } = req.body;
+    if (!quiz_id) {
+      return res.status(400).json({ error: 'quiz_id is required to delink quiz.' });
     }
-    await reg.destroy();
-    res.json({ success: true, message: 'Registration deleted successfully.' });
+
+    let event = null;
+    if (isValidUUID(id)) {
+      event = await Event.findByPk(id).catch(() => null);
+    } else {
+      event = await Event.findOne({ where: { slug: id } }).catch(() => null);
+    }
+    if (!event) {
+      event = await Event.findOne({ where: { name: id } }).catch(() => null);
+    }
+
+    const quiz = await Quiz.findByPk(quiz_id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found.' });
+    }
+
+    // Detach quiz safely from event
+    await quiz.update({
+      event_id: null,
+      event_name: quiz.title ? `Standalone: ${quiz.title}` : 'Standalone Assessment'
+    });
+
+    res.json({
+      success: true,
+      message: `Quiz "${quiz.title}" successfully delinked from event.`,
+      quiz_id: quiz.id
+    });
   } catch (err) {
-    console.error('Error deleting registration:', err);
-    res.status(500).json({ error: err.message || 'Failed to delete registration.' });
+    console.error('Error delinking quiz from event:', err);
+    res.status(500).json({ error: err.message || 'Failed to delink quiz from event.' });
+  }
+});
+
+router.delete('/:id/quizzes/:quizId', adminAuth, async (req, res) => {
+  try {
+    const { id, quizId } = req.params;
+    const quiz = await Quiz.findByPk(quizId);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found.' });
+    }
+
+    await quiz.update({
+      event_id: null,
+      event_name: quiz.title ? `Standalone: ${quiz.title}` : 'Standalone Assessment'
+    });
+
+    res.json({
+      success: true,
+      message: `Quiz "${quiz.title}" successfully delinked from event.`,
+      quiz_id: quiz.id
+    });
+  } catch (err) {
+    console.error('Error delinking quiz from event:', err);
+    res.status(500).json({ error: err.message || 'Failed to delink quiz from event.' });
+  }
+});
+
+// ----------------------------------------------------
+// POST /api/events/:id/link-quiz (Link an existing quiz to this event)
+// ----------------------------------------------------
+router.post('/:id/link-quiz', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quiz_id } = req.body;
+    if (!quiz_id) {
+      return res.status(400).json({ error: 'quiz_id is required to link quiz.' });
+    }
+
+    let event = null;
+    if (isValidUUID(id)) {
+      event = await Event.findByPk(id).catch(() => null);
+    } else {
+      event = await Event.findOne({ where: { slug: id } }).catch(() => null);
+    }
+    if (!event) {
+      event = await Event.findOne({ where: { name: id } }).catch(() => null);
+    }
+    if (!event) {
+      const se = staticEvents.find(e => e.id === id || e.slug === id || ((e.name || e.title) && (e.name || e.title).toLowerCase() === id.toLowerCase()));
+      if (se) {
+        event = {
+          id: se.id,
+          name: se.name || se.title,
+          slug: se.slug || se.id
+        };
+      }
+    }
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found.' });
+    }
+
+    const quiz = await Quiz.findByPk(quiz_id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found.' });
+    }
+
+    await quiz.update({
+      event_id: event.id,
+      event_name: event.name
+    });
+
+    res.json({
+      success: true,
+      message: `Quiz "${quiz.title}" linked to "${event.name}" successfully.`,
+      quiz: {
+        id: quiz.id,
+        title: quiz.title,
+        mode: quiz.mode,
+        code: quiz.join_code,
+        is_active: quiz.status === 'in_progress' || quiz.status === 'waiting_lobby'
+      }
+    });
+  } catch (err) {
+    console.error('Error linking quiz to event:', err);
+    res.status(500).json({ error: err.message || 'Failed to link quiz to event.' });
   }
 });
 
