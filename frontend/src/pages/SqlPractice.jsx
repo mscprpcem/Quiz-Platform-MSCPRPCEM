@@ -10,6 +10,7 @@ import {
 import { SQL_CHALLENGES, getStoredCustomChallenges, deleteCustomChallenge } from '../data/sqlChallenges';
 import { executeSqlQuery, validateSqlQuery, getTablesPreview } from '../services/sqlEngine';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 import AdminSqlModal from '../components/AdminSqlModal';
 import ProblemStatementView from '../components/ProblemStatementView';
 
@@ -78,13 +79,23 @@ export default function SqlPractice() {
 
   // Drawer Search & Track Filter State
   const [drawerSearch, setDrawerSearch] = useState('');
-  const [drawerTrack, setDrawerTrack] = useState('all'); // 'all' | 'ddl' | 'dml' | 'solved'
+  const [drawerTrack, setDrawerTrack] = useState('all'); // 'all' | 'filtering' | 'ddl' | 'dml' | 'solved'
+
+  // Dynamic track counts
+  const filteringCount = useMemo(() => allChallenges.filter(c => c.id?.startsWith('filt-') || c.moduleId?.startsWith('filt-')).length, [allChallenges]);
+  const ddlCount = useMemo(() => allChallenges.filter(c => c.id?.startsWith('ddl-') || c.moduleId?.startsWith('ddl-')).length, [allChallenges]);
+  const dmlCount = useMemo(() => allChallenges.filter(c => c.id?.startsWith('dml-') || c.moduleId?.startsWith('dml-')).length, [allChallenges]);
 
   // Filtered challenges for drawer
   const filteredChallenges = useMemo(() => {
     return allChallenges.filter(ch => {
-      if (drawerTrack === 'ddl' && !ch.moduleId?.startsWith('ddl-')) return false;
-      if (drawerTrack === 'dml' && ch.moduleId?.startsWith('ddl-')) return false;
+      const isFilt = ch.id?.startsWith('filt-') || ch.moduleId?.startsWith('filt-');
+      const isDdl = ch.id?.startsWith('ddl-') || ch.moduleId?.startsWith('ddl-');
+      const isDml = ch.id?.startsWith('dml-') || ch.moduleId?.startsWith('dml-');
+
+      if (drawerTrack === 'filtering' && !isFilt) return false;
+      if (drawerTrack === 'ddl' && !isDdl) return false;
+      if (drawerTrack === 'dml' && !isDml) return false;
       if (drawerTrack === 'solved' && !solvedChallenges.includes(ch.id)) return false;
 
       if (drawerSearch.trim()) {
@@ -92,7 +103,8 @@ export default function SqlPractice() {
         const matchTitle = ch.title?.toLowerCase().includes(q);
         const matchModule = ch.moduleTitle?.toLowerCase().includes(q);
         const matchTag = ch.tags?.some(t => t.toLowerCase().includes(q));
-        return matchTitle || matchModule || matchTag;
+        const matchId = ch.id?.toLowerCase().includes(q);
+        return matchTitle || matchModule || matchTag || matchId;
       }
       return true;
     });
@@ -155,6 +167,21 @@ export default function SqlPractice() {
     try {
       const result = await executeSqlQuery(activeChallenge.setupSql, userQuery);
       setQueryResult(result);
+
+      // Record telemetry attempt for Admin reach analytics
+      try {
+        api.post('/api/analytics/practice-attempt', {
+          studentEmail: studentAccount?.email || user?.email || 'student@prpcem.edu',
+          studentName: studentAccount?.name || user?.name || 'Student Learner',
+          studentUsername: studentAccount?.username || studentAccount?.email?.split('@')[0],
+          challengeId: activeChallenge.id,
+          challengeTitle: activeChallenge.title,
+          moduleTitle: activeChallenge.moduleTitle || 'SQL Practice Lab',
+          action: 'run',
+          status: result.success ? 'attempted' : 'failed',
+          executionTimeMs: result.executionTimeMs || 0
+        }).catch(() => {});
+      } catch (_) {}
     } catch (err) {
       setQueryResult({
         success: false,
@@ -189,8 +216,35 @@ export default function SqlPractice() {
           const updated = [...solvedChallenges, activeChallenge.id];
           setSolvedChallenges(updated);
           localStorage.setItem('msc_sql_solved', JSON.stringify(updated));
+
+          // Record course completion eligibility
+          if (studentAccount?.email && updated.length >= 10) {
+            api.post('/api/student/record-course-completion', {
+              email: studentAccount.email,
+              name: studentAccount.name,
+              username: studentAccount.username,
+              courseTitle: 'SQL Mastery & Advanced Relational Database Systems',
+              score: Math.min(100, Math.round((updated.length / allChallenges.length) * 100)),
+              challengesSolved: updated.length
+            }).catch(() => {});
+          }
         }
       }
+
+      // Record submit attempt for Admin reach analytics
+      try {
+        api.post('/api/analytics/practice-attempt', {
+          studentEmail: studentAccount?.email || user?.email || 'student@prpcem.edu',
+          studentName: studentAccount?.name || user?.name || 'Student Learner',
+          studentUsername: studentAccount?.username || studentAccount?.email?.split('@')[0],
+          challengeId: activeChallenge.id,
+          challengeTitle: activeChallenge.title,
+          moduleTitle: activeChallenge.moduleTitle || 'SQL Practice Lab',
+          action: 'submit',
+          status: valRes.passed ? 'passed' : 'failed',
+          executionTimeMs: 0
+        }).catch(() => {});
+      } catch (_) {}
     } catch (err) {
       setValidationResult({
         passed: false,
@@ -1097,6 +1151,16 @@ export default function SqlPractice() {
                   All ({allChallenges.length})
                 </button>
                 <button
+                  onClick={() => setDrawerTrack('filtering')}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    drawerTrack === 'filtering'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-200/80 text-slate-600 hover:bg-slate-300'
+                  }`}
+                >
+                  Filtering ({filteringCount})
+                </button>
+                <button
                   onClick={() => setDrawerTrack('ddl')}
                   className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                     drawerTrack === 'ddl'
@@ -1104,7 +1168,7 @@ export default function SqlPractice() {
                       : isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-200/80 text-slate-600 hover:bg-slate-300'
                   }`}
                 >
-                  DDL (50)
+                  DDL ({ddlCount})
                 </button>
                 <button
                   onClick={() => setDrawerTrack('dml')}
@@ -1114,7 +1178,7 @@ export default function SqlPractice() {
                       : isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-200/80 text-slate-600 hover:bg-slate-300'
                   }`}
                 >
-                  Core (16)
+                  DML ({dmlCount})
                 </button>
                 <button
                   onClick={() => setDrawerTrack('solved')}

@@ -21,7 +21,12 @@ import {
   RefreshCw,
   FileCode,
   Trash2,
-  Clock
+  Clock,
+  Database,
+  CheckCircle2,
+  ExternalLink,
+  Filter,
+  Sparkles
 } from 'lucide-react';
 import './AdminDashboard.css';
 
@@ -60,6 +65,44 @@ export default function AdminDashboard() {
   // Branding config
   const [branding, setBranding] = useState(null);
 
+  // Practice Reach & Certificate Release States
+  const [activeTab, setActiveTab] = useState('quizzes'); // 'quizzes' | 'reach' | 'completions'
+  const [practiceActivity, setPracticeActivity] = useState(null);
+  const [courseCompletions, setCourseCompletions] = useState([]);
+  const [loadingPractice, setLoadingPractice] = useState(false);
+  const [releasingEmail, setReleasingEmail] = useState(null);
+
+  const loadPracticeActivity = async () => {
+    try {
+      setLoadingPractice(true);
+      const [actRes, compRes] = await Promise.all([
+        api.get('/api/analytics/practice-activity').catch(() => ({ data: null })),
+        api.get('/api/student/course-completions').catch(() => ({ data: { completions: [] } }))
+      ]);
+      if (actRes?.data) setPracticeActivity(actRes.data);
+      if (compRes?.data?.completions) setCourseCompletions(compRes.data.completions);
+    } catch (e) {
+      console.warn('Practice activity fetch error:', e);
+    } finally {
+      setLoadingPractice(false);
+    }
+  };
+
+  const handleReleaseCertificate = async (email, courseTitle) => {
+    try {
+      setReleasingEmail(email);
+      const res = await api.post('/api/student/release-certificate', { email, courseTitle });
+      if (res.data?.success) {
+        alert(res.data.message || `Certificate released for ${email}!`);
+        loadPracticeActivity();
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to release certificate.');
+    } finally {
+      setReleasingEmail(null);
+    }
+  };
+
 
 
   // Load quizzes on mount
@@ -94,6 +137,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadQuizzes();
     loadBranding();
+    loadPracticeActivity();
   }, []);
 
   // General sharing helpers for catalog cards in dashboard
@@ -412,8 +456,50 @@ export default function AdminDashboard() {
           </button>
         </div>
 
+        {/* Navigation Tabs for Live Sessions vs Practice Reach vs Course Certificates */}
+        <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-200/90 p-1.5 rounded-2xl shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setActiveTab('quizzes')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center space-x-2 ${
+              activeTab === 'quizzes'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Play size={13} fill="currentColor" />
+            <span>Live & Scheduled Sessions ({quizzes.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('reach')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center space-x-2 ${
+              activeTab === 'reach'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <BarChart2 size={14} />
+            <span>Practice & Lab Reach ({practiceActivity?.uniqueStudents || 0} Learners)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('completions')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center space-x-2 ${
+              activeTab === 'completions'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Award size={14} />
+            <span>Course Certificates ({courseCompletions.length})</span>
+          </button>
+        </div>
+
         {/* Active Live Quiz Alert Banner */}
-        {activeSession && (
+        {activeTab === 'quizzes' && activeSession && (
           <div className="bg-amber-50 border border-amber-250 rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm animate-fade-in relative overflow-hidden">
             <div className="absolute left-0 top-0 h-full w-[4px] bg-amber-500" />
             <div className="flex gap-3">
@@ -437,7 +523,8 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Quiz Catalog Selector Grid */}
+        {/* TAB 1: Quiz Catalog Selector Grid */}
+        {activeTab === 'quizzes' && (
         <div className="bg-white border border-brand-border rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
           <div className="border-b border-brand-border pb-4">
             <h2 className="text-base font-black text-brand-textMain uppercase tracking-widest">Select Quiz Session</h2>
@@ -568,7 +655,300 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
-      </div>
+        )}
+
+        {/* TAB 2: PRACTICE & LAB REACH ANALYTICS */}
+        {activeTab === 'reach' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Header with Refresh */}
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-2xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-black">
+                    <BarChart2 size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight">Practice & Lab Reach Analytics</h2>
+                    <p className="text-xs text-slate-500 font-medium">Real-time telemetry tracking which students are attempting questions and overall platform reach.</p>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={loadPracticeActivity}
+                disabled={loadingPractice}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                <RefreshCw size={13} className={loadingPractice ? 'animate-spin text-blue-600' : ''} />
+                <span>{loadingPractice ? 'Refreshing...' : 'Refresh Activity'}</span>
+              </button>
+            </div>
+
+            {/* 3 KPI Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                  <span>Unique Learners Reached</span>
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <Users size={16} />
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-slate-900">
+                  {practiceActivity?.uniqueStudents || 0}
+                </div>
+                <p className="text-[11.5px] text-slate-500 font-medium">Distinct verified students solving questions</p>
+              </div>
+
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                  <span>Total Question Submissions</span>
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                    <Database size={16} />
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-slate-900">
+                  {practiceActivity?.totalAttempts || 0}
+                </div>
+                <p className="text-[11.5px] text-slate-500 font-medium">Interactive queries evaluated & tested</p>
+              </div>
+
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                  <span>Challenges Passed</span>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <CheckCircle2 size={16} />
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-emerald-600">
+                  {practiceActivity?.totalSolved || 0}
+                </div>
+                <p className="text-[11.5px] text-slate-500 font-medium">Successful testcase completions</p>
+              </div>
+            </div>
+
+            {/* Module Breakdown */}
+            {practiceActivity?.moduleBreakdown && practiceActivity.moduleBreakdown.length > 0 && (
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3">
+                <h3 className="text-xs font-black uppercase text-slate-500 tracking-wider">Reach by Module & Topic</h3>
+                <div className="flex flex-wrap gap-2">
+                  {practiceActivity.moduleBreakdown.map((item, idx) => (
+                    <div key={idx} className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                      <span className="font-bold text-slate-800">{item.name}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-mono font-black text-[11px]">
+                        {item.count} attempts
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Live Attempts Feed Table */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Live Learner Attempts Stream</h3>
+                  <p className="text-xs text-slate-500 font-medium">Real-time log of questions attempted across SQL Practice & Lab</p>
+                </div>
+                <span className="text-xs font-mono font-bold text-slate-400">
+                  Showing latest {practiceActivity?.recentAttempts?.length || 0} events
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200 text-left text-xs font-sans">
+                  <thead className="bg-slate-50/80 font-black text-slate-500 uppercase tracking-wider text-[11px]">
+                    <tr>
+                      <th className="px-4 py-3">Learner</th>
+                      <th className="px-4 py-3">Email</th>
+                      <th className="px-4 py-3">Challenge / Question</th>
+                      <th className="px-4 py-3">Module</th>
+                      <th className="px-4 py-3">Action</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3 text-right">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {(!practiceActivity?.recentAttempts || practiceActivity.recentAttempts.length === 0) ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center text-slate-400 text-xs">
+                          No student practice attempts logged yet. As students practice in the SQL lab, their activity will stream here in real time.
+                        </td>
+                      </tr>
+                    ) : (
+                      practiceActivity.recentAttempts.map((att) => (
+                        <tr key={att.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="px-4 py-3 font-bold text-slate-900">
+                            <div className="flex items-center space-x-1.5">
+                              <span>{att.studentName}</span>
+                              {att.studentUsername && (
+                                <a
+                                  href={`https://verify.mscprpcem.tech/u/${encodeURIComponent(att.studentUsername)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-blue-600 font-mono hover:underline"
+                                  title="View on Verification Portal"
+                                >
+                                  @{att.studentUsername}
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 font-mono text-[11px]">{att.studentEmail}</td>
+                          <td className="px-4 py-3 font-bold text-slate-800">
+                            <div className="flex items-center space-x-1.5">
+                              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">
+                                {att.challengeId}
+                              </span>
+                              <span className="truncate max-w-[220px]">{att.challengeTitle}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 text-[11px]">{att.moduleTitle}</td>
+                          <td className="px-4 py-3 uppercase text-[10px] font-black text-slate-600">{att.action}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2.5 py-1 rounded-full text-[10.5px] font-black uppercase ${
+                              att.status === 'passed'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : att.status === 'failed'
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            }`}>
+                              {att.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-400 font-mono text-[11px]">
+                            {new Date(att.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: COURSE COMPLETION & CERTIFICATES RELEASE */}
+        {activeTab === 'completions' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Header */}
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-2xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-black">
+                    <Award size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight">Course Completion & Certificate Release</h2>
+                    <p className="text-xs text-slate-500 font-medium">Verify students who finished curriculum milestones and release verifiable certificates to the Verification Portal.</p>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={loadPracticeActivity}
+                disabled={loadingPractice}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                <RefreshCw size={13} className={loadingPractice ? 'animate-spin text-emerald-600' : ''} />
+                <span>Refresh Completions</span>
+              </button>
+            </div>
+
+            {/* Completions Table */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Eligible & Completed Students</h3>
+                  <p className="text-xs text-slate-500 font-medium">Release digital certificates for completed learners</p>
+                </div>
+                <span className="text-xs font-mono font-bold text-slate-400">
+                  Total {courseCompletions.length} records
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200 text-left text-xs font-sans">
+                  <thead className="bg-slate-50/80 font-black text-slate-500 uppercase tracking-wider text-[11px]">
+                    <tr>
+                      <th className="px-4 py-3">Student Name</th>
+                      <th className="px-4 py-3">Email</th>
+                      <th className="px-4 py-3">Course</th>
+                      <th className="px-4 py-3">Solved / Score</th>
+                      <th className="px-4 py-3">Completed Date</th>
+                      <th className="px-4 py-3">Certificate Status</th>
+                      <th className="px-4 py-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {courseCompletions.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center text-slate-400 text-xs">
+                          No course completion records registered yet. When students complete curriculum challenges and lessons, they will appear here for certificate release.
+                        </td>
+                      </tr>
+                    ) : (
+                      courseCompletions.map((comp) => (
+                        <tr key={comp.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="px-4 py-3 font-bold text-slate-900">
+                            <div>{comp.name}</div>
+                            {comp.username && (
+                              <span className="text-[10px] text-blue-600 font-mono">@{comp.username}</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-slate-600 text-[11px]">{comp.email}</td>
+                          <td className="px-4 py-3 font-bold text-slate-800">{comp.courseTitle}</td>
+                          <td className="px-4 py-3 font-mono font-bold text-blue-700">
+                            {comp.challengesSolved ? `${comp.challengesSolved} Solved` : `${comp.score}%`}
+                          </td>
+                          <td className="px-4 py-3 text-slate-400 font-mono text-[11px]">
+                            {new Date(comp.completedAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3">
+                            {comp.certificateStatus === 'released' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 text-[11px]">
+                                <ShieldCheck size={13} />
+                                <span>Released ({comp.certificateId})</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-bold border border-amber-200 text-[11px]">
+                                <Clock size={13} />
+                                <span>Release Pending</span>
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {comp.certificateStatus === 'released' ? (
+                              <a
+                                href={comp.verificationUrl || `https://verify.mscprpcem.tech/verify/${comp.certificateId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs transition-colors"
+                              >
+                                <span>Verify</span>
+                                <ExternalLink size={11} />
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleReleaseCertificate(comp.email, comp.courseTitle)}
+                                disabled={releasingEmail === comp.email}
+                                className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                              >
+                                {releasingEmail === comp.email ? 'Releasing...' : 'Release Certificate'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* FULLSCREEN QR CODE / SHARE MODAL (DASHBOARD CATALOG) */}
       {qrQuiz && showCatalogQRModal && (
@@ -700,7 +1080,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-
+      </div>
     </div>
   );
 }

@@ -50,6 +50,7 @@ import SqlPractice from './pages/SqlPractice';
 import SqlCourseHub from './pages/SqlCourseHub';
 import LeaderboardPreview from './pages/LeaderboardPreview';
 import NotFound from './pages/NotFound';
+import RequireAuth from './components/RequireAuth';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -141,17 +142,18 @@ export default function App() {
                 <Route path="/tournament-standings" element={<Navigate to="/" replace />} />
                 <Route path="/standings" element={<Navigate to="/" replace />} />
                 <Route path="/leaderboard-preview" element={<LeaderboardPreview />} />
-                <Route path="/courses/sql" element={<SqlCourseHub />} />
-                <Route path="/courses/sql/:tab" element={<SqlCourseHub />} />
-                <Route path="/sql" element={<SqlCourseHub />} />
-                <Route path="/sql/learn" element={<SqlCourseHub />} />
-                <Route path="/sql/:tab" element={<SqlCourseHub />} />
-                <Route path="/practice/sql" element={<SqlCourseHub />} />
-                <Route path="/practice/sql/lab" element={<SqlPractice />} />
-                <Route path="/practice/sql/:challengeId" element={<SqlPractice />} />
-                <Route path="/practice" element={<PracticeQuiz />} />
-                <Route path="/practice/:category" element={<PracticeQuiz />} />
-                <Route path="/courses" element={<Courses />} />
+                {/* Protected Learn, Practice & Lab Routes (Requires Login) */}
+                <Route path="/courses/sql" element={<RequireAuth><SqlCourseHub /></RequireAuth>} />
+                <Route path="/courses/sql/:tab" element={<RequireAuth><SqlCourseHub /></RequireAuth>} />
+                <Route path="/sql" element={<RequireAuth><SqlCourseHub /></RequireAuth>} />
+                <Route path="/sql/learn" element={<RequireAuth><SqlCourseHub /></RequireAuth>} />
+                <Route path="/sql/:tab" element={<RequireAuth><SqlCourseHub /></RequireAuth>} />
+                <Route path="/practice/sql" element={<RequireAuth><SqlCourseHub /></RequireAuth>} />
+                <Route path="/practice/sql/lab" element={<RequireAuth><SqlPractice /></RequireAuth>} />
+                <Route path="/practice/sql/:challengeId" element={<RequireAuth><SqlPractice /></RequireAuth>} />
+                <Route path="/practice" element={<RequireAuth><PracticeQuiz /></RequireAuth>} />
+                <Route path="/practice/:category" element={<RequireAuth><PracticeQuiz /></RequireAuth>} />
+                <Route path="/courses" element={<RequireAuth><Courses /></RequireAuth>} />
                 <Route path="/scheduled-quiz/:occurrenceId" element={<ScheduledQuizTake />} />
                 <Route path="/q/:slug" element={<ScheduledQuizTake />} />
                 <Route path="/quiz/:slug" element={<ScheduledQuizTake />} />

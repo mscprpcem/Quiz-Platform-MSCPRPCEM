@@ -1202,6 +1202,116 @@ router.post('/public/cumulative-leaderboard', (req, res) => {
 router.post('/admin/cumulative-leaderboard', authMiddleware, handleCumulativeLeaderboard);
 router.get('/admin/cumulative-leaderboard', authMiddleware, handleCumulativeLeaderboard);
 
+// =========================================================================
+// Practice Lab Telemetry & Learner Reach Analytics
+// =========================================================================
+const fs = require('fs');
+const path = require('path');
+const ATTEMPTS_FILE = path.join(__dirname, '../data/practice_attempts.json');
+
+function loadPracticeAttempts() {
+  try {
+    if (!fs.existsSync(ATTEMPTS_FILE)) return [];
+    const raw = fs.readFileSync(ATTEMPTS_FILE, 'utf8');
+    return raw ? JSON.parse(raw) : [];
+  } catch (err) {
+    console.error('Error loading practice attempts:', err);
+    return [];
+  }
+}
+
+function savePracticeAttempts(attempts) {
+  try {
+    fs.writeFileSync(ATTEMPTS_FILE, JSON.stringify(attempts.slice(-5000), null, 2), 'utf8');
+  } catch (err) {
+    console.error('Error saving practice attempts:', err);
+  }
+}
+
+// Telemetry: Record student question attempt / solve
+router.post('/practice-attempt', (req, res) => {
+  try {
+    const {
+      studentEmail,
+      studentName,
+      studentUsername,
+      challengeId,
+      challengeTitle,
+      moduleTitle,
+      action,
+      status,
+      executionTimeMs
+    } = req.body;
+
+    if (!challengeId) {
+      return res.status(400).json({ error: 'challengeId is required' });
+    }
+
+    const cleanEmail = studentEmail ? studentEmail.toLowerCase().trim() : 'anonymous@guest.local';
+    const cleanName = studentName ? studentName.trim() : (studentUsername || cleanEmail.split('@')[0]);
+
+    const attemptRecord = {
+      id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      studentEmail: cleanEmail,
+      studentName: cleanName,
+      studentUsername: studentUsername || cleanEmail.split('@')[0],
+      challengeId,
+      challengeTitle: challengeTitle || challengeId,
+      moduleTitle: moduleTitle || 'SQL Practice',
+      action: action || 'run',
+      status: status || 'attempted',
+      executionTimeMs: Number(executionTimeMs) || 0,
+      timestamp: new Date().toISOString()
+    };
+
+    const attempts = loadPracticeAttempts();
+    attempts.push(attemptRecord);
+    savePracticeAttempts(attempts);
+
+    return res.json({ success: true, record: attemptRecord });
+  } catch (error) {
+    console.error('Failed to log practice attempt:', error);
+    return res.status(500).json({ error: 'Failed to record attempt' });
+  }
+});
+
+// Analytics: Learner reach and live activity feed
+router.get('/practice-activity', (req, res) => {
+  try {
+    const attempts = loadPracticeAttempts();
+
+    const uniqueStudentEmails = new Set();
+    const moduleMap = {};
+    let totalSolved = 0;
+
+    for (const a of attempts) {
+      if (a.studentEmail && !a.studentEmail.includes('anonymous')) {
+        uniqueStudentEmails.add(a.studentEmail);
+      }
+      const mod = a.moduleTitle || 'General';
+      moduleMap[mod] = (moduleMap[mod] || 0) + 1;
+      if (a.status === 'passed') totalSolved++;
+    }
+
+    const moduleBreakdown = Object.entries(moduleMap).map(([name, count]) => ({
+      name,
+      count
+    })).sort((a, b) => b.count - a.count);
+
+    return res.json({
+      success: true,
+      totalAttempts: attempts.length,
+      uniqueStudents: uniqueStudentEmails.size,
+      totalSolved,
+      moduleBreakdown,
+      recentAttempts: attempts.slice(-100).reverse()
+    });
+  } catch (error) {
+    console.error('Failed to fetch practice reach activity:', error);
+    return res.status(500).json({ error: 'Failed to load practice activity' });
+  }
+});
+
 module.exports = router;
 
 

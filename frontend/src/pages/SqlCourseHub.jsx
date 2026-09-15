@@ -213,9 +213,80 @@ export default function SqlCourseHub() {
   const activeChallenge = SQL_CHALLENGES[selectedChallengeIndex] || SQL_CHALLENGES[0];
   const activeInterviewProblem = SQL_INTERVIEW_PROBLEMS[selectedInterviewIndex] || SQL_INTERVIEW_PROBLEMS[0];
 
+const FILTERING_MODULE_QUIZ = [
+  {
+    question: "In SQL, what does the '%' wildcard match when using the LIKE operator?",
+    options: [
+      "Strictly one single character.",
+      "Zero, one, or multiple characters of any type.",
+      "Only numeric digits 0 through 9.",
+      "Only uppercase characters."
+    ],
+    correctAnswer: "B",
+    type: "Single Choice",
+    explanation: "The '%' (percent) wildcard represents 0 or more arbitrary characters, whereas '_' represents strictly one single character."
+  },
+  {
+    question: "Which pattern matches all employee names terminating with the letter 'a'?",
+    options: ["'a%'", "'%a'", "'_a'", "'%a%'"],
+    correctAnswer: "B",
+    type: "Pattern Matching",
+    explanation: "'%a' matches any string of characters ending strictly with 'a' (e.g. 'Priya', 'Neha', 'Ananya')."
+  },
+  {
+    question: "Is the SQL BETWEEN operator inclusive or exclusive of its boundary values?",
+    options: [
+      "Exclusive of both minimum and maximum values.",
+      "Inclusive of minimum, but exclusive of maximum.",
+      "Inclusive of both minimum and maximum boundary values.",
+      "Depends on whether collation is case-sensitive."
+    ],
+    correctAnswer: "C",
+    type: "Range Boundaries",
+    explanation: "In SQL, 'BETWEEN 40000 AND 60000' is mathematically inclusive of both limits: >= 40000 AND <= 60000."
+  },
+  {
+    question: "Why does the query 'SELECT * FROM employees WHERE city = NULL;' fail to return rows?",
+    options: [
+      "Because NULL comparison using '=' evaluates to UNKNOWN under Three-Valued Logic; you must use 'IS NULL'.",
+      "Because NULL can only be used on primary key columns.",
+      "Because NULL is converted to empty string '' automatically.",
+      "Because the query optimizer rejects NULL comparisons as syntax errors."
+    ],
+    correctAnswer: "A",
+    type: "Three-Valued Logic",
+    explanation: "Under ANSI SQL Three-Valued Logic, any equality check with NULL returns UNKNOWN. The WHERE clause only admits rows evaluating to TRUE."
+  },
+  {
+    question: "Which query correctly finds employees whose name has 'a' as its exact second character?",
+    options: [
+      "SELECT * FROM employees WHERE name LIKE '%a%';",
+      "SELECT * FROM employees WHERE name LIKE '_a%';",
+      "SELECT * FROM employees WHERE name LIKE '__a%';",
+      "SELECT * FROM employees WHERE name LIKE 'a_%';"
+    ],
+    correctAnswer: "B",
+    type: "Wildcards",
+    explanation: "'_a%' specifies precisely one character before 'a', followed by any remainder."
+  },
+  {
+    question: "Why is 'WHERE (salary BETWEEN 40000 AND 70000) OR (salary IS NULL)' faster on large indexed tables than 'WHERE COALESCE(salary, 50000) BETWEEN 40000 AND 70000'?",
+    options: [
+      "Because COALESCE is deprecated in SQL.",
+      "Because wrapping 'salary' in a scalar function blinds B+ Tree indexes, ruining sargability and causing full table scans.",
+      "Because BETWEEN does not accept function outputs.",
+      "Because IS NULL evaluates at compile time."
+    ],
+    correctAnswer: "B",
+    type: "FAANG Sargability",
+    explanation: "Wrapping indexed columns in scalar runtime functions prevents the database optimizer from performing index range scans."
+  }
+];
+
   const currentQuizQuestions = useMemo(() => {
     const mod = SQL_MODULES.find(m => m.id === quizActiveModuleId) || SQL_MODULES[0];
-    return mod?.questions || [];
+    if (mod?.questions && mod.questions.length > 0) return mod.questions;
+    return FILTERING_MODULE_QUIZ;
   }, [quizActiveModuleId]);
 
   // Filtered Modules for Learn Mode

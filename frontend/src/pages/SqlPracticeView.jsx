@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { SQL_CHALLENGES } from '../data/sqlChallenges';
 import { executeSqlQuery, validateChallengeWithTestcases, getTablesPreview } from '../services/sqlEngine';
+import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * Clean & Short Category Name Helper
@@ -467,6 +469,7 @@ export default function SqlPracticeView({
   onJumpToLearn,
   initialChallengeIndex = null
 }) {
+  const { studentAccount, user } = useAuth();
   // View mode: 'list' (LeetCode Problemset with Progress Card) | 'solve' (Solve Workspace)
   const [viewMode, setViewMode] = useState(() => {
     try {
@@ -527,6 +530,9 @@ export default function SqlPracticeView({
           } else if (targetId.toLowerCase().startsWith('ddl-')) {
             setDrawerTrack('ddl');
             setDrawerTrackFilter('eq_ddl');
+          } else if (targetId.toLowerCase().startsWith('filt-')) {
+            setDrawerTrack('filtering');
+            setDrawerTrackFilter('eq_filtering');
           }
           return;
         }
@@ -746,6 +752,21 @@ export default function SqlPracticeView({
       } else {
         setRawExpectedResult(null);
       }
+
+      // Record telemetry attempt for Admin reach analytics
+      try {
+        api.post('/api/analytics/practice-attempt', {
+          studentEmail: studentAccount?.email || user?.email || 'student@prpcem.edu',
+          studentName: studentAccount?.name || user?.name || 'Student Learner',
+          studentUsername: studentAccount?.username || studentAccount?.email?.split('@')[0],
+          challengeId: activeChallenge.id,
+          challengeTitle: activeChallenge.title,
+          moduleTitle: activeChallenge.moduleTitle || 'SQL Practice',
+          action: 'run',
+          status: userRes.success ? 'attempted' : 'failed',
+          executionTimeMs: userRes.executionTimeMs || 0
+        }).catch(() => {});
+      } catch (_) {}
     } catch (err) {
       setRawExecutionResult({
         success: false,
@@ -782,7 +803,34 @@ export default function SqlPracticeView({
         try {
           localStorage.setItem('msc_sql_solved_challenges', JSON.stringify(updated));
         } catch (_) {}
+
+        // Track course completion eligibility if solving challenges
+        if (studentAccount?.email && updated.length >= 10) {
+          api.post('/api/student/record-course-completion', {
+            email: studentAccount.email,
+            name: studentAccount.name,
+            username: studentAccount.username,
+            courseTitle: 'SQL Mastery & Advanced Relational Database Systems',
+            score: Math.min(100, Math.round((updated.length / SQL_CHALLENGES.length) * 100)),
+            challengesSolved: updated.length
+          }).catch(() => {});
+        }
       }
+
+      // Record submit attempt for Admin reach analytics
+      try {
+        api.post('/api/analytics/practice-attempt', {
+          studentEmail: studentAccount?.email || user?.email || 'student@prpcem.edu',
+          studentName: studentAccount?.name || user?.name || 'Student Learner',
+          studentUsername: studentAccount?.username || studentAccount?.email?.split('@')[0],
+          challengeId: activeChallenge.id,
+          challengeTitle: activeChallenge.title,
+          moduleTitle: activeChallenge.moduleTitle || 'SQL Practice',
+          action: 'submit',
+          status: result.passed ? 'passed' : 'failed',
+          executionTimeMs: 0
+        }).catch(() => {});
+      } catch (_) {}
     } catch (err) {
       setSubmissionResult({
         passed: false,
@@ -819,11 +867,14 @@ export default function SqlPracticeView({
   // Filtered drawer challenges
   const drawerChallenges = useMemo(() => {
     return SQL_CHALLENGES.map((c, i) => ({ ...c, originalIndex: i })).filter((c) => {
-      const isDdl = c.id.startsWith('ddl-');
-      const isDml = c.id.startsWith('dml-');
-      const isCore = !isDdl && !isDml;
+      const isFiltering = c.id.startsWith('filt-') || c.moduleId?.startsWith('filt-');
+      const isDdl = c.id.startsWith('ddl-') || c.moduleId?.startsWith('ddl-');
+      const isDml = c.id.startsWith('dml-') || c.moduleId?.startsWith('dml-');
+      const isCore = !isDdl && !isDml && !isFiltering;
 
       // 1. Operator-based Track / Type Filter (= and not =)
+      if (drawerTrackFilter === 'eq_filtering' && !isFiltering) return false;
+      if (drawerTrackFilter === 'neq_filtering' && isFiltering) return false;
       if (drawerTrackFilter === 'eq_ddl' && !isDdl) return false;
       if (drawerTrackFilter === 'neq_ddl' && isDdl) return false;
       if (drawerTrackFilter === 'eq_dml' && !isDml) return false;
@@ -2909,6 +2960,25 @@ export default function SqlPracticeView({
                 <button
                   type="button"
                   onClick={() => {
+                    setDrawerTrack('filtering');
+                    setDrawerTrackFilter(drawerTrackFilter === 'eq_filtering' ? 'all' : 'eq_filtering');
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center space-x-1 ${
+                    drawerTrackFilter === 'eq_filtering'
+                      ? 'bg-blue-600 text-white font-extrabold shadow-2xs'
+                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80'
+                  }`}
+                >
+                  <span>Filtering</span>
+                  <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-black ${
+                    drawerTrackFilter === 'eq_filtering' ? 'bg-blue-700 text-white' : 'bg-blue-200/80 text-blue-900'
+                  }`}>
+                    40
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
                     setDrawerTrack('ddl');
                     setDrawerTrackFilter(drawerTrackFilter === 'eq_ddl' ? 'all' : 'eq_ddl');
                   }}
@@ -2987,14 +3057,16 @@ export default function SqlPracticeView({
                   >
                     <option value="all">Type: All</option>
                     <optgroup label="Equal (=)">
+                      <option value="eq_filtering">= Filtering (40)</option>
                       <option value="eq_ddl">= DDL (50)</option>
                       <option value="eq_dml">= DML (50)</option>
                       <option value="eq_core">= Core (16)</option>
                     </optgroup>
                     <optgroup label="Not Equal (not =)">
-                      <option value="neq_ddl">not = DDL (66)</option>
-                      <option value="neq_dml">not = DML (66)</option>
-                      <option value="neq_core">not = Core (100)</option>
+                      <option value="neq_filtering">not = Filtering (116)</option>
+                      <option value="neq_ddl">not = DDL (106)</option>
+                      <option value="neq_dml">not = DML (106)</option>
+                      <option value="neq_core">not = Core (140)</option>
                     </optgroup>
                   </select>
                   <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />

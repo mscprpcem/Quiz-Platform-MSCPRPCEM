@@ -1332,9 +1332,166 @@ router.get('/available-badges', async (req, res) => {
 
   return res.json({
     success: true,
-    badges: allBadges,
-    verificationPortalUrl
+    badges: allBadges
   });
+});
+
+// =========================================================================
+// Course Completion & Future Certificate Release Management
+// =========================================================================
+const fs = require('fs');
+const path = require('path');
+const COMPLETIONS_FILE = path.join(__dirname, '../data/course_completions.json');
+
+function loadCourseCompletions() {
+  try {
+    if (!fs.existsSync(COMPLETIONS_FILE)) return [];
+    const raw = fs.readFileSync(COMPLETIONS_FILE, 'utf8');
+    return raw ? JSON.parse(raw) : [];
+  } catch (err) {
+    console.error('Error reading course completions:', err);
+    return [];
+  }
+}
+
+function saveCourseCompletions(completions) {
+  try {
+    fs.writeFileSync(COMPLETIONS_FILE, JSON.stringify(completions, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Error saving course completions:', err);
+  }
+}
+
+// Student endpoint: Record completion of a course
+router.post('/record-course-completion', (req, res) => {
+  try {
+    const { email, name, username, courseTitle, score, topicsCount, challengesSolved } = req.body;
+    if (!email || !courseTitle) {
+      return res.status(400).json({ error: 'Email and courseTitle are required.' });
+    }
+
+    const cleanEmail = normalizeEmail(email);
+    const cleanName = name || (username || cleanEmail.split('@')[0]);
+    const completions = loadCourseCompletions();
+
+    const existingIdx = completions.findIndex(c => c.email === cleanEmail && c.courseTitle.toLowerCase() === courseTitle.toLowerCase());
+    
+    const record = {
+      id: existingIdx >= 0 ? completions[existingIdx].id : `comp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      email: cleanEmail,
+      name: cleanName,
+      username: username || cleanEmail.split('@')[0],
+      courseTitle,
+      score: Number(score) || 100,
+      topicsCount: Number(topicsCount) || 0,
+      challengesSolved: Number(challengesSolved) || 0,
+      completedAt: existingIdx >= 0 ? completions[existingIdx].completedAt : new Date().toISOString(),
+      certificateStatus: existingIdx >= 0 ? completions[existingIdx].certificateStatus : 'eligible_pending_release',
+      certificateId: existingIdx >= 0 ? completions[existingIdx].certificateId : null,
+      verificationUrl: existingIdx >= 0 ? completions[existingIdx].verificationUrl : null,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (existingIdx >= 0) {
+      completions[existingIdx] = record;
+    } else {
+      completions.push(record);
+    }
+    saveCourseCompletions(completions);
+
+    return res.json({
+      success: true,
+      message: 'Course completion registered! Eligible for certificate release.',
+      completion: record
+    });
+  } catch (err) {
+    console.error('Error recording course completion:', err);
+    return res.status(500).json({ error: 'Failed to record course completion' });
+  }
+});
+
+// Admin endpoint: List all course completions
+router.get('/course-completions', (req, res) => {
+  try {
+    const completions = loadCourseCompletions();
+    return res.json({
+      success: true,
+      totalCompletions: completions.length,
+      completions: completions.reverse()
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to load course completions' });
+  }
+});
+
+// Admin endpoint: Release certificate for a completed student
+router.post('/release-certificate', async (req, res) => {
+  try {
+    const { email, courseTitle } = req.body;
+    if (!email || !courseTitle) {
+      return res.status(400).json({ error: 'Email and courseTitle are required.' });
+    }
+
+    const cleanEmail = normalizeEmail(email);
+    const completions = loadCourseCompletions();
+    const targetIdx = completions.findIndex(c => c.email === cleanEmail && c.courseTitle.toLowerCase() === courseTitle.toLowerCase());
+
+    if (targetIdx === -1) {
+      return res.status(404).json({ error: 'No course completion record found for this student.' });
+    }
+
+    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+    const certificateId = completions[targetIdx].certificateId || `CERT-MSC-${Date.now().toString().slice(-6)}`;
+    const verificationUrl = `${verificationPortalUrl}/verify/${certificateId}`;
+
+    completions[targetIdx].certificateStatus = 'released';
+    completions[targetIdx].certificateId = certificateId;
+    completions[targetIdx].verificationUrl = verificationUrl;
+    completions[targetIdx].releasedAt = new Date().toISOString();
+    saveCourseCompletions(completions);
+
+    // Also register in studentCertificates in-memory
+    const certRecord = {
+      certificateId,
+      email: cleanEmail,
+      studentName: completions[targetIdx].name,
+      courseTitle,
+      score: completions[targetIdx].score,
+      passingScore: 70,
+      badgeTitle: `${courseTitle} Certified Master`,
+      issuedAt: completions[targetIdx].releasedAt,
+      verificationUrl
+    };
+    studentCertificates.push(certRecord);
+
+    return res.json({
+      success: true,
+      message: `Certificate ${certificateId} released successfully!`,
+      certificate: certRecord,
+      completion: completions[targetIdx]
+    });
+  } catch (err) {
+    console.error('Error releasing certificate:', err);
+    return res.status(500).json({ error: 'Failed to release certificate' });
+  }
+});
+
+// Student endpoint: Query own completion & certificate eligibility
+router.get('/my-completions', (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const cleanEmail = normalizeEmail(email);
+    const completions = loadCourseCompletions().filter(c => c.email === cleanEmail);
+
+    return res.json({
+      success: true,
+      completions
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch student completions' });
+  }
 });
 
 module.exports = router;

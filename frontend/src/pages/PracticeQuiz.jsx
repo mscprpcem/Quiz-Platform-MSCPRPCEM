@@ -84,10 +84,108 @@ const PRACTICE_QUESTIONS = {
       marks: 100,
       explanation: 'ACI lets you run containers serverless in seconds without VM infrastructure management.'
     }
+  ],
+  sql_filtering: [
+    {
+      id: 'filt1',
+      question: "In SQL, what does the '%' wildcard match when using the LIKE operator?",
+      option_a: "Strictly one single character.",
+      option_b: "Zero, one, or multiple characters of any type.",
+      option_c: "Only numeric digits from 0 through 9.",
+      option_d: "Only uppercase alphabetic letters.",
+      correct_answer: 'B',
+      marks: 100,
+      explanation: "The '%' (percent) wildcard in SQL represents 0 or more arbitrary characters, whereas '_' represents strictly one single character."
+    },
+    {
+      id: 'filt2',
+      question: "Which wildcard pattern matches all employee names that terminate with the letter 'a'?",
+      option_a: "'a%'",
+      option_b: "'%a'",
+      option_c: "'_a'",
+      option_d: "'%a%'",
+      correct_answer: 'B',
+      marks: 100,
+      explanation: "'%a' matches any sequence of leading characters ending strictly in 'a' (e.g., 'Priya', 'Neha', 'Ananya')."
+    },
+    {
+      id: 'filt3',
+      question: "Is the SQL BETWEEN operator inclusive or exclusive of its boundary values?",
+      option_a: "Exclusive of both minimum and maximum values.",
+      option_b: "Inclusive of the minimum value, but exclusive of the maximum value.",
+      option_c: "Inclusive of both minimum and maximum boundary values.",
+      option_d: "Depends on whether the database engine is PostgreSQL or MySQL.",
+      correct_answer: 'C',
+      marks: 100,
+      explanation: "In ANSI SQL, BETWEEN is strictly inclusive: 'WHERE salary BETWEEN 40000 AND 60000' is mathematically identical to 'salary >= 40000 AND salary <= 60000'."
+    },
+    {
+      id: 'filt4',
+      question: "Why does the query 'SELECT * FROM employees WHERE city = NULL;' fail to return rows with missing cities?",
+      option_a: "Because NULL in SQL represents an unknown state, and comparing with '=' evaluates to UNKNOWN (not TRUE).",
+      option_b: "Because MySQL only allows NULL comparison on integer columns.",
+      option_c: "Because NULL is equal to an empty string '' in SQL.",
+      option_d: "Because the '=' operator automatically casts NULL to zero.",
+      correct_answer: 'A',
+      marks: 100,
+      explanation: "SQL utilizes Three-Valued Logic (TRUE, FALSE, UNKNOWN). Comparing any value with NULL using '=' produces UNKNOWN, which WHERE filters out. You must use 'IS NULL'."
+    },
+    {
+      id: 'filt5',
+      question: "Which query correctly finds employees whose name has the letter 'a' as its exact second character?",
+      option_a: "SELECT * FROM employees WHERE name LIKE '%a%';",
+      option_b: "SELECT * FROM employees WHERE name LIKE '_a%';",
+      option_c: "SELECT * FROM employees WHERE name LIKE '__a%';",
+      option_d: "SELECT * FROM employees WHERE name LIKE 'a_%';",
+      correct_answer: 'B',
+      marks: 100,
+      explanation: "The underscore '_' matches exactly one arbitrary character, followed by 'a', followed by any remainder '%' (e.g. 'Rahul', 'Karan', 'Farhan')."
+    },
+    {
+      id: 'filt6',
+      question: "What is the boolean evaluation rule when executing 'val NOT IN (10, 20, NULL)' when val is 30?",
+      option_a: "It evaluates to TRUE because 30 is neither 10 nor 20.",
+      option_b: "It evaluates to UNKNOWN and returns no rows because 30 != NULL is UNKNOWN.",
+      option_c: "It automatically ignores NULL and returns TRUE.",
+      option_d: "It throws a fatal syntax error.",
+      correct_answer: 'B',
+      marks: 100,
+      explanation: "'val NOT IN (10, 20, NULL)' expands to 'val != 10 AND val != 20 AND val != NULL'. Since 'val != NULL' is UNKNOWN, the entire AND expression becomes UNKNOWN, dropping the row."
+    },
+    {
+      id: 'filt7',
+      question: "How can you search for a literal underscore character '_' in a product code using LIKE?",
+      option_a: "WHERE code LIKE '%_%'",
+      option_b: "WHERE code LIKE '%!_%' ESCAPE '!'",
+      option_c: "WHERE code LIKE '%[_]%' (without ESCAPE)",
+      option_d: "Underscores cannot be searched using LIKE.",
+      correct_answer: 'B',
+      marks: 100,
+      explanation: "Using the ESCAPE clause instructs the SQL engine to treat the character immediately following the escape token as a literal rather than a wildcard."
+    },
+    {
+      id: 'filt8',
+      question: "Why is 'WHERE (salary BETWEEN 40000 AND 70000) OR (salary IS NULL)' faster on large tables than 'WHERE COALESCE(salary, 50000) BETWEEN 40000 AND 70000'?",
+      option_a: "Because COALESCE is only supported in SQLite.",
+      option_b: "Because wrapping 'salary' in a function breaks index sargability, blinding the B+ Tree index and forcing a full table scan.",
+      option_c: "Because BETWEEN cannot accept function outputs.",
+      option_d: "Because IS NULL bypasses the query planner.",
+      correct_answer: 'B',
+      marks: 100,
+      explanation: "Applying runtime scalar functions like COALESCE() to an indexed column prevents index range scanning (non-sargable query). Writing raw column predicates preserves B+ Tree index utilization."
+    }
   ]
 };
 
 const CATEGORY_META = {
+  sql_filtering: {
+    title: 'SQL Advanced Filtering (LIKE, IN, BETWEEN, NULL)',
+    desc: 'Master pattern matching wildcards (%, _), discrete sets, inclusive boundary ranges, three-valued NULL logic, and sargable index optimization.',
+    themeColor: 'from-blue-600 to-cyan-600',
+    hoverBorder: 'hover:border-blue-400',
+    pillBg: 'bg-blue-50 text-blue-700',
+    iconColor: 'text-blue-600 bg-blue-50'
+  },
   dbms: {
     title: 'Database Management Systems (DBMS)',
     desc: 'Master SQL queries, Normalization (1NF to BCNF), ACID transaction properties, Indexing B-Trees, Relational Algebra, and Concurrency 2PL protocols.',

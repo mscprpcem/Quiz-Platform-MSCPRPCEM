@@ -463,6 +463,17 @@ export default function StudentAuth() {
             </p>
           </div>
 
+          {/* Authentication Required Info Banner when redirected */}
+          {(new URLSearchParams(location.search).get('returnUrl') || new URLSearchParams(location.search).get('redirect') || location.state?.from || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('msc_quiz_return_url'))) && (
+            <div className="p-3.5 bg-blue-50/90 border border-blue-200/90 rounded-2xl flex items-start space-x-2.5 text-blue-900 shadow-2xs animate-fadeIn">
+              <Lock size={16} className="text-blue-600 shrink-0 mt-0.5" />
+              <div className="text-xs leading-relaxed font-medium">
+                <strong className="font-extrabold text-blue-950">Authentication Required: </strong>
+                Please sign in or create an account to access learning courses, practice problemsets, and the interactive SQL lab.
+              </div>
+            </div>
+          )}
+
           {/* Mode Switcher Tabs */}
           {mode !== 'forgot-password' ? (
             <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl">
