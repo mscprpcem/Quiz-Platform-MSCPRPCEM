@@ -76,6 +76,18 @@ const Event = sequelize.define('Event', {
   status: {
     type: DataTypes.STRING,
     defaultValue: 'upcoming'
+  },
+  registration_type: {
+    type: DataTypes.STRING,
+    defaultValue: 'internal' // 'internal' | 'external'
+  },
+  external_registration_url: {
+    type: DataTypes.STRING(1024),
+    allowNull: true
+  },
+  auto_redirect_external: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 });
 

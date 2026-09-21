@@ -43,6 +43,7 @@ import StudentAuth from './pages/StudentAuth';
 import AuthCallback from './pages/AuthCallback';
 import AdminEmailDispatch from './pages/AdminEmailDispatch';
 import AdminCumulativeLeaderboard from './pages/AdminCumulativeLeaderboard';
+import AdminQRGenerator from './pages/AdminQRGenerator';
 import AdminEvents from './pages/AdminEvents';
 import AdminUsers from './pages/AdminUsers';
 import EventRegister from './pages/EventRegister';
@@ -310,6 +311,14 @@ export default function App() {
                   element={
                     <AdminRoute>
                       <AdminCumulativeLeaderboard />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/qr-generator"
+                  element={
+                    <AdminRoute>
+                      <AdminQRGenerator />
                     </AdminRoute>
                   }
                 />

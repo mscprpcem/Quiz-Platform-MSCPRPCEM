@@ -119,6 +119,9 @@ async function runAutoMigrations(sequelize) {
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}is_registration_open${quote} ${boolType} DEFAULT ${boolTrue};`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}rewards${quote} VARCHAR(255) DEFAULT 'Certificates & Swags';`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}status${quote} VARCHAR(255) DEFAULT 'upcoming';`,
+    `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}registration_type${quote} VARCHAR(255) DEFAULT 'internal';`,
+    `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}external_registration_url${quote} VARCHAR(1024);`,
+    `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}auto_redirect_external${quote} ${boolType} DEFAULT ${boolFalse};`,
 
     // PostgreSQL Enum Self-Healing for enum_Events_status
     ...(isPostgres ? [
@@ -274,6 +277,9 @@ async function ensureEventsTableSchema(sequelize) {
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}is_registration_open${quote} ${boolType} DEFAULT ${boolTrue};`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}rewards${quote} VARCHAR(255) DEFAULT 'Certificates & Swags';`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}status${quote} VARCHAR(255) DEFAULT 'upcoming';`,
+    `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}registration_type${quote} VARCHAR(255) DEFAULT 'internal';`,
+    `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}external_registration_url${quote} VARCHAR(1024);`,
+    `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}auto_redirect_external${quote} ${boolType} DEFAULT ${boolFalse};`,
     ...(isPostgres ? [
       `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'past';`,
       `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'completed';`,

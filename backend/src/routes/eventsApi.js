@@ -370,6 +370,10 @@ router.get('/', async (req, res) => {
         status: ev.status || statusObj.eventStatus,
         event_status: statusObj.eventStatus,
         registration_status: statusObj.regStatus,
+        registration_type: ev.registration_type || (ev.external_registration_url ? 'external' : 'internal'),
+        external_registration_url: ev.external_registration_url || null,
+        auto_redirect_external: Boolean(ev.auto_redirect_external),
+        is_external_redirect: Boolean(ev.external_registration_url && ev.external_registration_url.trim()),
         source: 'database',
         registration_count: totalRegCount,
         total_registration_count: totalRegCount,
@@ -624,6 +628,10 @@ router.get('/details/:idOrSlug', async (req, res) => {
         status: statusObj.eventStatus,
         event_status: statusObj.eventStatus,
         registration_status: statusObj.regStatus,
+        registration_type: event.registration_type || (event.external_registration_url ? 'external' : 'internal'),
+        external_registration_url: event.external_registration_url || null,
+        auto_redirect_external: Boolean(event.auto_redirect_external),
+        is_external_redirect: Boolean(event.external_registration_url && event.external_registration_url.trim()),
         registration_count: totalRegCount,
         total_registration_count: totalRegCount,
         seats_remaining: statusObj.maxRegs ? Math.max(0, statusObj.maxRegs - totalRegCount) : null,
@@ -774,7 +782,10 @@ router.post('/', adminAuth, async (req, res) => {
       fee,
       is_registration_open,
       rewards,
-      status
+      status,
+      registration_type,
+      external_registration_url,
+      auto_redirect_external
     } = req.body;
 
     if (!name || !name.trim()) {
@@ -823,7 +834,10 @@ router.post('/', adminAuth, async (req, res) => {
         fee: fee || 'Free',
         is_registration_open: is_registration_open !== false,
         rewards: rewards || 'Certificates & Swags',
-        status: cleanStatus
+        status: cleanStatus,
+        registration_type: registration_type || (external_registration_url ? 'external' : 'internal'),
+        external_registration_url: external_registration_url ? external_registration_url.trim() : null,
+        auto_redirect_external: Boolean(auto_redirect_external)
       });
     } catch (createErr) {
       if (createErr.message && (/enum_Events_status/i.test(createErr.message) || /is_registration_open/i.test(createErr.message) || /initial_registration_count/i.test(createErr.message) || /column.*does not exist/i.test(createErr.message) || /no such column/i.test(createErr.message))) {
@@ -846,7 +860,10 @@ router.post('/', adminAuth, async (req, res) => {
           fee: fee || 'Free',
           is_registration_open: is_registration_open !== false,
           rewards: rewards || 'Certificates & Swags',
-          status: cleanStatus === 'past' ? 'completed' : cleanStatus
+          status: cleanStatus === 'past' ? 'completed' : cleanStatus,
+          registration_type: registration_type || (external_registration_url ? 'external' : 'internal'),
+          external_registration_url: external_registration_url ? external_registration_url.trim() : null,
+          auto_redirect_external: Boolean(auto_redirect_external)
         });
       } else {
         throw createErr;
@@ -945,7 +962,10 @@ router.put('/:id', adminAuth, async (req, res) => {
       fee,
       is_registration_open,
       rewards,
-      status
+      status,
+      registration_type,
+      external_registration_url,
+      auto_redirect_external
     } = req.body;
 
     if (name) {
@@ -990,6 +1010,13 @@ router.put('/:id', adminAuth, async (req, res) => {
     if (fee !== undefined) event.fee = fee || 'Free';
     if (is_registration_open !== undefined) event.is_registration_open = Boolean(is_registration_open);
     if (rewards !== undefined) event.rewards = rewards;
+    if (registration_type !== undefined) event.registration_type = registration_type;
+    if (external_registration_url !== undefined) {
+      event.external_registration_url = external_registration_url && external_registration_url.trim() ? external_registration_url.trim() : null;
+    }
+    if (auto_redirect_external !== undefined) {
+      event.auto_redirect_external = Boolean(auto_redirect_external);
+    }
     if (status !== undefined) {
       event.status = sanitizeEventStatus(status);
     }

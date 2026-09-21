@@ -80,6 +80,10 @@ export default function EventRegister() {
   // Live Countdown State
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: false });
 
+  // External Platform Redirection State
+  const [redirectCountdown, setRedirectCountdown] = useState(null);
+  const [redirectCancelled, setRedirectCancelled] = useState(false);
+
   // Auto-fill student details if logged in
   useEffect(() => {
     if (studentAccount) {
@@ -149,6 +153,25 @@ export default function EventRegister() {
 
     return () => clearInterval(interval);
   }, [event]);
+
+  // Auto-redirect effect for events with external registration link
+  useEffect(() => {
+    if (event?.external_registration_url && event?.auto_redirect_external && !redirectCancelled) {
+      setRedirectCountdown(3);
+      const timer = setInterval(() => {
+        setRedirectCountdown(prev => {
+          if (prev === null) return null;
+          if (prev <= 1) {
+            clearInterval(timer);
+            window.location.href = event.external_registration_url;
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [event, redirectCancelled]);
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -417,8 +440,45 @@ export default function EventRegister() {
           </div>
         </div>
 
-        {/* ════════ REGISTRATION FORM OR CONFIRMATION ════════ */}
-        {registeredSuccess ? (
+        {/* ════════ REGISTRATION FORM OR CONFIRMATION OR EXTERNAL REDIRECTION ════════ */}
+        {redirectCountdown !== null && !redirectCancelled && event?.external_registration_url ? (
+          <div className="bg-white border-2 border-indigo-500 rounded-3xl p-8 sm:p-10 text-center space-y-6 shadow-xl max-w-xl mx-auto animate-fade-in">
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-3xl flex items-center justify-center mx-auto shadow-md animate-pulse">
+              <ExternalLink size={30} />
+            </div>
+            <div className="space-y-2">
+              <span className="px-3 py-1 bg-indigo-50 text-indigo-700 font-extrabold text-xs rounded-full border border-indigo-200 uppercase tracking-wider inline-block">
+                Official Event Redirection
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                Redirecting to Registration Platform...
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
+                Opening official registration for <strong>{event.name}</strong> in <strong className="text-indigo-600 text-base font-black font-mono">{redirectCountdown}s</strong>.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+              <a
+                href={event.external_registration_url}
+                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+              >
+                <span>Proceed to Registration Now</span>
+                <ExternalLink size={14} />
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  setRedirectCancelled(true);
+                  setRedirectCountdown(null);
+                }}
+                className="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer transition-all"
+              >
+                Stay on this Page
+              </button>
+            </div>
+          </div>
+        ) : registeredSuccess ? (
           <div className="bg-white border border-emerald-200 rounded-3xl p-8 sm:p-10 text-center space-y-6 shadow-sm animate-fade-in max-w-2xl mx-auto">
             <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto border border-emerald-100 shadow-sm">
               <CheckCircle2 size={36} />
@@ -477,6 +537,58 @@ export default function EventRegister() {
               >
                 Return Home
               </button>
+            </div>
+          </div>
+        ) : event?.external_registration_url ? (
+          /* ════════ EXTERNAL PLATFORM REGISTRATION HERO CARD ════════ */
+          <div className="bg-white border-2 border-indigo-200 rounded-3xl p-6 sm:p-9 shadow-md space-y-6 max-w-2xl mx-auto animate-fade-in">
+            <div className="border-b border-indigo-100 pb-4 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-md shrink-0">
+                  <ExternalLink size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">External Registration Platform</h3>
+                  <p className="text-xs text-slate-500 font-medium">Ticketing and pass confirmation for this event is hosted on an external platform (Eventbrite, etc.).</p>
+                </div>
+              </div>
+              <span className="px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-full text-xs font-black flex items-center gap-1">
+                <Sparkles size={12} /> Official Partner Link
+              </span>
+            </div>
+
+            <div className="p-4 bg-gradient-to-br from-indigo-50/70 via-purple-50/40 to-slate-50 rounded-2xl border border-indigo-100 space-y-3">
+              <div className="text-[11px] font-black text-indigo-950 uppercase tracking-wide">
+                Official Event Link:
+              </div>
+              <div className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-indigo-200">
+                <span className="font-mono text-xs font-bold text-indigo-900 truncate flex-1">
+                  {event.external_registration_url}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyEventQrLink(event.external_registration_url)}
+                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg shrink-0 flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  {qrCopied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                  <span>{qrCopied ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <a
+                href={event.external_registration_url}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-black text-sm rounded-2xl flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all cursor-pointer"
+              >
+                <span>Register on Official Platform</span>
+                <ExternalLink size={16} />
+              </a>
+              <p className="text-[11px] text-slate-500 text-center leading-relaxed">
+                Clicking above will open the official external registration page where you can claim your pass and receive your event confirmation.
+              </p>
             </div>
           </div>
         ) : isRegistrationClosed ? (

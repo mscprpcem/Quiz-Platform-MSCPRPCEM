@@ -75,7 +75,10 @@ export default function AdminEvents() {
     feeNumeric: 0,
     is_registration_open: true,
     rewards: 'Certificates, Prizes & Swags',
-    status: 'upcoming'
+    status: 'upcoming',
+    registration_type: 'internal',
+    external_registration_url: '',
+    auto_redirect_external: false
   });
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -275,7 +278,10 @@ export default function AdminEvents() {
       feeNumeric: 0,
       is_registration_open: true,
       rewards: 'Certificates, Prizes & Swags',
-      status: 'upcoming'
+      status: 'upcoming',
+      registration_type: 'internal',
+      external_registration_url: '',
+      auto_redirect_external: false
     });
     setErrorMsg('');
     setModalOpen(true);
@@ -340,7 +346,10 @@ export default function AdminEvents() {
       feeNumeric: numFee,
       is_registration_open: ev.is_registration_open !== false && ev.isRegistrationOpen !== false,
       rewards: ev.rewards || ev.prizes || 'Certificates & Swags',
-      status: isFuture ? 'upcoming' : ((ev.status === 'past' || ev.status === 'completed' || ev.event_status === 'completed') ? 'completed' : (ev.status || ev.event_status || 'upcoming'))
+      status: isFuture ? 'upcoming' : ((ev.status === 'past' || ev.status === 'completed' || ev.event_status === 'completed') ? 'completed' : (ev.status || ev.event_status || 'upcoming')),
+      registration_type: ev.registration_type || (ev.external_registration_url ? 'external' : 'internal'),
+      external_registration_url: ev.external_registration_url || '',
+      auto_redirect_external: Boolean(ev.auto_redirect_external)
     });
     setErrorMsg('');
     setModalOpen(true);
@@ -639,7 +648,10 @@ export default function AdminEvents() {
         fee: finalFee,
         is_registration_open: Boolean(formData.is_registration_open),
         rewards: formData.rewards,
-        status: cleanStatus
+        status: cleanStatus,
+        registration_type: formData.registration_type || (formData.external_registration_url ? 'external' : 'internal'),
+        external_registration_url: formData.external_registration_url ? formData.external_registration_url.trim() : null,
+        auto_redirect_external: Boolean(formData.auto_redirect_external)
       };
 
       if (editingEvent && !String(editingEvent.id).startsWith('auto-') && !String(editingEvent.id).startsWith('event-')) {
@@ -746,7 +758,7 @@ export default function AdminEvents() {
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
             
             {/* Status & Fee Badges */}
-            <div className="absolute top-3 left-3 flex items-center gap-1.5">
+            <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm ${
                 isLive
                   ? 'bg-emerald-500 text-white animate-pulse'
@@ -756,6 +768,11 @@ export default function AdminEvents() {
               }`}>
                 {badgeLabel}
               </span>
+              {Boolean(ev.external_registration_url) && (
+                <span className="px-2 py-1 rounded-full text-[10px] font-black bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm flex items-center gap-1">
+                  <Globe size={10} /> External Event
+                </span>
+              )}
               {ev.fee && (
                 <span className="px-2 py-1 rounded-full text-[10px] font-extrabold bg-black/60 text-white backdrop-blur-xs border border-white/20">
                   {ev.fee}
@@ -868,6 +885,30 @@ export default function AdminEvents() {
                 </a>
               </div>
             </div>
+
+            {/* External Redirection Target Display */}
+            {Boolean(ev.external_registration_url) && (
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/80 rounded-xl p-2 flex items-center justify-between gap-2 text-[11px]">
+                <div className="flex items-center gap-1.5 truncate">
+                  <Globe size={12} className="text-indigo-600 shrink-0" />
+                  <span className="font-mono font-bold text-indigo-900 truncate text-[10px]">
+                    {ev.external_registration_url}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <a
+                    href={ev.external_registration_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 rounded-lg text-[10px] font-extrabold bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1 shadow-2xs cursor-pointer"
+                    title="Open External Registration Page"
+                  >
+                    <span>External</span>
+                    <ExternalLink size={10} />
+                  </a>
+                </div>
+              </div>
+            )}
 
             <div className="text-[11px] text-slate-500 space-y-1.5 pt-1 border-t border-slate-100">
               <div className="flex items-center gap-2">
@@ -1385,6 +1426,144 @@ export default function AdminEvents() {
                 <p className="text-[10px] text-slate-400 mt-1">
                   Students can open <code className="text-purple-600 font-bold">https://www.mscprpcem.tech/register/{formData.slug || 'event-slug'}</code> directly to register.
                 </p>
+              </div>
+
+              {/* ════════ REGISTRATION MODE & EXTERNAL REDIRECTION ════════ */}
+              <div className="p-4 bg-gradient-to-br from-indigo-50/70 via-purple-50/50 to-pink-50/40 border border-indigo-200/80 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-2xs">
+                      <Globe size={15} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-indigo-950 uppercase tracking-wide block">
+                        Registration Platform & Redirection
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        Choose native in-portal registration or redirect to Eventbrite / external platform
+                      </span>
+                    </div>
+                  </div>
+                  {formData.external_registration_url && (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1">
+                      <ExternalLink size={10} /> External Linked
+                    </span>
+                  )}
+                </div>
+
+                {/* Registration Mode Selector */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, registration_type: 'internal' })}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                      formData.registration_type === 'internal' && !formData.external_registration_url
+                        ? 'bg-white border-purple-600 ring-2 ring-purple-500/20 shadow-xs'
+                        : 'bg-white/60 border-slate-200 hover:bg-white text-slate-600'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      formData.registration_type === 'internal' && !formData.external_registration_url ? 'border-purple-600' : 'border-slate-300'
+                    }`}>
+                      {formData.registration_type === 'internal' && !formData.external_registration_url && (
+                        <div className="w-2 h-2 rounded-full bg-purple-600" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-black text-slate-900 leading-tight">Native Portal Form</div>
+                      <div className="text-[9px] text-slate-500">Collect signups on MSC PRPCEM portal</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, registration_type: 'external' })}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                      formData.registration_type === 'external' || Boolean(formData.external_registration_url)
+                        ? 'bg-white border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs'
+                        : 'bg-white/60 border-slate-200 hover:bg-white text-slate-600'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      formData.registration_type === 'external' || Boolean(formData.external_registration_url) ? 'border-indigo-600' : 'border-slate-300'
+                    }`}>
+                      {(formData.registration_type === 'external' || Boolean(formData.external_registration_url)) && (
+                        <div className="w-2 h-2 rounded-full bg-indigo-600" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-black text-slate-900 leading-tight flex items-center gap-1">
+                        <span>External URL (Eventbrite, etc.)</span>
+                        <span className="text-[8px] bg-indigo-100 text-indigo-700 px-1 py-0.2 rounded font-black">NEW</span>
+                      </div>
+                      <div className="text-[9px] text-slate-500">Redirect students to ticketing or form</div>
+                    </div>
+                  </button>
+                </div>
+
+                {/* External Redirection Configuration Inputs */}
+                {(formData.registration_type === 'external' || Boolean(formData.external_registration_url)) && (
+                  <div className="pt-2 space-y-2 border-t border-indigo-100/80">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-800 mb-1 flex items-center justify-between">
+                        <span>External Registration URL (Eventbrite, Lu.ma, Google Forms, etc.) *</span>
+                        <span className="text-[10px] text-indigo-600 font-bold">e.g. https://www.eventbrite.com/...</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs select-none">
+                            🔗
+                          </span>
+                          <input
+                            type="url"
+                            placeholder="https://www.eventbrite.com/... or https://lu.ma/..."
+                            value={formData.external_registration_url || ''}
+                            onChange={(e) => setFormData({ ...formData, external_registration_url: e.target.value })}
+                            className="w-full pl-8 pr-3 py-2 bg-white border border-indigo-300 rounded-xl text-xs font-mono font-bold text-indigo-950 outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+                          />
+                        </div>
+                        {formData.external_registration_url && (
+                          <a
+                            href={formData.external_registration_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-extrabold text-[11px] rounded-xl flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+                            title="Open and test link in new tab"
+                          >
+                            <span>Test Link</span>
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
+                      </div>
+                      <p className="text-[9px] text-slate-500 mt-1">
+                        When students click to register, they will be directed to this external event registration page.
+                      </p>
+                    </div>
+
+                    {/* Auto-redirect Toggle */}
+                    <div className="flex items-center justify-between bg-white/90 p-2.5 rounded-xl border border-indigo-200/80 gap-3">
+                      <div>
+                        <span className="text-[11px] font-black text-slate-900 block leading-tight">
+                          Auto-Redirect Visitors Automatically
+                        </span>
+                        <span className="text-[9px] text-slate-500 font-medium">
+                          Immediately redirect with a 2-second countdown when students open <code>/register/{formData.slug || 'event'}</code>
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, auto_redirect_external: !formData.auto_redirect_external })}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black shrink-0 transition-all cursor-pointer shadow-2xs ${
+                          formData.auto_redirect_external
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {formData.auto_redirect_external ? '⚡ Auto-Redirect ON' : 'Show Landing Card'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* ════════ SECTION 1: ATTENDEES & REGISTRATIONS COUNT ════════ */}
