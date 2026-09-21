@@ -1,0 +1,64 @@
+name: Cleanup Old GitHub Actions Artifacts
+run-name: Delete Stored Artifacts to Free Quota
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  delete-artifacts:
+    if: github.repository == 'mscprpcem/Quiz-platform'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+
+    steps:
+      - name: Delete All Stored Artifacts via GitHub API
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            console.log(`Searching for stored artifacts in ${owner}/${repo}...`);
+
+            let deletedTotal = 0;
+            let page = 1;
+
+            while (true) {
+              const response = await github.rest.actions.listArtifactsForRepo({
+                owner,
+                repo,
+                per_page: 100,
+                page
+              });
+
+              const artifacts = response.data.artifacts;
+              if (!artifacts || artifacts.length === 0) {
+                console.log('No more artifacts found.');
+                break;
+              }
+
+              console.log(`Page ${page}: Found ${artifacts.length} artifacts to delete.`);
+
+              for (const art of artifacts) {
+                try {
+                  await github.rest.actions.deleteArtifact({
+                    owner,
+                    repo,
+                    artifact_id: art.id
+                  });
+                  console.log(`Deleted: ${art.name} (id: ${art.id}, size: ${(art.size_in_bytes / 1024 / 1024).toFixed(2)} MB)`);
+                  deletedTotal++;
+                } catch (err) {
+                  console.warn(`Failed to delete artifact ${art.id}: ${err.message}`);
+                }
+              }
+
+              if (artifacts.length < 100) break;
+              page++;
+            }
+
+            console.log(`Cleanup complete! Successfully deleted ${deletedTotal} artifacts and freed storage quota.`);
