@@ -8,7 +8,8 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 | Version | Release Type | Key Highlights | Status |
 | :--- | :--- | :--- | :--- |
-| **v1.8.3** | **Patch (Current)** | Enterprise SQL grading engine, DDL entity & constraint verification, DML post-mutation table state diffing, qrcode bundle integrity | **Active Production** |
+| **v1.8.4** | **Patch (Current)** | Standard MSC PRPCEM email template, simplified centered header, dynamic content wireframe, rich laptop/mobile preview, admin dispatch formatting toolbar, official link standardization | **Active Production** |
+| **v1.8.3** | Patch | Enterprise SQL grading engine, DDL entity & constraint verification, DML post-mutation table state diffing, qrcode bundle integrity | Stable |
 | **v1.8.2** | Patch | Viewport-centered portal modals, verification revocation guardrails, event quiz delinking, cascade mail sync, institutional email preview, opaque theme system | Stable |
 | **v1.8.1** | Patch | User Directory responsive overhaul, 1-click & bulk verification toggles, profile modal, deferred account creation until OTP verification, admin credential lockdown | Stable |
 | **v1.8.0** | Minor | Homepage UX streamlining, single info button, collapsed FAQ default, normalized footer styles, version registry | Stable |
@@ -25,7 +26,47 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 ## Detailed Changelog
 
-### Version 1.8.3 (Current Release)
+### Version 1.8.4 (Current Release)
+*Theme: Official Standard MSC PRPCEM Email Template Architecture, Simplified Centered Header, Dynamic Content Wireframe, Admin Dispatch Formatting Toolbar & Social Link Standardization*
+
+- **Simplified & Vertically Centered Header**:
+  - Removed multi-line text (`MICROSOFT STUDENT CLUB` and `P R P C E M`) from the email header navigation bar across all platform templates.
+  - Simplified header brand lockup to the official 44px transparent MSC hexagon logo and bold **`MSC PRPCEM`** (`20px`).
+  - Aligned vertically on the exact same center axis with `Be a Force for Good.` on the right across desktop, mobile, and client previews.
+- **Standardized Dynamic Content Area**:
+  - Engineered the official dynamic content area box matching `media_1790869686492.png`: `1.5px dashed #93c5fd` sky-blue border, `#f8fafc` soft background, `16px` border-radius, clean standalone SVG photo/media outline icon (no inner box), bold `Dynamic Content Area` title, and subtitle `(Event details, certificate, voucher, reminder, updates, etc. will appear here)`.
+  - Added rich live sample content mode rendering realistic student challenge invitations with schedule badges, 3-column stats cards, and action CTA buttons.
+- **Laptop & Mobile Dual Viewport Preview Tooling**:
+  - Engineered standalone interactive preview tool (`email_template_preview.html`) with embedded high-resolution assets.
+  - Implemented **💻 Laptop View (740px)** with wide campus & clouds artwork (`email_hero_desktop.png`).
+  - Implemented **📱 Mobile View (420px)** with responsive mobile campus artwork (`email_hero_banner.png`).
+  - Added instant sub-mode toggle between **✨ Live Sample Content** and **📐 Wireframe (Dynamic Content Area)**.
+  - Added **⚡ Live Scenarios** tab supporting OTP verification, quiz reminders, event tickets, and admin broadcasts.
+- **Admin Email Dispatch Hub Rich Formatting Toolbar**:
+  - Added a dedicated rich formatting toolbar above the message compose textarea in `AdminEmailDispatch.jsx`:
+    - **Bold** (`**text**` or selection wrapping)
+    - **Italic** (`*text*` or selection wrapping)
+    - **Link** (`[Link Title](url)` with intelligent prompt and URL selection detection)
+    - **Heading** (`### Section Heading`)
+    - **Bullet List** (`• item`)
+    - **Numbered List** (`1. item`)
+    - **Badge / Code** (`` `badge` ``)
+    - **Callout Notice Box** (`> 💡 Note: ...`)
+    - **Divider Line** (`---`)
+  - Implemented `parseEmailMarkdownToHtml()` for real-time live preview rendering in React and compiled email-safe HTML in `backend/src/routes/emailDispatch.js`.
+- **Official Social Media & Link Verification**:
+  - Verified and corrected all official social media URLs across all email templates, components, and previews:
+    - **LinkedIn**: `https://www.linkedin.com/company/mscprpcem/` (standardized without hyphens)
+    - **Instagram**: `https://www.instagram.com/mscprpcem/` (standardized without underscores)
+    - **YouTube**: `https://youtube.com/@mscprpcem`
+    - **Website**: `https://www.mscprpcem.tech`
+  - Regenerated supersampled 64x64 transparent circular social icons (0% gray background artifacts) for the deep navy (`#081630`) footer bar.
+- **Universal Platform-Wide Email Standard**:
+  - Standardized `renderHtmlWrapper` in `backend/src/services/emailService.js` across all platform dispatch services (`sendOtpEmail`, `sendQuizReminderEmail`, `sendEventRegistrationEmail`, `sendCustomBroadcastEmail`, and `sendTestEmail`).
+
+---
+
+### Version 1.8.3
 *Theme: Enterprise SQL Engine Validation: Strict DDL Entity & Constraint Checking, DML Post-Mutation State Diffing & Bundle Integrity*
 
 - **Strict DDL Entity & Target Validation**:
