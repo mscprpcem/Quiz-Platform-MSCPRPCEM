@@ -54,14 +54,22 @@ const normalizeEmail = (email) => (email ? String(email).toLowerCase().trim() : 
 const isAdministratorEmail = async (email) => {
   if (!email) return false;
   const clean = normalizeEmail(email);
+  if (clean.endsWith('.edu') || clean.includes('.edu')) return false;
   const configuredAdmin = (process.env.ADMIN_EMAIL || 'admin@mscprpcem.tech').toLowerCase().trim();
   if (configuredAdmin && clean === configuredAdmin) return true;
   if (Admin) {
     const admin = await Admin.findOne({
       where: {
-        [Op.or]: [
-          { email: clean },
-          ...(sequelize ? [sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), clean)] : [])
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { email: clean },
+              ...(sequelize ? [sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), clean)] : [])
+            ]
+          },
+          {
+            email: { [Op.notLike]: '%.edu%' }
+          }
         ]
       }
     });
@@ -711,7 +719,7 @@ router.post('/login', async (req, res) => {
     // Disallow admin accounts from student portal
     if (await isAdministratorEmail(cleanEmail)) {
       return res.status(403).json({
-        error: 'This email belongs to an Administrator. Please use the Administrator Portal (/login) to sign in.'
+        error: 'This email belongs to an Administrator. Please use the Administrator Portal (/frogger/login) to sign in.'
       });
     }
 
@@ -1131,7 +1139,35 @@ router.post('/external-sync', async (req, res) => {
     return res.status(400).json({ error: 'Email is required.' });
   }
 
-  if (await isAdministratorEmail(cleanEmail)) {
+  if (await isAdministratorEmail(cleanEmail) || req.body.role === 'admin') {
+    // Synchronize administrator credentials directly into Admin table (both sides updated)
+    if (Admin && !cleanEmail.endsWith('.edu')) {
+      let admin = await Admin.findOne({
+        where: {
+          [Op.or]: [
+            { email: cleanEmail },
+            sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), cleanEmail)
+          ]
+        }
+      });
+      if (admin) {
+        if (password) admin.password = password;
+        if (name) admin.name = name;
+        await admin.save();
+      } else {
+        await Admin.create({
+          name: name || cleanEmail.split('@')[0],
+          email: cleanEmail,
+          password: password,
+          role: 'admin'
+        });
+      }
+      return res.json({
+        success: true,
+        message: 'Administrator credentials synchronized successfully from Verification Portal.',
+        role: 'admin'
+      });
+    }
     return res.status(403).json({ error: 'Cannot sync administrator credentials into student directory.' });
   }
 

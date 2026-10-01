@@ -113,11 +113,27 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('msc_quiz_token', token);
       localStorage.setItem('msc_quiz_token_time', Date.now().toString());
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       return {
         success: false,
         error: error.response?.data?.error || 'Login failed'
+      };
+    }
+  };
+
+  const adminSsoLogin = async (token) => {
+    try {
+      const response = await api.post('/api/auth/sso-login', { token });
+      const { token: adminToken, user: userData } = response.data;
+      localStorage.setItem('msc_quiz_token', adminToken);
+      localStorage.setItem('msc_quiz_token_time', Date.now().toString());
+      setUser(userData);
+      return { success: true, user: userData };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'SSO administrator authentication failed'
       };
     }
   };
@@ -320,6 +336,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{ 
       user, 
       login, 
+      adminSsoLogin,
       logout, 
       loading, 
       verifyToken,

@@ -49,6 +49,7 @@ import AdminUsers from './pages/AdminUsers';
 import EventRegister from './pages/EventRegister';
 import SqlPractice from './pages/SqlPractice';
 import SqlCourseHub from './pages/SqlCourseHub';
+import SqlIntroPresentation from './pages/SqlIntroPresentation';
 import LeaderboardPreview from './pages/LeaderboardPreview';
 import NotFound from './pages/NotFound';
 import RequireAuth from './components/RequireAuth';
@@ -111,7 +112,7 @@ const AdminRoute = ({ children }) => {
   }
 
   if (!user) {
-    return <Navigate to="/admin/login" replace />;
+    return <Navigate to="/frogger/login" replace />;
   }
 
   return <AdminLayout>{children}</AdminLayout>;
@@ -143,6 +144,12 @@ export default function App() {
                 <Route path="/tournament-standings" element={<Navigate to="/" replace />} />
                 <Route path="/standings" element={<Navigate to="/" replace />} />
                 <Route path="/leaderboard-preview" element={<LeaderboardPreview />} />
+                {/* SQL Intro Interactive Presentation Routes (Public & Student) */}
+                <Route path="/sql/intro" element={<SqlIntroPresentation />} />
+                <Route path="/sql/slides" element={<SqlIntroPresentation />} />
+                <Route path="/courses/sql/intro" element={<SqlIntroPresentation />} />
+                <Route path="/courses/sql/slides" element={<SqlIntroPresentation />} />
+                
                 {/* Protected Learn, Practice & Lab Routes (Requires Login) */}
                 <Route path="/courses/sql" element={<RequireAuth><SqlCourseHub /></RequireAuth>} />
                 <Route path="/courses/sql/:tab" element={<RequireAuth><SqlCourseHub /></RequireAuth>} />
@@ -190,7 +197,10 @@ export default function App() {
                 <Route path="/docs" element={<Documentation />} />
 
                 {/* Admin Auth Route */}
-                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/frogger/login" element={<AdminLogin />} />
+                <Route path="/frogger" element={<Navigate to="/frogger/login" replace />} />
+                <Route path="/admin/login" element={<Navigate to="/frogger/login" replace />} />
+                <Route path="/admin" element={<Navigate to="/frogger/login" replace />} />
 
                 {/* Protected Admin Routes */}
                 <Route

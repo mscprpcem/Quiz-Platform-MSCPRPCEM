@@ -221,6 +221,16 @@ async function runAutoMigrations(sequelize) {
     console.warn("⚠️ Database sync warning:", syncErr.message);
   }
 
+  // Purge legacy .edu administrator accounts
+  try {
+    await sequelize.query(`DELETE FROM ${quote}Admins${quote} WHERE LOWER(${quote}email${quote}) LIKE '%.edu' OR LOWER(${quote}email${quote}) LIKE '%.edu/%';`);
+    if (isPostgres) {
+      await sequelize.query(`DELETE FROM admins WHERE LOWER(email) LIKE '%.edu' OR LOWER(email) LIKE '%.edu/%';`).catch(() => {});
+    }
+  } catch (purgeErr) {
+    // Admins table may not exist yet or already cleaned
+  }
+
   // High-performance database indexes
   const indexQueries = [
     `CREATE INDEX IF NOT EXISTS idx_questions_quiz_id ON ${quote}Questions${quote} (${quote}quiz_id${quote});`,

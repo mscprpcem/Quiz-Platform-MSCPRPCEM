@@ -1,18 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, ShieldCheck, Loader2, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ShieldCheck, Loader2, ArrowRight, Eye, EyeOff, Sparkles, AlertCircle } from 'lucide-react';
 
 export default function AdminLogin() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({ email: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  React.useEffect(() => {
-    if (user) navigate('/admin/dashboard');
+  // If already authenticated as admin, redirect to admin dashboard
+  useEffect(() => {
+    if (user) {
+      navigate('/admin/dashboard', { replace: true });
+    }
   }, [user, navigate]);
 
   const handleChange = (e) => {
@@ -26,68 +30,79 @@ export default function AdminLogin() {
     const { email, password } = formData;
 
     if (!email || !password) {
-      setError('Please fill in all fields.');
+      setError('Please fill in both Administrator Email and Password.');
+      return;
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Prevent legacy .edu admin accounts from submitting
+    if (cleanEmail.endsWith('.edu') || cleanEmail.includes('.edu')) {
+      setError('Legacy .edu administrator accounts have been removed. Please sign in using your official MSC Verification Platform administrator account.');
       return;
     }
 
     setLoading(true);
     setError('');
-    const res = await login(email, password);
+    const res = await login(cleanEmail, password);
     setLoading(false);
 
-    if (res.success) {
-      navigate('/admin/dashboard');
+    if (res?.success) {
+      navigate('/admin/dashboard', { replace: true });
     } else {
-      setError(res.error);
+      setError(res?.error || 'Invalid credentials or you lack administrator privileges on the MSC Verification Platform.');
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-6 sm:py-12 px-3.5 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Ambient bg */}
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-8 sm:py-14 px-3.5 sm:px-6 lg:px-8 relative overflow-hidden bg-slate-50 font-segoe">
+      {/* Ambient background glows */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_50%_40%_at_70%_20%,_rgba(37,99,235,0.06)_0%,_transparent_55%)]"></div>
-        <div className="absolute bottom-0 left-0 w-full h-full bg-[radial-gradient(ellipse_60%_45%_at_25%_80%,_rgba(139,92,246,0.04)_0%,_transparent_55%)]"></div>
+        <div className="absolute top-0 right-10 w-96 h-96 bg-[radial-gradient(ellipse_50%_50%_at_50%_50%,_rgba(37,99,235,0.08)_0%,_transparent_60%)]"></div>
+        <div className="absolute bottom-10 left-10 w-96 h-96 bg-[radial-gradient(ellipse_50%_50%_at_50%_50%,_rgba(139,92,246,0.06)_0%,_transparent_60%)]"></div>
       </div>
 
       <div className="max-w-md w-full relative z-10 animate-fade-in">
-        <div className="form-card p-5 sm:p-9 rounded-2xl space-y-6 sm:space-y-7 relative overflow-hidden">
-          {/* Accent stripe */}
-          <div className="absolute top-0 left-0 w-full h-[3px]" style={{ background: 'linear-gradient(90deg, #2563EB, #0EA5E9, #8B5CF6)' }}></div>
+        <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-9 shadow-xl shadow-slate-200/50 space-y-6 relative overflow-hidden">
+          {/* Accent top stripe */}
+          <div className="absolute top-0 left-0 w-full h-[4px]" style={{ background: 'linear-gradient(90deg, #2563EB, #0EA5E9, #8B5CF6)' }}></div>
 
           {/* Header */}
-          <div className="text-center space-y-3 pt-1">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto text-brand-blue"
-                 style={{ background: 'linear-gradient(135deg, #EFF6FF, #DBEAFE)', boxShadow: '0 2px 8px rgba(37,99,235,0.1)' }}>
+          <div className="text-center space-y-2.5 pt-1">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto text-blue-600 bg-gradient-to-br from-blue-50 to-indigo-100/80 shadow-md shadow-blue-500/10 border border-blue-100">
               <ShieldCheck size={28} />
             </div>
-            <h2 className="text-2xl font-extrabold text-brand-textMain tracking-tight">Admin Portal</h2>
-            <p className="text-[13px] text-brand-textMuted">
-              Sign in to manage and launch event quizzes.
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Admin Portal</h1>
+            <p className="text-[13px] text-slate-500">
+              Sign in with your official administrator email and password configured on the MSC Verification Platform.
             </p>
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-full text-[11px] font-bold mx-auto">
-              <Lock size={12} />
-              <span>Session Duration: 1 Day (24h Expiry)</span>
+
+            {/* Direct Verification Sync Indicator */}
+            <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200/80 text-emerald-700 rounded-full text-[11px] font-bold mx-auto">
+              <Sparkles size={12} className="text-emerald-600" />
+              <span>Synced with verify.mscprpcem.tech</span>
             </div>
           </div>
 
+          {/* Error Banner */}
           {error && (
-            <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm font-medium animate-fade-in"
-                 style={{ boxShadow: '0 2px 8px rgba(239,68,68,0.05)' }}>
-              {error}
+            <div className="bg-rose-50 border border-rose-200/90 text-rose-700 p-4 rounded-2xl text-xs font-semibold flex items-start gap-2.5 animate-fade-in shadow-xs">
+              <AlertCircle size={18} className="text-rose-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 text-left">{error}</div>
             </div>
           )}
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              {/* Email */}
-              <div className="space-y-1.5">
-                <label htmlFor="email" className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">
+          {/* Credentials Form */}
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="space-y-3.5">
+              {/* Administrator Email */}
+              <div className="space-y-1 text-left">
+                <label htmlFor="email" className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                   Administrator Email
                 </label>
                 <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-brand-textMuted/60 group-focus-within:text-brand-blue transition-colors duration-200">
-                    <Mail size={17} />
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                    <Mail size={16} />
                   </div>
                   <input
                     id="email"
@@ -96,31 +111,39 @@ export default function AdminLogin() {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    placeholder="admin@mscprpcem.edu"
-                    className="input-enhanced pl-10"
+                    placeholder="admin@mscprpcem.tech"
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
               </div>
 
               {/* Password */}
-              <div className="space-y-1.5">
-                <label htmlFor="password" className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">
+              <div className="space-y-1 text-left">
+                <label htmlFor="password" className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                   Password
                 </label>
                 <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-brand-textMuted/60 group-focus-within:text-brand-blue transition-colors duration-200">
-                    <Lock size={17} />
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                    <Lock size={16} />
                   </div>
                   <input
                     id="password"
                     name="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="••••••••"
-                    className="input-enhanced pl-10"
+                    placeholder="••••••••••••"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder:text-slate-400"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
             </div>
@@ -128,21 +151,31 @@ export default function AdminLogin() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full py-3.5 rounded-xl group disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               {loading ? (
                 <>
-                  <Loader2 className="animate-spin" size={18} />
-                  <span>Signing In...</span>
+                  <Loader2 className="animate-spin" size={16} />
+                  <span>Verifying Credentials...</span>
                 </>
               ) : (
                 <>
-                  <span>Sign In</span>
-                  <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                  <span>Sign In as Admin</span>
+                  <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
                 </>
               )}
             </button>
           </form>
+
+          {/* Synchronization Policy Notice */}
+          <div className="pt-2 text-[11px] text-slate-400 border-t border-slate-100 space-y-1 text-center">
+            <p>
+              🔒 <strong>Verification Platform Synchronization</strong>: Credentials configured on <strong>verify.mscprpcem.tech</strong> work here automatically.
+            </p>
+            <p className="text-[10px] text-slate-400">
+              Legacy .edu administrators have been decommissioned. Password updates are synchronized bidirectionally.
+            </p>
+          </div>
         </div>
       </div>
     </div>

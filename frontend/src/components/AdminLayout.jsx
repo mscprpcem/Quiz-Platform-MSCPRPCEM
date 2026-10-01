@@ -18,7 +18,7 @@ export default function AdminLayout({ children }) {
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to log out of the Admin Portal?')) {
       logout();
-      navigate('/admin/login');
+      navigate('/frogger/login');
     }
   };
 

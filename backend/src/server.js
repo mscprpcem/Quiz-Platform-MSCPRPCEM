@@ -141,6 +141,7 @@ app.use((req, res, next) => {
 
 app.use("/api", generalLimiter);
 app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/sso-login", authLimiter);
 app.use("/api/student/login", authLimiter);
 app.use("/api/student/register", authLimiter);
 app.use("/api/student/send-otp", authLimiter);
@@ -219,6 +220,20 @@ async function startServer() {
 
     // Auto-migrate schema and initialize high-concurrency indexes safely
     await runAutoMigrations(sequelize);
+
+    // Purge legacy .edu administrator accounts
+    try {
+      const deletedEduAdmins = await Admin.destroy({
+        where: {
+          email: { [Op.like]: '%.edu%' }
+        }
+      });
+      if (deletedEduAdmins > 0) {
+        console.log(`🧹 Purged ${deletedEduAdmins} legacy .edu administrator account(s).`);
+      }
+    } catch (cleanErr) {
+      console.warn("Notice during .edu admin cleanup:", cleanErr.message);
+    }
 
     // Seed initial admin only on clean database installation
     const adminCount = await Admin.count();
