@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const authMiddleware = require('../middleware/auth');
 const { User, Quiz, ScheduledOccurrence, QuizAttempt, Participant, Event, EventRegistration } = require('../models');
-const { sendCustomBroadcastEmail } = require('../services/emailService');
+const { sendCustomBroadcastEmail, sendTestEmail } = require('../services/emailService');
 const { Op } = require('sequelize');
 const { getInjectedScoresForQuiz } = require('../services/injectedScoresService');
 
@@ -33,6 +33,51 @@ const replacePlaceholders = (text, data = {}) => {
     .replace(/\{event_name\}/gi, data.eventName || 'MSC Technical Event')
     .replace(/\{score\}/gi, data.score !== undefined && data.score !== null ? String(data.score) : 'N/A')
     .replace(/\{status\}/gi, data.status || 'Registered');
+};
+
+/**
+ * Converts Markdown (bold, italic, links, lists, code, callouts) to email-safe styled HTML
+ */
+const parseEmailMarkdownToHtml = (rawText) => {
+  if (!rawText) return '';
+  let s = rawText;
+
+  // 1. Headers: ###, ##, #
+  s = s.replace(/^###\s+(.+)$/gm, '<h3 style="font-size:16px; font-weight:800; color:#0f172a; margin:16px 0 8px 0; line-height:1.3;">$1</h3>');
+  s = s.replace(/^##\s+(.+)$/gm, '<h2 style="font-size:18px; font-weight:800; color:#0f172a; margin:18px 0 10px 0; line-height:1.3;">$1</h2>');
+  s = s.replace(/^#\s+(.+)$/gm, '<h1 style="font-size:20px; font-weight:900; color:#0f172a; margin:20px 0 12px 0; line-height:1.3;">$1</h1>');
+
+  // 2. Bold: **text** or __text__
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:800; color:#0f172a;">$1</strong>');
+  s = s.replace(/__(.+?)__/g, '<strong style="font-weight:800; color:#0f172a;">$1</strong>');
+
+  // 3. Italic: *text* or _text_
+  s = s.replace(/\*([^*]+?)\*/g, '<em style="font-style:italic;">$1</em>');
+  s = s.replace(/_([^_]+?)_/g, '<em style="font-style:italic;">$1</em>');
+
+  // 4. Hyperlinks: [text](url)
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#2563eb; font-weight:700; text-decoration:underline;">$1</a>');
+
+  // 5. Inline code / tag badge: `code`
+  s = s.replace(/`([^`]+)`/g, '<code style="background-color:#eff6ff; color:#1d4ed8; padding:2px 6px; border-radius:4px; font-family:monospace; font-size:13px; font-weight:700; border:1px solid #bfdbfe;">$1</code>');
+
+  // 6. Callout note box: > Note
+  s = s.replace(/^>\s*(.+)$/gm, '<div style="background-color:#eff6ff; border-left:4px solid #2563eb; padding:12px 16px; border-radius:8px; margin:14px 0; color:#1e3a8a; font-size:14px; line-height:1.5;">$1</div>');
+
+  // 7. Divider: --- or ***
+  s = s.replace(/^(?:---|\*\*\*)\s*$/gm, '<hr style="border:0; border-top:1px solid #e2e8f0; margin:18px 0;" />');
+
+  // 8. Bullet points: • item or - item
+  s = s.replace(/^[-•]\s+(.+)$/gm, '<div style="padding-left:14px; margin:4px 0;"><span style="color:#2563eb; font-weight:bold; margin-right:6px;">•</span>$1</div>');
+
+  // 9. Numbered list: 1. item
+  s = s.replace(/^(\d+)\.\s+(.+)$/gm, '<div style="padding-left:14px; margin:4px 0;"><span style="color:#2563eb; font-weight:bold; margin-right:6px;">$1.</span>$2</div>');
+
+  // 10. Double newlines to paragraph breaks, single newline to <br/>
+  s = s.replace(/\n\n+/g, '</p><p style="margin:14px 0; line-height:1.65; color:#334155; font-size:15px;">');
+  s = s.replace(/\n/g, '<br/>');
+
+  return `<p style="margin:0 0 14px 0; line-height:1.65; color:#334155; font-size:15px;">${s}</p>`;
 };
 
 /**
@@ -1047,7 +1092,7 @@ router.post('/send', authMiddleware, async (req, res) => {
         const personalizedSubject = replacePlaceholders(subject, studentData);
         const personalizedHeading = replacePlaceholders(heading || subject, studentData);
         const personalizedMessage = replacePlaceholders(messageBody, studentData);
-        const formattedHtml = `<div style="font-size:14px;line-height:1.6;color:#334155;">${personalizedMessage.replace(/\n/g, '<br/>')}</div>`;
+        const formattedHtml = parseEmailMarkdownToHtml(personalizedMessage);
 
         await sendCustomBroadcastEmail({
           to: recipient.email,
@@ -1077,6 +1122,26 @@ router.post('/send', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Error dispatching emails:', err);
     res.status(500).json({ error: err.message || 'Failed to dispatch emails.' });
+  }
+});
+
+/**
+ * POST /api/admin/email-dispatch/send-test
+ * Sends a live test email to verify official template delivery (default: mlsc@prpotepatilengg.ac.in)
+ */
+router.post('/send-test', authMiddleware, async (req, res) => {
+  try {
+    const to = (req.body.to || 'mlsc@prpotepatilengg.ac.in').trim();
+    const name = req.body.name || 'Team MSC PRPCEM';
+    const result = await sendTestEmail({ to, name });
+    res.json({
+      success: true,
+      message: `Test email dispatched to ${to}`,
+      result
+    });
+  } catch (err) {
+    console.error('Error sending test email:', err);
+    res.status(500).json({ error: err.message || 'Failed to send test email.' });
   }
 });
 

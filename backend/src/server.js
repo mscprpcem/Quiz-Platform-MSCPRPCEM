@@ -100,6 +100,11 @@ app.use(
   express.static(path.join(__dirname, "..", "uploads"))
 );
 
+app.use(
+  "/assets/email",
+  express.static(path.join(__dirname, "assets", "email"))
+);
+
 // =======================
 // Rate Limiters (with Clean IP Generator for Proxies)
 // =======================

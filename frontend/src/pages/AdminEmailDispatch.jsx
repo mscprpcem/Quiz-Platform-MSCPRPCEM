@@ -6,7 +6,7 @@ import {
   Mail, Send, Users, CheckCircle2, AlertTriangle, Loader2, Sparkles,
   Filter, Search, RefreshCw, Eye, Edit3, ArrowRight, X, ExternalLink,
   BookOpen, Calendar, Radio, Check, Info, Layers, Tag, Award, UserCheck, Folder,
-  Monitor, Smartphone
+  Monitor, Smartphone, Bold, Italic, Link2, Heading, List, ListOrdered, Code, Quote, Minus
 } from 'lucide-react';
 
 export default function AdminEmailDispatch() {
@@ -59,6 +59,8 @@ export default function AdminEmailDispatch() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [dispatching, setDispatching] = useState(false);
   const [dispatchResult, setDispatchResult] = useState(null);
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   // Available dynamic tags from registration & quiz context
@@ -258,6 +260,137 @@ export default function AdminEmailDispatch() {
     }
   };
 
+  // Text formatting helpers for Bold, Italic, Code, Link, etc.
+  const formatWrap = (prefix, suffix, placeholder = 'text') => {
+    if (!messageBodyRef.current) {
+      setMessageBody(prev => prev + `${prefix}${placeholder}${suffix}`);
+      return;
+    }
+    const textarea = messageBodyRef.current;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const text = textarea.value;
+    const selected = text.substring(start, end);
+
+    if (selected.length > 0) {
+      const replacement = prefix + selected + suffix;
+      const nextVal = text.substring(0, start) + replacement + text.substring(end);
+      setMessageBody(nextVal);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+      }, 0);
+    } else {
+      const replacement = prefix + placeholder + suffix;
+      const nextVal = text.substring(0, start) + replacement + text.substring(end);
+      setMessageBody(nextVal);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + prefix.length, start + prefix.length + placeholder.length);
+      }, 0);
+    }
+  };
+
+  const formatPrefix = (linePrefix, placeholder = 'item') => {
+    if (!messageBodyRef.current) {
+      setMessageBody(prev => prev + `\n${linePrefix}${placeholder}`);
+      return;
+    }
+    const textarea = messageBodyRef.current;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const text = textarea.value;
+    const selected = text.substring(start, end);
+    const insertContent = selected || placeholder;
+    const needsNewline = start > 0 && text[start - 1] !== '\n';
+    const finalPrefix = needsNewline ? `\n${linePrefix}` : linePrefix;
+    const replacement = finalPrefix + insertContent;
+    const nextVal = text.substring(0, start) + replacement + text.substring(end);
+    setMessageBody(nextVal);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + finalPrefix.length, start + replacement.length);
+    }, 0);
+  };
+
+  const formatLink = () => {
+    if (!messageBodyRef.current) {
+      setMessageBody(prev => prev + ' [Link Title](https://example.com)');
+      return;
+    }
+    const textarea = messageBodyRef.current;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const text = textarea.value;
+    const selected = text.substring(start, end).trim();
+
+    let initialTitle = selected || 'Official Portal';
+    let initialUrl = 'https://quiz.mscprpcem.tech';
+
+    if (selected.startsWith('http://') || selected.startsWith('https://')) {
+      initialUrl = selected;
+      initialTitle = 'Click Here';
+    }
+
+    const urlInput = window.prompt('Enter Hyperlink URL (e.g. https://...):', initialUrl);
+    if (urlInput === null) return;
+    const cleanUrl = urlInput.trim() || initialUrl;
+
+    const titleInput = selected ? initialTitle : window.prompt('Enter Link Label Text:', initialTitle);
+    const cleanTitle = (titleInput !== null ? titleInput.trim() : initialTitle) || 'Link';
+
+    const replacement = `[${cleanTitle}](${cleanUrl})`;
+    const nextVal = text.substring(0, start) + replacement + text.substring(end);
+    setMessageBody(nextVal);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start, start + replacement.length);
+    }, 0);
+  };
+
+  // Convert markdown to clean HTML for student preview and delivery
+  const parseEmailMarkdownToHtml = (rawText) => {
+    if (!rawText) return '';
+    let s = rawText;
+
+    // Headers: ###, ##, #
+    s = s.replace(/^###\s+(.+)$/gm, '<h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin: 16px 0 8px 0; line-height: 1.3;">$1</h3>');
+    s = s.replace(/^##\s+(.+)$/gm, '<h2 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 18px 0 10px 0; line-height: 1.3;">$1</h2>');
+    s = s.replace(/^#\s+(.+)$/gm, '<h1 style="font-size: 20px; font-weight: 900; color: #0f172a; margin: 20px 0 12px 0; line-height: 1.3;">$1</h1>');
+
+    // Bold: **text** or __text__
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight: 800; color: #0f172a;">$1</strong>');
+    s = s.replace(/__(.+?)__/g, '<strong style="font-weight: 800; color: #0f172a;">$1</strong>');
+
+    // Italic: *text* or _text_
+    s = s.replace(/\*([^*]+?)\*/g, '<em style="font-style: italic;">$1</em>');
+    s = s.replace(/_([^_]+?)_/g, '<em style="font-style: italic;">$1</em>');
+
+    // Hyperlinks: [text](url)
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer" style="color: #2563eb; font-weight: 700; text-decoration: underline;">$1</a>');
+
+    // Inline code / badge: `code`
+    s = s.replace(/`([^`]+)`/g, '<code style="background-color: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; font-weight: 700; border: 1px solid #bfdbfe;">$1</code>');
+
+    // Callout box / blockquote: > text
+    s = s.replace(/^>\s*(.+)$/gm, '<div style="background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; border-radius: 8px; margin: 14px 0; color: #1e3a8a; font-size: 14px; line-height: 1.5;">$1</div>');
+
+    // Horizontal divider: --- or ***
+    s = s.replace(/^(?:---|\*\*\*)\s*$/gm, '<hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 18px 0;" />');
+
+    // Bullet items: - item or • item
+    s = s.replace(/^[-•]\s+(.+)$/gm, '<div style="padding-left: 14px; margin: 4px 0;"><span style="color: #2563eb; font-weight: bold; margin-right: 6px;">•</span>$1</div>');
+
+    // Numbered list: 1. item
+    s = s.replace(/^(\d+)\.\s+(.+)$/gm, '<div style="padding-left: 14px; margin: 4px 0;"><span style="color: #2563eb; font-weight: bold; margin-right: 6px;">$1.</span>$2</div>');
+
+    // Double newlines to paragraph breaks, single newline to <br/>
+    s = s.replace(/\n\n+/g, '</p><p style="margin: 14px 0; line-height: 1.65; color: #334155; font-size: 15px;">');
+    s = s.replace(/\n/g, '<br/>');
+
+    return `<p style="margin: 0 0 14px 0; line-height: 1.65; color: #334155; font-size: 15px;">${s}</p>`;
+  };
+
   // Compute active list of recipients based on selected audience
   const getCurrentRecipients = () => {
     let list = [];
@@ -424,6 +557,27 @@ export default function AdminEmailDispatch() {
       setShowConfirmModal(false);
     } finally {
       setDispatching(false);
+    }
+  };
+
+  // Send test email to mlsc@prpotepatilengg.ac.in
+  const handleSendTestEmail = async () => {
+    try {
+      setSendingTest(true);
+      setTestResult(null);
+      const res = await api.post('/api/admin/email-dispatch/send-test', {
+        to: 'mlsc@prpotepatilengg.ac.in',
+        name: 'Team MSC PRPCEM'
+      });
+      if (res.data.success) {
+        setTestResult({ success: true, message: res.data.message || 'Test email dispatched to mlsc@prpotepatilengg.ac.in' });
+      } else {
+        setTestResult({ success: false, message: res.data.error || 'Failed to dispatch test email' });
+      }
+    } catch (err) {
+      setTestResult({ success: false, message: err.response?.data?.error || err.message });
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -1045,17 +1199,118 @@ export default function AdminEmailDispatch() {
                   />
                 </div>
 
-                {/* Message Body */}
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Personalized Message Body *</label>
+                {/* Message Body with Rich Formatting Toolbar */}
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="block text-xs font-bold text-slate-700">Personalized Message Body *</label>
+                    <span className="text-[10px] text-slate-400 font-medium">Supports Bold, Italic, Links, Callouts &amp; Tags</span>
+                  </div>
+
+                  {/* Formatting Toolbar */}
+                  <div className="flex flex-wrap items-center gap-1 p-1.5 bg-slate-100 border border-slate-200 rounded-t-xl border-b-0">
+                    <button
+                      type="button"
+                      onClick={() => formatWrap('**', '**', 'bold text')}
+                      className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
+                      title="Bold (**text**)"
+                    >
+                      <Bold size={13} />
+                      <span className="text-[10px]">Bold</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => formatWrap('*', '*', 'italic text')}
+                      className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
+                      title="Italic (*text*)"
+                    >
+                      <Italic size={13} />
+                      <span className="text-[10px]">Italic</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={formatLink}
+                      className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
+                      title="Insert Hyperlink ([Text](url))"
+                    >
+                      <Link2 size={13} />
+                      <span className="text-[10px]">Link</span>
+                    </button>
+
+                    <div className="h-4 w-px bg-slate-300 mx-0.5" />
+
+                    <button
+                      type="button"
+                      onClick={() => formatPrefix('### ', 'Section Heading')}
+                      className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
+                      title="Heading (### Heading)"
+                    >
+                      <Heading size={13} />
+                      <span className="text-[10px]">Heading</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => formatPrefix('• ', 'Key Point')}
+                      className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
+                      title="Bullet Point (• item)"
+                    >
+                      <List size={13} />
+                      <span className="text-[10px]">Bullet</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => formatPrefix('1. ', 'First step')}
+                      className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
+                      title="Numbered List (1. item)"
+                    >
+                      <ListOrdered size={13} />
+                      <span className="text-[10px]">Number</span>
+                    </button>
+
+                    <div className="h-4 w-px bg-slate-300 mx-0.5" />
+
+                    <button
+                      type="button"
+                      onClick={() => formatWrap('`', '`', 'highlight')}
+                      className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
+                      title="Inline Badge / Code (`code`)"
+                    >
+                      <Code size={13} />
+                      <span className="text-[10px]">Badge</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => formatPrefix('> 💡 Note: ', 'Please review the schedule carefully before joining.')}
+                      className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
+                      title="Callout Notice Box (> Note: ...)"
+                    >
+                      <Quote size={13} />
+                      <span className="text-[10px]">Callout</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => formatPrefix('---\n', '')}
+                      className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
+                      title="Divider (---)"
+                    >
+                      <Minus size={13} />
+                      <span className="text-[10px]">Divider</span>
+                    </button>
+                  </div>
+
                   <textarea
                     ref={messageBodyRef}
                     rows={8}
                     required
-                    placeholder="Hello {name},\n\nWe are pleased to invite you to the upcoming session for {event_name}...\n\nRegards,\nMicrosoft Student Club PRPCEM"
+                    placeholder="Hello {name},\n\nWe are pleased to invite you to the upcoming session for {event_name}...\n\nUse **bold**, *italics*, [links](https://...), or the toolbar buttons above!\n\nRegards,\nMicrosoft Student Club PRPCEM"
                     value={messageBody}
                     onChange={(e) => setMessageBody(e.target.value)}
-                    className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 outline-none focus:border-blue-600 font-sans leading-relaxed"
+                    className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-b-xl border-t-0 text-xs font-medium text-slate-900 outline-none focus:border-blue-600 font-sans leading-relaxed"
                   />
                 </div>
 
@@ -1083,8 +1338,34 @@ export default function AdminEmailDispatch() {
                   </div>
                 </div>
 
-                {/* Dispatch Trigger Button */}
-                <div className="pt-2 flex justify-end">
+                {/* Test Result Alert Banner */}
+                {testResult && (
+                  <div className={`p-4 rounded-2xl text-xs font-bold flex items-center justify-between gap-3 animate-fade-in ${
+                    testResult.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {testResult.success ? <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" /> : <AlertTriangle size={16} className="text-rose-600 flex-shrink-0" />}
+                      <span>{testResult.message}</span>
+                    </div>
+                    <button type="button" onClick={() => setTestResult(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Dispatch Trigger Buttons */}
+                <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSendTestEmail}
+                    disabled={sendingTest}
+                    className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                    title="Send official standard template test to mlsc@prpotepatilengg.ac.in"
+                  >
+                    {sendingTest ? <Loader2 size={14} className="animate-spin text-blue-600" /> : <Mail size={14} className="text-blue-600" />}
+                    <span>{sendingTest ? 'Sending Test...' : 'Send Test to mlsc@prpotepatilengg.ac.in'}</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setShowConfirmModal(true)}
@@ -1092,7 +1373,7 @@ export default function AdminEmailDispatch() {
                     className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center space-x-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
                   >
                     <Send size={15} />
-                    <span>Review & Dispatch ({activeCount} Emails)</span>
+                    <span>Review &amp; Dispatch ({activeCount} Emails)</span>
                   </button>
                 </div>
               </div>
@@ -1184,32 +1465,43 @@ export default function AdminEmailDispatch() {
                   <div className="p-4 sm:p-8 bg-[#f1f5f9] flex justify-center items-start min-h-[380px]">
                     {/* Actual Institutional Email Card (Identical to backend renderHtmlWrapper) */}
                     <div
-                      className={`w-full bg-white rounded-xl border border-slate-200 overflow-hidden shadow-md transition-all duration-300 text-left ${
-                        previewDevice === 'mobile' ? 'max-w-[375px]' : 'max-w-[580px]'
+                      className={`w-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-lg transition-all duration-300 text-left ${
+                        previewDevice === 'mobile' ? 'max-w-[375px]' : 'max-w-[600px]'
                       }`}
                       style={{
                         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
                       }}
                     >
-                      {/* Institutional Header Banner (#0f172a navy + 3px blue border) */}
-                      <div
-                        className="text-center p-6 text-white"
-                        style={{
-                          backgroundColor: '#0f172a',
-                          borderBottom: '3px solid #2563eb'
-                        }}
-                      >
-                        <div className="inline-block px-3.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-blue-300 border border-blue-500/40 bg-blue-600/20">
-                          Microsoft Student Club • PRPCEM
-                        </div>
-                        <h1
-                          className="mt-3 text-white font-bold leading-tight tracking-tight break-words"
-                          style={{
-                            fontSize: previewDevice === 'mobile' ? '18px' : '22px'
-                          }}
-                        >
-                          {renderPreviewText(heading || subject || 'MSC PRPCEM Announcement')}
-                        </h1>
+                      {/* 1. Dynamic Top Header Bar (Simplified: Logo + MSC PRPCEM on left, Be a Force for Good on right) */}
+                      <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between">
+                        <a href="https://www.mscprpcem.tech" target="_blank" rel="noreferrer" className="flex items-center space-x-3 text-left no-underline">
+                          <img
+                            src="/assets/email/msc_logo.png"
+                            alt="MSC PRPCEM Logo"
+                            className="w-10 h-10 object-contain block flex-shrink-0"
+                          />
+                          <span className="text-base font-black text-slate-900 tracking-tight leading-none">
+                            MSC PRPCEM
+                          </span>
+                        </a>
+
+                        <a href="https://www.mscprpcem.tech" target="_blank" rel="noreferrer" className="text-right no-underline">
+                          <div className="text-xs font-black text-slate-900">
+                            Be a <span className="text-blue-600">Force for Good</span>.
+                          </div>
+                          <div className="h-0.5 w-12 bg-blue-600 rounded-full ml-auto mt-1" />
+                        </a>
+                      </div>
+
+                      {/* 2. Hero Banner (Campus & Club Artwork) */}
+                      <div className="w-full bg-white leading-none">
+                        <a href="https://www.mscprpcem.tech" target="_blank" rel="noreferrer" className="block">
+                          <img
+                            src="/assets/email/email_hero_banner.png"
+                            alt="Microsoft Student Club PRPCEM - Be a Force for Good."
+                            className="w-full h-auto block"
+                          />
+                        </a>
                       </div>
 
                       {/* Institutional Body Content */}
@@ -1220,19 +1512,22 @@ export default function AdminEmailDispatch() {
                           lineHeight: '1.65'
                         }}
                       >
-                        {/* Auto-Greeting (matches backend logic: only if not already started with greeting) */}
-                        {!hasLeadingGreeting && (
-                          <p className="text-slate-900 font-medium m-0">
-                            Hello <strong className="text-slate-900 font-bold">{sampleRecipient.name}</strong>,
-                          </p>
-                        )}
+                        {/* Greeting: Hi {{Name}}, */}
+                        <p className="text-lg font-bold text-slate-900 m-0 leading-tight">
+                          Hi <span className="text-blue-600 font-extrabold">{sampleRecipient.name}</span>,
+                        </p>
 
-                        <div className="whitespace-pre-line text-slate-700 leading-relaxed break-words">
-                          {renderPreviewText(
-                            messageBody ||
-                              'Your email message body will be rendered here with personalized tags.'
-                          )}
-                        </div>
+                        <div
+                          className="text-slate-700 leading-relaxed break-words text-[15px]"
+                          dangerouslySetInnerHTML={{
+                            __html: parseEmailMarkdownToHtml(
+                              renderPreviewText(
+                                messageBody ||
+                                  'Your email message body will be rendered here with personalized tags. Use **bold text**, *italics*, [hyperlinks](https://mscprpcem.tech), bullet points, and callout boxes!'
+                              )
+                            )
+                          }}
+                        />
 
                         {/* Action CTA Button */}
                         {ctaText && (
@@ -1240,10 +1535,10 @@ export default function AdminEmailDispatch() {
                             <a
                               href={ctaUrl ? renderPreviewText(ctaUrl) : '#'}
                               onClick={(e) => e.preventDefault()}
-                              className="inline-block px-7 py-3 text-white font-bold rounded-lg shadow-md cursor-pointer text-center text-sm"
+                              className="inline-block px-8 py-3 text-white font-bold rounded-xl shadow-md cursor-pointer text-center text-sm"
                               style={{
                                 backgroundColor: '#2563eb',
-                                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
+                                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)'
                               }}
                             >
                               {renderPreviewText(ctaText)} &rarr;
@@ -1255,30 +1550,53 @@ export default function AdminEmailDispatch() {
                             )}
                           </div>
                         )}
+
+                        {/* Sign-off Section with Signature & "Be a Force for Good" */}
+                        <div className="mt-8 pt-5 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+                          <div>
+                            <div className="text-xs text-slate-500 font-medium">Best Regards,</div>
+                            <div className="text-sm font-extrabold text-slate-900 mt-0.5">Team MSC PRPCEM</div>
+                            <div className="h-0.5 w-10 bg-blue-600 rounded-full my-2" />
+                            <div className="text-xs font-bold text-slate-800">Microsoft Student Club PRPCEM</div>
+                            <div className="text-[11px] text-slate-400 mt-0.5">
+                              P. R. Pote (Patil) College of Engineering &amp; Management, Amravati
+                            </div>
+                          </div>
+                          <div className="sm:self-end flex-shrink-0">
+                            <img
+                              src="/assets/email/email_force_for_good.png"
+                              alt="Be a Force for Good."
+                              className="w-36 h-auto"
+                            />
+                          </div>
+                        </div>
+
                       </div>
 
-                      {/* Institutional Footer */}
-                      <div
-                        className="p-5 text-center text-xs space-y-1"
-                        style={{
-                          backgroundColor: '#f8fafc',
-                          borderTop: '1px solid #e2e8f0',
-                          color: '#64748b'
-                        }}
-                      >
-                        <p className="font-bold text-slate-900 m-0 text-[13px]">
-                          Microsoft Student Club (MSC)
-                        </p>
-                        <p className="text-slate-500 m-0 text-xs">
-                          P.R. Pote (Patil) College of Engineering &amp; Management, Amravati
-                        </p>
-                        <p className="text-[11px] text-slate-400 m-0 pt-1">
-                          Support:{' '}
-                          <span className="text-blue-600 font-semibold">
-                            mlsc@prpotepatilengg.ac.in
-                          </span>
-                        </p>
+                      {/* Official Navy Footer Bar with Social Links (#081630) */}
+                      <div className="bg-[#081630] px-5 py-3.5 flex items-center justify-between text-left">
+                        <div className="flex items-center gap-2">
+                          <a href="https://www.instagram.com/mscprpcem/" target="_blank" rel="noreferrer" title="Instagram">
+                            <img src="/assets/email/icon_instagram.png" alt="Instagram" className="w-7 h-7 rounded block" />
+                          </a>
+                          <a href="https://www.linkedin.com/company/mscprpcem/" target="_blank" rel="noreferrer" title="LinkedIn">
+                            <img src="/assets/email/icon_linkedin.png" alt="LinkedIn" className="w-7 h-7 rounded block" />
+                          </a>
+                          <a href="https://youtube.com/@mscprpcem" target="_blank" rel="noreferrer" title="YouTube">
+                            <img src="/assets/email/icon_youtube.png" alt="YouTube" className="w-7 h-7 rounded block" />
+                          </a>
+                          <a href="https://www.mscprpcem.tech" target="_blank" rel="noreferrer" title="Website">
+                            <img src="/assets/email/icon_website.png" alt="Website" className="w-7 h-7 rounded block" />
+                          </a>
+                          <div className="h-5 w-px bg-white/20 mx-1" />
+                        </div>
+
+                        <div className="text-right text-[11px] text-slate-400">
+                          <div className="text-white font-bold text-[11px]">Microsoft Student Club PRPCEM</div>
+                          <div className="text-[10px] text-slate-400">P. R. Pote (Patil) College of Engg &amp; Mgmt</div>
+                        </div>
                       </div>
+
                     </div>
                   </div>
                 </div>

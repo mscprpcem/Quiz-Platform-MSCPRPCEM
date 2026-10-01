@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 let nodemailer = null;
 try {
   nodemailer = require('nodemailer');
@@ -41,6 +43,24 @@ const generateMessageId = (senderEmail) => {
     ? senderEmail.split('@')[1].replace(/[<>]/g, '').trim() 
     : 'prpotepatilengg.ac.in';
   return `<${Date.now()}.${crypto.randomBytes(8).toString('hex')}@${domain}>`;
+};
+
+/**
+ * Returns inline CID attachments for all email templates.
+ * Email clients render CID images without external image blocking warnings.
+ */
+const getEmailAttachments = () => {
+  const assetsDir = path.join(__dirname, '../assets/email');
+  const files = [
+    { filename: 'msc_logo.png', cid: 'msc_logo', path: path.join(assetsDir, 'msc_logo.png') },
+    { filename: 'email_hero_banner.png', cid: 'msc_hero_banner', path: path.join(assetsDir, 'email_hero_banner.png') },
+    { filename: 'email_force_for_good.png', cid: 'msc_force_for_good', path: path.join(assetsDir, 'email_force_for_good.png') },
+    { filename: 'icon_instagram.png', cid: 'msc_icon_instagram', path: path.join(assetsDir, 'icon_instagram.png') },
+    { filename: 'icon_linkedin.png', cid: 'msc_icon_linkedin', path: path.join(assetsDir, 'icon_linkedin.png') },
+    { filename: 'icon_youtube.png', cid: 'msc_icon_youtube', path: path.join(assetsDir, 'icon_youtube.png') },
+    { filename: 'icon_website.png', cid: 'msc_icon_website', path: path.join(assetsDir, 'icon_website.png') }
+  ];
+  return files.filter(f => fs.existsSync(f.path));
 };
 
 /**
@@ -108,6 +128,7 @@ const createTransporter = () => {
       console.log(`Subject: ${mailOptions.subject}`);
       console.log(`From: ${mailOptions.from || getSenderAddress()}`);
       console.log(`Reply-To: ${mailOptions.replyTo || getReplyToAddress()}`);
+      console.log('Attachments:', (mailOptions.attachments || []).map(a => a.filename || a.cid).join(', '));
       console.log('Content (Snippet):', (mailOptions.text || mailOptions.html || '').substring(0, 160) + '...');
       console.log('---------------------------------------------------------------\n');
       return { messageId: `mock_${crypto.randomBytes(8).toString('hex')}`, response: '250 Mock Email Dispatched' };
@@ -144,12 +165,34 @@ const verifyEmailConfiguration = async () => {
 };
 
 /**
- * Clean Modern Institutional HTML Email Wrapper
- * Built with bulletproof table layouts and inline CSS for 100% rendering across
- * Microsoft Outlook, Apple Mail, Gmail (Web & Mobile), and Yahoo.
+ * Official MSC PRPCEM HTML Email Template Wrapper
+ * Modeled exactly after the official design standard:
+ * 1. Dynamic Top Header Bar: Transparent MSC Logo, "MSC PRPCEM", "Be a Force for Good."
+ * 2. Hero Banner: Campus & Club Artwork linking to portal.
+ * 3. Rounded White Body Card: "Hi {{Name}}," in vibrant royal blue, Dynamic Content Area.
+ * 4. Sign-off: "Best Regards, Team MSC PRPCEM" with blue accent bar on left; "Be a Force for Good." signature graphic on right.
+ * 5. Deep Navy Bottom Footer: Clickable transparent circular social icons (IG, LI, YT, Web) + College attribution text.
  */
-const renderHtmlWrapper = ({ title, preheader, content }) => `
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+const renderHtmlWrapper = ({
+  title = 'Microsoft Student Club PRPCEM',
+  preheader = '',
+  recipientName = '',
+  content = '',
+  useCid = true,
+  baseUrl = ''
+}) => {
+  const prefix = baseUrl ? baseUrl.replace(/\/+$/, '') : '';
+  const mscLogoSrc = useCid ? 'cid:msc_logo' : `${prefix}/assets/email/msc_logo.png`;
+  const heroBannerSrc = useCid ? 'cid:msc_hero_banner' : `${prefix}/assets/email/email_hero_banner.png`;
+  const forceForGoodSrc = useCid ? 'cid:msc_force_for_good' : `${prefix}/assets/email/email_force_for_good.png`;
+  const iconInstagramSrc = useCid ? 'cid:msc_icon_instagram' : `${prefix}/assets/email/icon_instagram.png`;
+  const iconLinkedinSrc = useCid ? 'cid:msc_icon_linkedin' : `${prefix}/assets/email/icon_linkedin.png`;
+  const iconYoutubeSrc = useCid ? 'cid:msc_icon_youtube' : `${prefix}/assets/email/icon_youtube.png`;
+  const iconWebsiteSrc = useCid ? 'cid:msc_icon_website' : `${prefix}/assets/email/icon_website.png`;
+
+  const cleanGreeting = recipientName ? recipientName.trim() : 'Student';
+
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -166,33 +209,22 @@ const renderHtmlWrapper = ({ title, preheader, content }) => `
     
     /* Responsive phone optimization */
     @media screen and (max-width: 600px) {
-      .outer-wrap-table { padding: 12px 6px !important; }
-      .email-container { width: 100% !important; max-width: 100% !important; border-radius: 8px !important; }
-      .mobile-header { padding: 22px 16px !important; }
-      .mobile-p-20 { padding: 22px 16px !important; }
-      .mobile-footer { padding: 18px 12px !important; }
-      .mobile-title { font-size: 19px !important; line-height: 25px !important; }
-      .mobile-badge { font-size: 10px !important; padding: 3px 10px !important; letter-spacing: 0.5px !important; }
-      .otp-code-text { font-size: 30px !important; letter-spacing: 5px !important; }
-      .otp-box-cell { padding: 16px 8px !important; }
+      .outer-wrap-table { padding: 8px 4px !important; }
+      .email-container { width: 100% !important; max-width: 100% !important; border-radius: 14px !important; }
+      .email-nav-td { padding: 16px 18px 12px 18px !important; }
+      .email-body-cell { padding: 22px 18px 20px 18px !important; }
+      .email-signoff-table td { display: block !important; width: 100% !important; text-align: left !important; }
+      .email-signoff-right { margin-top: 14px !important; text-align: left !important; }
+      .email-footer-cell { padding: 14px 16px !important; }
+      .otp-code-text { font-size: 32px !important; letter-spacing: 6px !important; }
       .mobile-btn { display: block !important; width: 100% !important; max-width: 100% !important; padding: 13px 16px !important; box-sizing: border-box !important; text-align: center !important; }
-      .detail-label-cell { width: 32% !important; padding: 8px 6px !important; font-size: 12px !important; }
-      .detail-value-cell { width: 68% !important; padding: 8px 6px !important; font-size: 12px !important; }
-      .mobile-track-card { padding: 10px 12px !important; margin-bottom: 8px !important; }
-    }
-    @media screen and (max-width: 380px) {
-      .outer-wrap-table { padding: 6px 2px !important; }
-      .mobile-header { padding: 18px 12px !important; }
-      .mobile-p-20 { padding: 18px 12px !important; }
-      .mobile-title { font-size: 17px !important; line-height: 22px !important; }
-      .otp-code-text { font-size: 26px !important; letter-spacing: 4px !important; }
-      .detail-label-cell { width: 34% !important; padding: 6px 4px !important; font-size: 11px !important; }
-      .detail-value-cell { width: 66% !important; padding: 6px 4px !important; font-size: 11px !important; }
+      .detail-label-cell { width: 34% !important; padding: 7px 5px !important; font-size: 12px !important; }
+      .detail-value-cell { width: 66% !important; padding: 7px 5px !important; font-size: 12px !important; }
     }
   </style>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f1f5f9; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
-  <!-- Anti-Spam Compliant Preview Text -->
+  <!-- Anti-Spam Compliant Preheader -->
   <div style="display: none; max-height: 0px; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #f1f5f9;">
     ${preheader || title}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
   </div>
@@ -200,54 +232,146 @@ const renderHtmlWrapper = ({ title, preheader, content }) => `
   <table border="0" cellpadding="0" cellspacing="0" width="100%" class="outer-wrap-table" style="background-color: #f1f5f9; padding: 24px 8px; width: 100%; table-layout: fixed; box-sizing: border-box;">
     <tr>
       <td align="center" style="padding: 0;">
-        <!-- Main Card Container -->
-        <table border="0" cellpadding="0" cellspacing="0" width="100%" class="email-container" style="max-width: 580px; width: 100%; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05); table-layout: fixed; box-sizing: border-box;">
+        
+        <!-- Main Institutional Card Container -->
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" class="email-container" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); table-layout: fixed; box-sizing: border-box;">
           
-          <!-- Header Banner -->
+          <!-- 1. Top Dynamic Navigation Bar (Official Logo + Links) -->
           <tr>
-            <td align="center" class="mobile-header" style="background-color: #0f172a; padding: 26px 24px; border-bottom: 3px solid #2563eb; box-sizing: border-box; word-break: break-word;">
-              <table border="0" cellpadding="0" cellspacing="0">
+            <td class="email-nav-td" style="padding: 22px 28px 16px 28px; background-color: #ffffff; border-top-left-radius: 20px; border-top-right-radius: 20px;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
-                  <td align="center" class="mobile-badge" style="background-color: rgba(37, 99, 235, 0.2); border: 1px solid #3b82f6; border-radius: 20px; padding: 4px 14px; color: #93c5fd; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-                    Microsoft Student Club • PRPCEM
+                  <!-- Left: Official Transparent Logo + Simplified "MSC PRPCEM" vertically centered -->
+                  <td align="left" valign="middle" style="vertical-align: middle;">
+                    <a href="https://www.mscprpcem.tech" target="_blank" style="text-decoration: none; display: inline-block; vertical-align: middle;">
+                      <table border="0" cellpadding="0" cellspacing="0" style="vertical-align: middle;">
+                        <tr>
+                          <td valign="middle" style="padding-right: 12px; line-height: 0; vertical-align: middle;">
+                            <img src="${mscLogoSrc}" alt="MSC PRPCEM Logo" width="44" height="44" style="display: block; width: 44px; height: 44px; border: 0; outline: none; vertical-align: middle;" />
+                          </td>
+                          <td valign="middle" style="line-height: 1; vertical-align: middle;">
+                            <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 20px; font-weight: 900; color: #0f172a; letter-spacing: -0.3px; vertical-align: middle; display: inline-block;">
+                              MSC PRPCEM
+                            </span>
+                          </td>
+                        </tr>
+                      </table>
+                    </a>
+                  </td>
+
+                  <!-- Right: "Be a Force for Good." vertically centered & aligned -->
+                  <td align="right" valign="middle" style="vertical-align: middle;">
+                    <a href="https://www.mscprpcem.tech" target="_blank" style="text-decoration: none; display: inline-block; vertical-align: middle;">
+                      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; font-weight: 800; color: #0f172a; letter-spacing: -0.2px; line-height: 1.2;">
+                        Be a <span style="color: #2563eb;">Force for Good</span>.
+                      </div>
+                      <div style="height: 2.5px; width: 64px; background: linear-gradient(90deg, #2563eb, #6366f1); margin: 3px 0 0 auto; border-radius: 2px;"></div>
+                    </a>
                   </td>
                 </tr>
               </table>
-              <h1 class="mobile-title" style="margin: 12px 0 0 0; color: #ffffff; font-size: 22px; font-weight: 700; line-height: 28px; letter-spacing: -0.3px; word-break: break-word; overflow-wrap: break-word;">
-                ${title}
-              </h1>
             </td>
           </tr>
 
-          <!-- Body Content -->
+          <!-- 2. Hero Banner (Campus & Club Artwork) -->
           <tr>
-            <td class="mobile-p-20" style="padding: 32px 28px; color: #334155; font-size: 15px; line-height: 1.65; background-color: #ffffff; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word;">
-              ${content}
+            <td style="padding: 0; line-height: 0; background-color: #ffffff;">
+              <a href="https://www.mscprpcem.tech" target="_blank" style="display: block; text-decoration: none;">
+                <img src="${heroBannerSrc}" alt="Microsoft Student Club PRPCEM - A community of curious minds, creating opportunities for a better tomorrow." width="600" style="display: block; width: 100%; max-width: 600px; height: auto; border: 0; outline: none;" />
+              </a>
             </td>
           </tr>
 
-          <!-- Institutional Footer -->
+          <!-- 3. Dynamic Content Body Area -->
           <tr>
-            <td class="mobile-footer" style="padding: 20px 24px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #64748b; line-height: 1.5; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word;">
-              <p style="margin: 0 0 4px 0; font-weight: 700; color: #1e293b; font-size: 13px;">
-                Microsoft Student Club (MSC)
+            <td class="email-body-cell" style="padding: 28px 32px 24px 32px; background-color: #ffffff; color: #334155; font-size: 15px; line-height: 1.65; box-sizing: border-box; word-break: break-word;">
+              
+              <!-- Greeting: Hi {{Name}}, -->
+              <p style="margin: 0 0 18px 0; font-size: 19px; font-weight: 700; color: #0f172a; line-height: 1.3;">
+                Hi <span style="color: #2563eb; font-weight: 800;">${cleanGreeting}</span>,
               </p>
-              <p style="margin: 0 0 6px 0; color: #64748b; font-size: 12px;">
-                P.R. Pote (Patil) College of Engineering &amp; Management, Amravati
-              </p>
-              <p style="margin: 0; font-size: 11px; color: #94a3b8; word-break: break-all;">
-                Support: <a href="mailto:mlsc@prpotepatilengg.ac.in" style="color: #2563eb; text-decoration: none; font-weight: 600; word-break: break-all;">mlsc@prpotepatilengg.ac.in</a>
-              </p>
+
+              <!-- Dynamic Content -->
+              <div style="font-size: 15px; color: #334155; line-height: 1.65;">
+                ${content}
+              </div>
+
+              <!-- Sign-off Section -->
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" class="email-signoff-table" style="margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 22px; table-layout: fixed;">
+                <tr>
+                  <!-- Left: Official Signature -->
+                  <td valign="bottom" align="left" style="text-align: left; vertical-align: bottom; width: 62%;">
+                    <div style="font-size: 13px; color: #64748b; font-weight: 500; margin-bottom: 3px;">Best Regards,</div>
+                    <div style="font-size: 16px; color: #0f172a; font-weight: 800; letter-spacing: -0.2px; margin-bottom: 6px;">Team MSC PRPCEM</div>
+                    <div style="height: 3px; width: 42px; background-color: #2563eb; border-radius: 2px; margin-bottom: 10px;"></div>
+                    <div style="font-size: 13px; font-weight: 700; color: #1e293b; line-height: 1.3;">Microsoft Student Club PRPCEM</div>
+                    <div style="font-size: 11px; color: #64748b; margin-top: 2px; line-height: 1.4;">P. R. Pote (Patil) College of Engineering &amp; Management, Amravati</div>
+                  </td>
+                  <!-- Right: Be a Force for Good graphic -->
+                  <td valign="bottom" align="right" class="email-signoff-right" style="text-align: right; vertical-align: bottom; width: 38%;">
+                    <img src="${forceForGoodSrc}" alt="Be a Force for Good." width="155" style="display: inline-block; max-width: 155px; width: 100%; height: auto; border: 0; outline: none;" />
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- 4. Deep Navy Blue Footer Bar (#081630) -->
+          <tr>
+            <td class="email-footer-cell" style="padding: 16px 24px; background-color: #081630; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; box-sizing: border-box;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <!-- Clean Transparent Circular Social Media Icons on Left (No Gray Background) -->
+                  <td align="left" valign="middle" style="line-height: 0;">
+                    <table border="0" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding-right: 10px; line-height: 0;">
+                          <a href="https://www.instagram.com/mscprpcem/" target="_blank" style="text-decoration: none; display: inline-block;" title="Instagram">
+                            <img src="${iconInstagramSrc}" width="30" height="30" alt="Instagram" style="display: block; border: 0; outline: none;" />
+                          </a>
+                        </td>
+                        <td style="padding-right: 10px; line-height: 0;">
+                          <a href="https://www.linkedin.com/company/mscprpcem/" target="_blank" style="text-decoration: none; display: inline-block;" title="LinkedIn">
+                            <img src="${iconLinkedinSrc}" width="30" height="30" alt="LinkedIn" style="display: block; border: 0; outline: none;" />
+                          </a>
+                        </td>
+                        <td style="padding-right: 10px; line-height: 0;">
+                          <a href="https://youtube.com/@mscprpcem" target="_blank" style="text-decoration: none; display: inline-block;" title="YouTube">
+                            <img src="${iconYoutubeSrc}" width="30" height="30" alt="YouTube" style="display: block; border: 0; outline: none;" />
+                          </a>
+                        </td>
+                        <td style="padding-right: 14px; line-height: 0;">
+                          <a href="https://www.mscprpcem.tech" target="_blank" style="text-decoration: none; display: inline-block;" title="Official Website">
+                            <img src="${iconWebsiteSrc}" width="30" height="30" alt="Website" style="display: block; border: 0; outline: none;" />
+                          </a>
+                        </td>
+                        <!-- Vertical Divider -->
+                        <td style="border-left: 1px solid rgba(255, 255, 255, 0.2); height: 24px; width: 1px;"></td>
+                      </tr>
+                    </table>
+                  </td>
+
+                  <!-- Organization Details on Right -->
+                  <td align="right" valign="middle" style="color: #94a3b8; font-size: 11px; line-height: 1.35; text-align: right;">
+                    <a href="https://www.mscprpcem.tech" target="_blank" style="text-decoration: none; color: inherit;">
+                      <div style="color: #ffffff; font-weight: 700; font-size: 11px;">Microsoft Student Club PRPCEM</div>
+                      <div style="color: #94a3b8; font-size: 10px; margin-top: 1px;">P. R. Pote (Patil) College of Engineering &amp; Management</div>
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
         </table>
+
       </td>
     </tr>
   </table>
 </body>
-</html>
-`;
+</html>`;
+};
 
 /**
  * Send 6-Digit OTP Verification Email (Simple, Clean, and Highly Deliverable)
@@ -279,14 +403,14 @@ const sendOtpEmail = async ({ to, name, otp, type = 'registration' }) => {
   const html = renderHtmlWrapper({
     title: heading,
     preheader: `Your verification code is ${otp}. Valid for 15 minutes.`,
+    recipientName: userName,
     content: `
-      <p style="margin-top: 0; font-size: 15px; color: #1e293b;">Hello <strong>${userName}</strong>,</p>
-      <p style="font-size: 15px; color: #334155; margin-bottom: 20px; line-height: 1.6;">${description}</p>
+      <p style="font-size: 15px; color: #334155; margin: 0 0 18px 0; line-height: 1.6;">${description}</p>
       
       <!-- OTP Box -->
       <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; table-layout: fixed; box-sizing: border-box;">
         <tr>
-          <td align="center" class="otp-box-cell" style="background-color: #eff6ff; border: 2px dashed #2563eb; border-radius: 12px; padding: 22px 14px; box-sizing: border-box; word-break: break-word;">
+          <td align="center" style="background-color: #eff6ff; border: 2px dashed #2563eb; border-radius: 14px; padding: 24px 16px; box-sizing: border-box;">
             <div class="otp-code-text" style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #1d4ed8; line-height: 1.1; margin: 0 auto; text-align: center;">
               ${otp}
             </div>
@@ -298,12 +422,12 @@ const sendOtpEmail = async ({ to, name, otp, type = 'registration' }) => {
       </table>
 
       <p style="font-size: 13px; color: #64748b; margin-top: 20px; margin-bottom: 0; line-height: 1.5;">
-        If you did not request this code, you can safely ignore this email.
+        If you did not request this verification code, you can safely ignore this email.
       </p>
     `
   });
 
-  const plainText = `Hello ${userName},\n\nYour 6-digit verification code is: ${otp}\n\nThis code is valid for 15 minutes.\nIf you did not request this code, please ignore this email.\n\n—\nMicrosoft Student Club (MSC)\nP.R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
+  const plainText = `Hi ${userName},\n\nYour 6-digit verification code is: ${otp}\n\nThis code is valid for 15 minutes.\nIf you did not request this code, please ignore this email.\n\n—\nBest Regards,\nTeam MSC PRPCEM\nMicrosoft Student Club PRPCEM\nP. R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
 
   return transport.sendMail({
     from: fromAddr,
@@ -312,12 +436,13 @@ const sendOtpEmail = async ({ to, name, otp, type = 'registration' }) => {
     subject,
     text: plainText,
     html,
+    attachments: getEmailAttachments(),
     messageId: generateMessageId(fromAddr),
     headers: {
       'X-Priority': '1', // High priority for OTP
       'X-MSMail-Priority': 'High',
       'Importance': 'High',
-      'X-Mailer': 'MSC-PRPCEM-QuizPlatform'
+      'X-Mailer': 'MSC-PRPCEM-Platform'
     }
   });
 };
@@ -337,22 +462,22 @@ const sendQuizReminderEmail = async ({ to, name, quizTitle, eventName, startTime
   const html = renderHtmlWrapper({
     title: 'Quiz Reminder',
     preheader: `Reminder: ${targetQuizTitle} is starting soon — join code: ${joinCode || 'LIVE'}`,
+    recipientName: userName,
     content: `
-      <p style="margin-top: 0; font-size: 15px; color: #1e293b;">Hello <strong>${userName}</strong>,</p>
-      <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 15px; color: #334155; line-height: 1.6; margin: 0 0 16px 0;">
         Get ready! Your scheduled challenge <strong>${targetQuizTitle}</strong>${eventName ? ` (${eventName})` : ''} is starting soon.
       </p>
       
       <!-- Quiz Schedule Box -->
-      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; table-layout: fixed; box-sizing: border-box;">
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; table-layout: fixed; box-sizing: border-box;">
         <tr>
-          <td class="mobile-stack-card" style="padding: 16px 18px; word-break: break-word; overflow-wrap: break-word;">
-            <p style="margin: 4px 0; color: #334155; font-size: 14px; word-break: break-word;"><strong>📅 Start Time:</strong> ${dateStr} (IST)</p>
-            <p style="margin: 8px 0 4px 0; color: #334155; font-size: 14px; word-break: break-word;">
+          <td style="padding: 18px 20px; word-break: break-word;">
+            <p style="margin: 4px 0; color: #334155; font-size: 14px;"><strong>📅 Start Time:</strong> ${dateStr} (IST)</p>
+            <p style="margin: 8px 0 4px 0; color: #334155; font-size: 14px;">
               <strong>🔑 Join Code:</strong> 
               <code style="background-color: #eff6ff; color: #1d4ed8; padding: 3px 8px; border-radius: 4px; font-size: 15px; font-weight: 800; letter-spacing: 1px; font-family: monospace; display: inline-block;">${joinCode || 'LIVE'}</code>
             </p>
-            ${eventName ? `<p style="margin: 8px 0 4px 0; color: #64748b; font-size: 13px; word-break: break-word;"><strong>🏷️ Event:</strong> ${eventName}</p>` : ''}
+            ${eventName ? `<p style="margin: 8px 0 4px 0; color: #64748b; font-size: 13px;"><strong>🏷️ Event:</strong> ${eventName}</p>` : ''}
           </td>
         </tr>
       </table>
@@ -361,20 +486,20 @@ const sendQuizReminderEmail = async ({ to, name, quizTitle, eventName, startTime
       <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0; table-layout: fixed;">
         <tr>
           <td align="center">
-            <a href="${quizUrl}" target="_blank" class="mobile-btn" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 700; font-size: 14px; text-decoration: none; padding: 12px 28px; border-radius: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); text-align: center; max-width: 100%; box-sizing: border-box;">
+            <a href="${quizUrl}" target="_blank" class="mobile-btn" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 700; font-size: 14px; text-decoration: none; padding: 13px 32px; border-radius: 10px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3); text-align: center;">
               Start / Join Quiz Now &rarr;
             </a>
           </td>
         </tr>
       </table>
 
-      <p style="font-size: 13px; color: #64748b; text-align: center; margin-bottom: 0; word-break: break-all; overflow-wrap: anywhere;">
-        Direct link: <a href="${quizUrl}" style="color: #2563eb; word-break: break-all; overflow-wrap: anywhere;">${quizUrl}</a>
+      <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 0; word-break: break-all;">
+        Direct link: <a href="${quizUrl}" style="color: #2563eb;">${quizUrl}</a>
       </p>
     `
   });
 
-  const plainText = `Hello ${userName},\n\nYour quiz "${targetQuizTitle}" is starting at ${dateStr} (IST).\nJoin Code: ${joinCode || 'LIVE'}\nDirect Link: ${quizUrl}\n\nGood luck!\n\n—\nMicrosoft Student Club (MSC)\nP.R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
+  const plainText = `Hi ${userName},\n\nYour quiz "${targetQuizTitle}" is starting at ${dateStr} (IST).\nJoin Code: ${joinCode || 'LIVE'}\nDirect Link: ${quizUrl}\n\nGood luck!\n\n—\nBest Regards,\nTeam MSC PRPCEM\nMicrosoft Student Club PRPCEM\nP. R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
 
   return transport.sendMail({
     from: fromAddr,
@@ -383,9 +508,10 @@ const sendQuizReminderEmail = async ({ to, name, quizTitle, eventName, startTime
     subject: `Reminder: ${targetQuizTitle} — Starting ${dateStr}`,
     text: plainText,
     html,
+    attachments: getEmailAttachments(),
     messageId: generateMessageId(fromAddr),
     headers: {
-      'X-Mailer': 'MSC-PRPCEM-QuizPlatform',
+      'X-Mailer': 'MSC-PRPCEM-Platform',
       'List-Unsubscribe': `<mailto:${replyToAddr}?subject=unsubscribe>`
     }
   });
@@ -419,19 +545,19 @@ const sendEventRegistrationEmail = async ({
   let tracksPlainText = '';
   if (tracks && tracks.length > 0) {
     tracksHtml = `
-      <div style="margin: 20px 0; padding: 14px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; box-sizing: border-box; width: 100%;">
+      <div style="margin: 20px 0; padding: 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; box-sizing: border-box; width: 100%;">
         <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">
           Included Assessment Tracks / Quizzes
         </p>
         ${tracks.map(t => `
-          <div class="mobile-track-card" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; word-break: break-word; box-sizing: border-box;">
-            <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px; word-break: break-word;">
+          <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; word-break: break-word;">
+            <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
               ${t.title}
             </div>
             <div style="font-size: 12px; color: #64748b; margin-bottom: ${t.direct_url ? '6px' : '0'};">
               Join Code: <code style="background-color: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 12px; font-family: monospace;">${t.join_code || 'LIVE'}</code>
             </div>
-            ${t.direct_url ? `<div><a href="${t.direct_url}" target="_blank" style="color: #2563eb; font-size: 12px; font-weight: 600; text-decoration: none; word-break: break-all;">Launch Assessment &rarr;</a></div>` : ''}
+            ${t.direct_url ? `<div><a href="${t.direct_url}" target="_blank" style="color: #2563eb; font-size: 12px; font-weight: 600; text-decoration: none;">Launch Assessment &rarr;</a></div>` : ''}
           </div>
         `).join('')}
       </div>
@@ -439,51 +565,51 @@ const sendEventRegistrationEmail = async ({
     tracksPlainText = `\nIncluded Assessment Tracks:\n` + tracks.map(t => `• ${t.title} (Join Code: ${t.join_code || 'LIVE'})${t.direct_url ? ` - Link: ${t.direct_url}` : ''}`).join('\n') + '\n';
   }
 
-  // Summary table rows (fluid widths with word wrapping)
+  // Summary table rows
   const detailRows = [
     `<tr>
-      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word;">Event</td>
-      <td class="detail-value-cell" style="padding: 9px 12px; color: #0f172a; font-size: 13px; font-weight: 600; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word; overflow-wrap: break-word;">${targetEventName}</td>
+      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">Event</td>
+      <td class="detail-value-cell" style="padding: 9px 12px; color: #0f172a; font-size: 13px; font-weight: 600; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">${targetEventName}</td>
     </tr>`,
     `<tr>
-      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word;">Participant</td>
-      <td class="detail-value-cell" style="padding: 9px 12px; color: #0f172a; font-size: 13px; font-weight: 600; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word; overflow-wrap: break-word;">${userName}</td>
+      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">Participant</td>
+      <td class="detail-value-cell" style="padding: 9px 12px; color: #0f172a; font-size: 13px; font-weight: 600; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">${userName}</td>
     </tr>`,
     college ? `<tr>
-      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word;">College</td>
-      <td class="detail-value-cell" style="padding: 9px 12px; color: #334155; font-size: 13px; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word; overflow-wrap: break-word;">${college}</td>
+      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">College</td>
+      <td class="detail-value-cell" style="padding: 9px 12px; color: #334155; font-size: 13px; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">${college}</td>
     </tr>` : '',
     (branch || year) ? `<tr>
-      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word;">Branch / Year</td>
-      <td class="detail-value-cell" style="padding: 9px 12px; color: #334155; font-size: 13px; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word; overflow-wrap: break-word;">${[branch, year].filter(Boolean).join(' • ')}</td>
+      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">Branch / Year</td>
+      <td class="detail-value-cell" style="padding: 9px 12px; color: #334155; font-size: 13px; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">${[branch, year].filter(Boolean).join(' • ')}</td>
     </tr>` : '',
     registrationId ? `<tr>
-      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word;">Registration ID</td>
-      <td class="detail-value-cell" style="padding: 9px 12px; color: #2563eb; font-size: 13px; font-weight: 700; font-family: monospace; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-all; overflow-wrap: anywhere;">${registrationId}</td>
+      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">Registration ID</td>
+      <td class="detail-value-cell" style="padding: 9px 12px; color: #2563eb; font-size: 13px; font-weight: 700; font-family: monospace; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">${registrationId}</td>
     </tr>` : '',
     eventDate ? `<tr>
-      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word;">Date &amp; Time</td>
-      <td class="detail-value-cell" style="padding: 9px 12px; color: #334155; font-size: 13px; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word; overflow-wrap: break-word;">${eventDate}</td>
+      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">Date &amp; Time</td>
+      <td class="detail-value-cell" style="padding: 9px 12px; color: #334155; font-size: 13px; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">${eventDate}</td>
     </tr>` : '',
     eventVenue ? `<tr>
-      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word;">Venue</td>
-      <td class="detail-value-cell" style="padding: 9px 12px; color: #334155; font-size: 13px; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-break: break-word; overflow-wrap: break-word;">${eventVenue}</td>
+      <td class="detail-label-cell" style="padding: 9px 12px; color: #64748b; font-size: 13px; width: 32%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">Venue</td>
+      <td class="detail-value-cell" style="padding: 9px 12px; color: #334155; font-size: 13px; width: 68%; border-bottom: 1px solid #f1f5f9; vertical-align: top;">${eventVenue}</td>
     </tr>` : ''
   ].filter(Boolean).join('');
 
   const html = renderHtmlWrapper({
     title: 'Registration Confirmed',
     preheader: `You are registered for ${targetEventName} — MSC PRPCEM`,
+    recipientName: userName,
     content: `
-      <p style="margin-top: 0; font-size: 15px; color: #1e293b;">Hello <strong>${userName}</strong>,</p>
-      <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 15px; color: #334155; line-height: 1.6; margin: 0 0 16px 0;">
         Your registration for <strong>${targetEventName}</strong> has been successfully confirmed. We look forward to seeing you at the event!
       </p>
 
       <!-- Registration Summary Card -->
-      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; table-layout: fixed; box-sizing: border-box;">
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; table-layout: fixed; box-sizing: border-box;">
         <tr>
-          <td style="padding: 10px 14px; background-color: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; word-break: break-word;">
+          <td style="padding: 10px 14px; background-color: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
             Registration Details
           </td>
         </tr>
@@ -502,21 +628,21 @@ const sendEventRegistrationEmail = async ({
       <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0; table-layout: fixed;">
         <tr>
           <td align="center">
-            <a href="${portalUrl}" target="_blank" class="mobile-btn" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 700; font-size: 14px; text-decoration: none; padding: 12px 28px; border-radius: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); text-align: center; max-width: 100%; box-sizing: border-box;">
+            <a href="${portalUrl}" target="_blank" class="mobile-btn" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 700; font-size: 14px; text-decoration: none; padding: 13px 32px; border-radius: 10px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3); text-align: center;">
               Access Student Portal &rarr;
             </a>
           </td>
         </tr>
       </table>
 
-      <p style="font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 0; word-break: break-word;">
-        Please keep this confirmation for your records. For any questions or updates, reach out to our team at
-        <a href="mailto:${replyToAddr}" style="color: #2563eb; text-decoration: none; font-weight: 600; word-break: break-all;">${replyToAddr}</a>.
+      <p style="font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 0;">
+        Please keep this confirmation for your records. For questions or updates, reach out to our team at
+        <a href="mailto:${replyToAddr}" style="color: #2563eb; text-decoration: none; font-weight: 600;">${replyToAddr}</a>.
       </p>
     `
   });
 
-  const plainText = `Hello ${userName},\n\nYour registration for ${targetEventName} has been confirmed!\n\nRegistration Details:\n• Event: ${targetEventName}\n• Participant: ${userName}${registrationId ? `\n• Registration ID: ${registrationId}` : ''}${college ? `\n• College: ${college}` : ''}${branch || year ? `\n• Branch/Year: ${[branch, year].filter(Boolean).join(' - ')}` : ''}${eventDate ? `\n• Date: ${eventDate}` : ''}${eventVenue ? `\n• Venue: ${eventVenue}` : ''}\n${tracksPlainText}\nAccess Portal: ${portalUrl}\n\nWe look forward to seeing you at the event!\n\n—\nMicrosoft Student Club (MSC)\nP.R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
+  const plainText = `Hi ${userName},\n\nYour registration for ${targetEventName} has been confirmed!\n\nRegistration Details:\n• Event: ${targetEventName}\n• Participant: ${userName}${registrationId ? `\n• Registration ID: ${registrationId}` : ''}${college ? `\n• College: ${college}` : ''}${branch || year ? `\n• Branch/Year: ${[branch, year].filter(Boolean).join(' - ')}` : ''}${eventDate ? `\n• Date: ${eventDate}` : ''}${eventVenue ? `\n• Venue: ${eventVenue}` : ''}\n${tracksPlainText}\nAccess Portal: ${portalUrl}\n\nWe look forward to seeing you!\n\n—\nBest Regards,\nTeam MSC PRPCEM\nMicrosoft Student Club PRPCEM\nP. R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
 
   return transport.sendMail({
     from: fromAddr,
@@ -525,9 +651,10 @@ const sendEventRegistrationEmail = async ({
     subject: `Registration Confirmed: ${targetEventName} — MSC PRPCEM`,
     text: plainText,
     html,
+    attachments: getEmailAttachments(),
     messageId: generateMessageId(fromAddr),
     headers: {
-      'X-Mailer': 'MSC-PRPCEM-QuizPlatform',
+      'X-Mailer': 'MSC-PRPCEM-Platform',
       'List-Unsubscribe': `<mailto:${replyToAddr}?subject=unsubscribe>`
     }
   });
@@ -548,49 +675,35 @@ const sendCustomBroadcastEmail = async ({ to, recipientName, subject, heading, m
       <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0; table-layout: fixed;">
         <tr>
           <td align="center">
-            <a href="${ctaUrl}" target="_blank" class="mobile-btn" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 700; font-size: 14px; text-decoration: none; padding: 12px 28px; border-radius: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); text-align: center; max-width: 100%; box-sizing: border-box;">
+            <a href="${ctaUrl}" target="_blank" class="mobile-btn" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 700; font-size: 14px; text-decoration: none; padding: 13px 32px; border-radius: 10px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3); text-align: center;">
               ${ctaText} &rarr;
             </a>
           </td>
         </tr>
       </table>
-      <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0 0 16px 0; word-break: break-all; overflow-wrap: anywhere;">
-        Link: <a href="${ctaUrl}" style="color: #2563eb; word-break: break-all; overflow-wrap: anywhere;">${ctaUrl}</a>
+      <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0 0 16px 0; word-break: break-all;">
+        Link: <a href="${ctaUrl}" style="color: #2563eb;">${ctaUrl}</a>
       </p>
     `;
   }
 
-  // Check if messageHtml already contains an opening greeting (e.g. "Hello John,", "Dear John,", "Hi John,")
-  // to avoid displaying duplicate greetings.
-  const cleanContent = (messageHtml || '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&[a-z0-9#]+;/gi, ' ')
-    .trim();
-
-  const hasLeadingGreeting = /^(hello|dear|hi|hey|greetings|welcome)\b/i.test(cleanContent);
-
-  const greetingHtml = hasLeadingGreeting
-    ? ''
-    : `<p style="margin-top: 0; font-size: 15px; color: #1e293b;">Hello <strong>${userName}</strong>,</p>`;
-
-  const greetingPlainText = hasLeadingGreeting
-    ? ''
-    : `Hello ${userName},\n\n`;
+  // Remove duplicate greetings if already present in messageHtml
+  let cleanedMessageHtml = messageHtml || '';
+  cleanedMessageHtml = cleanedMessageHtml.replace(/^(<p[^>]*>)?\s*(hello|hi|dear|greetings)\s+[^,<]+[,!:]?\s*(<\/p>)?/i, '');
 
   const html = renderHtmlWrapper({
     title: heading || subject || 'MSC PRPCEM Announcement',
     preheader: subject,
+    recipientName: userName,
     content: `
-      ${greetingHtml}
-      <div style="font-size: 15px; color: #334155; line-height: 1.7; margin: 16px 0; word-break: break-word; overflow-wrap: break-word;">
-        ${messageHtml}
+      <div style="font-size: 15px; color: #334155; line-height: 1.7; margin: 12px 0; word-break: break-word;">
+        ${cleanedMessageHtml}
       </div>
       ${actionButtonHtml}
     `
   });
 
-  const plainText = `${greetingPlainText}${messageHtml.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}—\nMicrosoft Student Club (MSC)\nP.R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
+  const plainText = `Hi ${userName},\n\n${(messageHtml || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}—\nBest Regards,\nTeam MSC PRPCEM\nMicrosoft Student Club PRPCEM\nP. R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
 
   return transport.sendMail({
     from: fromAddr,
@@ -599,20 +712,111 @@ const sendCustomBroadcastEmail = async ({ to, recipientName, subject, heading, m
     subject: subject || 'MSC PRPCEM Announcement',
     text: plainText,
     html,
+    attachments: getEmailAttachments(),
     messageId: generateMessageId(fromAddr),
     headers: {
-      'X-Mailer': 'MSC-PRPCEM-QuizPlatform',
+      'X-Mailer': 'MSC-PRPCEM-Platform',
       'List-Unsubscribe': `<mailto:${replyToAddr}?subject=unsubscribe>`
     }
   });
 };
 
+/**
+ * Send Comprehensive Test Email to verify the standard email template delivery
+ */
+const sendTestEmail = async ({ to = 'mlsc@prpotepatilengg.ac.in', name = 'Team MSC PRPCEM' } = {}) => {
+  const transport = getTransporter();
+  const fromAddr = getSenderAddress();
+  const replyToAddr = getReplyToAddress();
+
+  const testContent = `
+    <p style="font-size: 15px; color: #334155; line-height: 1.6; margin: 0 0 16px 0;">
+      This is a live test transmission of the <strong>official standardized MSC PRPCEM email template</strong>.
+    </p>
+
+    <!-- Template Features Card -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; table-layout: fixed; box-sizing: border-box;">
+      <tr>
+        <td style="padding: 10px 14px; background-color: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+          Standard Template Specifications
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 14px 16px; font-size: 13px; color: #334155; line-height: 1.6;">
+          <div style="margin-bottom: 6px;">🎨 <strong>Header Banner:</strong> MSC Hexagon branding &amp; PRPCEM Campus illustration</div>
+          <div style="margin-bottom: 6px;">👤 <strong>Greeting:</strong> Personalized <code style="color: #2563eb; font-weight: 700;">Hi {{Name}},</code> matching official brand guideline</div>
+          <div style="margin-bottom: 6px;">📦 <strong>Dynamic Area:</strong> Responsive container for OTP, Quiz reminders, Registrations, &amp; Broadcasts</div>
+          <div style="margin-bottom: 6px;">✍️ <strong>Signature:</strong> Team MSC PRPCEM sign-off with <em style="color:#2563eb;">Be a Force for Good.</em> graphic</div>
+          <div>🌐 <strong>Footer Bar:</strong> Deep navy (#081630) with clickable social links (IG, LI, YT, Web)</div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Sample Dynamic OTP Display -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; table-layout: fixed; box-sizing: border-box;">
+      <tr>
+        <td align="center" style="background-color: #eff6ff; border: 2px dashed #2563eb; border-radius: 14px; padding: 20px 16px; box-sizing: border-box;">
+          <div style="font-family: 'SFMono-Regular', Consolas, monospace; font-size: 34px; font-weight: 900; letter-spacing: 8px; color: #1d4ed8; line-height: 1.1; margin: 0 auto; text-align: center;">
+            202601
+          </div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 8px; font-weight: 600;">
+            🧪 Sample Dynamic Verification Code Demonstration
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- CTA Button -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0; table-layout: fixed;">
+      <tr>
+        <td align="center">
+          <a href="https://quiz.mscprpcem.tech" target="_blank" class="mobile-btn" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 700; font-size: 14px; text-decoration: none; padding: 13px 32px; border-radius: 10px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3); text-align: center;">
+            Launch Assessment Portal &rarr;
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 0;">
+      Sent to <strong>${to}</strong> for platform standard verification.
+    </p>
+  `;
+
+  const html = renderHtmlWrapper({
+    title: 'Platform Standard Email Template Test',
+    preheader: 'Official MSC PRPCEM Email Template Verification Test',
+    recipientName: name,
+    content: testContent
+  });
+
+  const plainText = `Hi ${name},\n\nThis is a live test transmission of the official standardized MSC PRPCEM email template sent to ${to}.\n\nPlatform URL: https://quiz.mscprpcem.tech\n\n—\nBest Regards,\nTeam MSC PRPCEM\nMicrosoft Student Club PRPCEM\nP. R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
+
+  return transport.sendMail({
+    from: fromAddr,
+    to: to.trim(),
+    replyTo: replyToAddr,
+    subject: 'MSC PRPCEM — Official Platform Email Template Test',
+    text: plainText,
+    html,
+    attachments: getEmailAttachments(),
+    messageId: generateMessageId(fromAddr),
+    headers: {
+      'X-Priority': '1',
+      'X-Mailer': 'MSC-PRPCEM-Platform'
+    }
+  });
+};
+
 module.exports = {
+  renderHtmlWrapper,
+  getEmailAttachments,
   sendOtpEmail,
   sendQuizReminderEmail,
   sendEventRegistrationEmail,
   sendCustomBroadcastEmail,
+  sendTestEmail,
   getTransporter,
   verifyEmailConfiguration
 };
+
 
