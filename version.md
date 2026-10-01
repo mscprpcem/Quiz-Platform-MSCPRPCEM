@@ -8,7 +8,8 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 | Version | Release Type | Key Highlights | Status |
 | :--- | :--- | :--- | :--- |
-| **v1.8.2** | **Patch (Current)** | Viewport-centered portal modals, verification revocation guardrails, event quiz delinking, cascade mail sync, institutional email preview, opaque theme system | **Active Production** |
+| **v1.8.3** | **Patch (Current)** | Enterprise SQL grading engine, DDL entity & constraint verification, DML post-mutation table state diffing, qrcode bundle integrity | **Active Production** |
+| **v1.8.2** | Patch | Viewport-centered portal modals, verification revocation guardrails, event quiz delinking, cascade mail sync, institutional email preview, opaque theme system | Stable |
 | **v1.8.1** | Patch | User Directory responsive overhaul, 1-click & bulk verification toggles, profile modal, deferred account creation until OTP verification, admin credential lockdown | Stable |
 | **v1.8.0** | Minor | Homepage UX streamlining, single info button, collapsed FAQ default, normalized footer styles, version registry | Stable |
 | **v1.7.0** | Minor | Light Theme UI overhaul, responsive FAQ accordion, Top 3 podium styling, scoring rules matrix modal | Stable |
@@ -24,7 +25,31 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 ## Detailed Changelog
 
-### Version 1.8.2 (Current Release)
+### Version 1.8.3 (Current Release)
+*Theme: Enterprise SQL Engine Validation: Strict DDL Entity & Constraint Checking, DML Post-Mutation State Diffing & Bundle Integrity*
+
+- **Strict DDL Entity & Target Validation**:
+  - Implemented semantic entity target verification in `sqlEngine.js` for all DDL operations (`CREATE DATABASE`, `DROP DATABASE`, `USE`, `CREATE TABLE`, `DROP TABLE`, `TRUNCATE TABLE`, `ALTER TABLE`).
+  - Resolved the critical false-positive bug where non-matching database names (e.g., executing `CREATE DATABASE school_dl;` when `school_db` was requested) passed automated grading due to generic `0 rows returned` match.
+  - Added targeted error reporting: `Database name mismatch: Expected database name 'school_db', but got 'school_dl'.`
+  - Validates `USE` database context switches against required database targets.
+- **Table Schema & Constraint Integrity (CREATE & ALTER TABLE)**:
+  - Integrated live catalog inspection using SQLite `PRAGMA table_info(tableName)` to compare resulting table schema against canonical models.
+  - Verifies presence of all required columns and flags unexpected extra columns.
+  - Verifies `PRIMARY KEY` and `NOT NULL` constraint enforcement, preventing incomplete schema submissions from passing.
+- **Active Table Existence & Row Count Verification (DROP & TRUNCATE)**:
+  - Enforces catalog existence checks on `DROP TABLE` using `sqlite_master`, ensuring the table is genuinely destroyed.
+  - Enforces `SELECT COUNT(*) FROM table` on `TRUNCATE TABLE`, guaranteeing the table is completely emptied (0 rows).
+- **Comprehensive DML Mutation State Verification (INSERT, UPDATE, DELETE)**:
+  - Overhauled validation for all 50 DML challenges: Statements that return zero tabular rows now automatically evaluate underlying table mutations via `SELECT * FROM table ORDER BY 1 ASC;`.
+  - Compares full table data state after user execution against canonical expected mutations across both Primary (Case 1) and Edge-Case Boundary (Case 2) datasets.
+  - Employs granular row-by-row and column-by-column diff calculation, catching incorrect values, missed rows, and unbounded updates/deletions immediately with visual table diffs in the student console.
+- **Dependency & Build Resolution**:
+  - Installed missing `qrcode` dependency following git pull and verified production build with zero Rollup/Vite compilation errors.
+
+---
+
+### Version 1.8.2
 *Theme: Viewport Modal Portals, Revocation Guardrails, Event Quiz Delinking, Cascade Mail Sync & Unified Institutional Email Preview*
 
 - **Viewport Modal Architecture & Background Scroll Lock**:

@@ -248,6 +248,26 @@ export default function FilteringQuestionsBank({ onJumpToPractice }) {
                   )}
                 </div>
 
+                {/* Business Context & Noob Developer Thinking */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+                  {q.businessScenario && (
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-xs leading-relaxed text-slate-700 space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                        <span>🏢</span> Real-World Scenario
+                      </span>
+                      <p>{q.businessScenario}</p>
+                    </div>
+                  )}
+                  {q.beginnerStepByStep && (
+                    <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 text-xs leading-relaxed text-amber-950 space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                        <span>🐣</span> Beginner Step-by-Step Logic
+                      </span>
+                      <p className="whitespace-pre-line font-medium">{q.beginnerStepByStep}</p>
+                    </div>
+                  )}
+                </div>
+
                 {/* Solution Box */}
                 {isRevealed ? (
                   <div className="space-y-2 pt-2 border-t border-slate-100">

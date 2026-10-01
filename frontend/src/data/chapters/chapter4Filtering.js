@@ -81,6 +81,13 @@ export const CHAPTER_4_TOPICS = {
     infographicTitle: 'SQL LIKE Operator & Wildcards (%, _)',
     infographicCaption: 'Visual Guide: % matches any sequence of characters, while _ matches strictly one single character.',
 
+    beginnerMentalModel: {
+      title: 'Wildcards Mental Model: The Accordion vs The Parking Spot',
+      analogy: "Think of '%' like a stretchy elastic accordion or wildcard joker card: it can stretch to match 0 letters, 1 letter, 5 letters, or 100 letters! Think of '_' like a single reserved parking spot: exactly ONE character must park in that space.",
+      keyTrick: "Memorize the 4 sacred patterns: 'A%' (starts with A), '%a' (ends with a), '%it%' (contains 'it' anywhere), and '_a%' (second letter is 'a')!",
+      gotcha: "Never write WHERE name = 'A%'! The '=' operator treats '%' as a literal character and looks for someone literally named 'A%'. You MUST use LIKE with wildcards!"
+    },
+
     comparisonTable: {
       title: 'SQL Wildcards & Pattern Semantics',
       badge: 'Core Syntax Matrix',
@@ -218,6 +225,13 @@ WHERE name LIKE '_a%';`
     infographicTitle: 'SQL IN Operator vs Multiple OR Conditions',
     infographicCaption: 'Visual Guide: The IN operator groups candidate values into a clean, optimized set filter instead of repetitive OR checks.',
 
+    beginnerMentalModel: {
+      title: 'IN Operator Mental Model: The VIP Guest List',
+      analogy: "Imagine a club bouncer checking IDs. Instead of asking: 'Are you Alice? OR are you Bob? OR are you Charlie?', you simply hand the bouncer a single VIP list: name IN ('Alice', 'Bob', 'Charlie'). Faster, cleaner, and zero headaches!",
+      keyTrick: "Use IN whenever you compare the SAME column against multiple acceptable values. It is cleaner, faster, and works seamlessly with nested subqueries.",
+      gotcha: "Quotes matter! Text values require quotes ('Mumbai', 'Delhi'), but numbers must NEVER have quotes (40000, 50000). Also beware: if a list contains NULL during a NOT IN check, it returns 0 rows!"
+    },
+
     comparisonTable: {
       title: 'Chained OR vs IN Operator Architecture',
       badge: 'Code Quality Benchmark',
@@ -343,9 +357,16 @@ WHERE city NOT IN ('Mumbai', 'Delhi');`
     subtitle: 'Filtering Continuous Numerical & Date Ranges with Inclusive Boundaries',
     intro: 'When filtering data across continuous spectrums (such as salary brackets, age ranges, price intervals, or date periods), writing `>= min AND <= max` can be cumbersome. The BETWEEN operator simplifies range queries into an intuitive and clean syntax. However, one rule is paramount: BETWEEN is ALWAYS inclusive of both boundary values.',
 
-    infographicImage: '/assets/sql-between-operator-guide.svg',
+    infographicImage: '/assets/sql-between-operator-guide.jpg',
     infographicTitle: 'SQL BETWEEN Operator (Inclusive Range Filtering)',
     infographicCaption: 'Visual Guide: Both the lower and upper bounds are strictly included: salary >= min AND salary <= max.',
+
+    beginnerMentalModel: {
+      title: 'BETWEEN Mental Model: The Inclusive Ruler',
+      analogy: "If a theme park operator says 'Height must be between 40 and 60 inches', someone who is exactly 40 or exactly 60 inches IS ALLOWED ON! Both borders are included in SQL: salary >= min AND salary <= max.",
+      keyTrick: "The smaller number MUST always go first: 'BETWEEN 40000 AND 60000'. Works cleanly for numbers and dates ('2023-01-01' AND '2023-12-31').",
+      gotcha: "Never flip the order! 'BETWEEN 60000 AND 40000' produces 0 rows without any error message, because no number can simultaneously be >= 60000 AND <= 40000!"
+    },
 
     comparisonTable: {
       title: 'Range Evaluation Mechanics',
@@ -447,10 +468,17 @@ WHERE salary NOT BETWEEN 40000 AND 60000;`
     subtitle: 'Three-Valued Logic (3VL), The Meaning of NULL, and Why = NULL Always Fails',
     intro: 'NULL is one of the most misunderstood concepts in all of database engineering. In SQL, NULL does NOT mean zero (0), nor does it mean an empty string (\'\') or spaces (\' \'). NULL represents an UNKNOWN or MISSING value. Because an unknown value cannot be compared to anything (even another unknown), SQL uses Three-Valued Logic: TRUE, FALSE, and UNKNOWN.',
 
-    infographicImage: null,
+    infographicImage: '/assets/sql-null-concept-guide.jpg',
     customComponent: 'NullLogicGuide',
     infographicTitle: 'The NULL Concept & Three-Valued Logic in SQL',
-    infographicCaption: 'Interactive Architectural Guide: NULL represents unknown or missing data. Never compare with = NULL; always use IS NULL and IS NOT NULL.',
+    infographicCaption: 'Visual Guide: NULL represents unknown or missing data (NOT zero, NOT empty string). Never compare with = NULL; always use IS NULL and IS NOT NULL.',
+
+    beginnerMentalModel: {
+      title: 'NULL Mental Model: The Mystery Gift Box',
+      analogy: "Imagine an opaque, wrapped gift box with a question mark. Is whatever is inside equal to 0? No! Is it an empty string? No! Is it equal to another mysterious gift box? Nobody knows! That's why in SQL, NULL represents UNKNOWN.",
+      keyTrick: "Because NULL is unknown, comparisons with '=' or '!=' evaluate to UNKNOWN and fail. You must ALWAYS use the dedicated operators 'IS NULL' and 'IS NOT NULL'!",
+      gotcha: "Writing 'WHERE city = NULL' will NEVER throw an error, but it will return ZERO rows every single time, confusing every new developer! Always write 'WHERE city IS NULL'."
+    },
 
     comparisonTable: {
       title: 'The Fundamental NULL Reality Matrix',
@@ -558,6 +586,13 @@ WHERE city IS NULL;`
     infographicTitle: 'Mastering Advanced Filtering in SQL',
     infographicCaption: 'Visual Architecture: Combining pattern matching, discrete set matching, range filtering, and NULL handling into one unified query.',
 
+    beginnerMentalModel: {
+      title: 'Master Query Mental Model: The Superpower Combination',
+      analogy: "Think of SQL like building with LEGO superpowers: LIKE gives you the spyglass (pattern search), IN gives you the sorting tray (discrete sets), BETWEEN gives you the slider ruler (ranges), and IS NULL cleans up the unknown mystery boxes!",
+      keyTrick: "Parentheses are your best friend: in SQL, AND takes precedence over OR. If you want employees from (Mumbai OR Pune) earning > 50k, ALWAYS wrap the OR in parentheses: (city = 'Mumbai' OR city = 'Pune') AND salary > 50000!",
+      gotcha: "If you omit parentheses in 'city = Mumbai OR city = Pune AND salary > 50000', the query grabs EVERY SINGLE person in Mumbai regardless of salary, plus Pune earners > 50k!"
+    },
+
     comparisonTable: {
       title: 'Quick Memory Box — Cheat Sheet',
       badge: 'Flashcard Anchor',
@@ -636,6 +671,13 @@ WHERE (city = 'Mumbai' OR city = 'Pune')
     title: 'Top 5 Advanced Filtering Interview Questions',
     subtitle: 'Standard Tech Interview Questions with In-Depth Technical Explanations',
     intro: 'During SQL and backend engineering interviews, technical recruiters frequently test your understanding of edge cases, three-valued logic, and operator performance. Here are the top 5 questions with comprehensive, high-scoring answers.',
+
+    beginnerMentalModel: {
+      title: 'Interview Success Mental Model: Confidence in the Edge Cases',
+      analogy: "Tech recruiters ask these questions not to test your memory, but to see if you understand HOW databases actually think under the hood (Three-Valued Logic, continuous intervals, and string parser cost).",
+      keyTrick: "Whenever asked about NULL, immediately mention 'Three-Valued Logic: TRUE, FALSE, and UNKNOWN'. Whenever asked about BETWEEN, immediately say 'It is strictly inclusive of both borders'.",
+      gotcha: "Never say 'NULL is zero or empty'. That is the #1 mistake that disqualifies junior applicants in database rounds!"
+    },
 
     comparisonTable: {
       title: 'Top 5 Filtering Questions Quick Reference',

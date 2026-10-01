@@ -1,5 +1,27 @@
 [
   {
+    "id": "net-conf-amravati-2026",
+    "title": ".NET Conf Amravati 2026",
+    "description": "Annual flagship technical conference celebrating .NET 10, Cloud, AI & Open Source ecosystems.",
+    "poster": "https://mscprpcem.blob.core.windows.net/events/12.png",
+    "date": "Tuesday, September 15, 2026",
+    "startDate": "2026-09-15",
+    "endDate": "2026-09-17",
+    "startTimeIST": "02:30 PM",
+    "endTimeIST": "11:30 PM",
+    "duration": "2 Days",
+    "mode": "Offline",
+    "venue": "Main Auditorium & Seminar Hall 1",
+    "fee": "Free",
+    "rewards": "Certificates & Exciting Swags",
+    "status": "upcoming",
+    "showOnHomePopup": true,
+    "popupMessage": "Registrations are live for .NET Conf Amravati 2026!",
+    "register": "/register/net-conf-amravati-2026",
+    "maxRegistrations": null,
+    "initialRegistrationCount": 0
+  },
+  {
     "id": "spark26",
     "title": "MSC-PRPCEM x GAI Amravati: Spark '26",
     "description": "Official inauguration of the new MSC PRPCEM team, featuring an interactive live quiz, exciting swags, certificates, and networking session!",

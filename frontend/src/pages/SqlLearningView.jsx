@@ -41,7 +41,7 @@ function HighlightedSql({ code }) {
         }
 
         // Tokenize line with regex
-        const tokens = line.split(/(\b(?:CREATE\s+TABLE|CREATE\s+DATABASE|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE|RENAME\s+TABLE|PRIMARY\s+KEY|FOREIGN\s+KEY|REFERENCES|NOT\s+NULL|UNIQUE|DEFAULT|CHECK|TRUE|FALSE|SELECT|FROM|WHERE|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET|JOIN|INNER\s+JOIN|LEFT\s+JOIN|RIGHT\s+JOIN|DESC|ASC|ADD\s+COLUMN|DROP\s+COLUMN|RENAME\s+COLUMN|RENAME\s+TO|MODIFY\s+COLUMN|CHANGE\s+COLUMN|INSERT\s+INTO|UPDATE|DELETE|SET|VALUES|COMMIT|ROLLBACK|SAVEPOINT|START\s+TRANSACTION|GRANT|REVOKE|SHOW\s+DATABASES|SHOW\s+TABLES|DESCRIBE|USE|VERSION|CURRENT_TIMESTAMP|USER|DATABASE|INT|INTEGER|VARCHAR|DECIMAL|DATE|BOOLEAN|TEXT|FLOAT|DOUBLE|BIGINT|TIMESTAMP)\b|'[^']*'|\d+(?:\.\d+)?|[(),;]|\[constraints\]|\bdatatype\b|\btable_name\b|\bcolumn\d+\b|\bdatabase_name\b)/gi);
+        const tokens = line.split(/(\b(?:CREATE\s+TABLE|CREATE\s+DATABASE|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE|RENAME\s+TABLE|PRIMARY\s+KEY|FOREIGN\s+KEY|REFERENCES|NOT\s+NULL|UNIQUE|DEFAULT|CHECK|TRUE|FALSE|SELECT|FROM|WHERE|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET|JOIN|INNER\s+JOIN|LEFT\s+JOIN|RIGHT\s+JOIN|DESC|ASC|ADD\s+COLUMN|DROP\s+COLUMN|RENAME\s+COLUMN|RENAME\s+TO|MODIFY\s+COLUMN|CHANGE\s+COLUMN|INSERT\s+INTO|UPDATE|DELETE|SET|VALUES|COMMIT|ROLLBACK|SAVEPOINT|START\s+TRANSACTION|GRANT|REVOKE|SHOW\s+DATABASES|SHOW\s+TABLES|DESCRIBE|USE|VERSION|CURRENT_TIMESTAMP|USER|DATABASE|LIKE|NOT\s+LIKE|IN|NOT\s+IN|BETWEEN|NOT\s+BETWEEN|IS\s+NULL|IS\s+NOT\s+NULL|AND|OR|REGEXP|ESCAPE|INT|INTEGER|VARCHAR|DECIMAL|DATE|BOOLEAN|TEXT|FLOAT|DOUBLE|BIGINT|TIMESTAMP)\b|'[^']*'|\d+(?:\.\d+)?|[(),;]|\[constraints\]|\bdatatype\b|\btable_name\b|\bcolumn\d+\b|\bdatabase_name\b)/gi);
 
         return (
           <div key={lineIdx}>
@@ -58,10 +58,12 @@ function HighlightedSql({ code }) {
                  'ADD COLUMN', 'DROP COLUMN', 'RENAME COLUMN', 'RENAME TO', 'MODIFY COLUMN', 'CHANGE COLUMN',
                  'INSERT INTO', 'UPDATE', 'DELETE', 'SET', 'VALUES', 'COMMIT', 'ROLLBACK', 'SAVEPOINT',
                  'START TRANSACTION', 'GRANT', 'REVOKE', 'SHOW DATABASES', 'SHOW TABLES', 'DESCRIBE', 'USE',
-                 'VERSION', 'CURRENT_TIMESTAMP', 'USER', 'DATABASE'].includes(upper)
+                 'VERSION', 'CURRENT_TIMESTAMP', 'USER', 'DATABASE',
+                 'LIKE', 'NOT LIKE', 'IN', 'NOT IN', 'BETWEEN', 'NOT BETWEEN', 'IS NULL', 'IS NOT NULL',
+                 'AND', 'OR', 'REGEXP', 'ESCAPE'].includes(upper)
               ) {
                 return (
-                  <span key={tIdx} className="text-sky-400 font-bold">
+                  <span key={tIdx} className="text-blue-400 font-black">
                     {token}
                   </span>
                 );
@@ -569,12 +571,8 @@ export default function SqlLearningView({
                 </header>
               </div>
 
-              {/* 2. CUSTOM INTERACTIVE CODE COMPONENT OR INFOGRAPHIC IMAGE */}
-              {(topicData.customComponent === 'NullLogicGuide' || topicData.id === 'top-05-04') ? (
-                <section className="my-8 animate-fadeIn">
-                  <NullLogicGuide />
-                </section>
-              ) : topicData.infographicImage ? (
+              {/* 2. INFOGRAPHIC IMAGE (Visual Guide for Beginners) */}
+              {topicData.infographicImage && (
                 <figure className="space-y-3 my-8">
                   <div className="flex items-center justify-between pb-1">
                     <div className="flex items-center space-x-2 text-slate-800">
@@ -624,7 +622,67 @@ export default function SqlLearningView({
                     </figcaption>
                   )}
                 </figure>
-              ) : null}
+              )}
+
+              {/* 2.5 CUSTOM INTERACTIVE CODE COMPONENT (e.g. NullLogicGuide) */}
+              {(topicData.customComponent === 'NullLogicGuide' || topicData.id === 'top-05-04') && (
+                <section className="my-8 animate-fadeIn">
+                  <NullLogicGuide />
+                </section>
+              )}
+
+              {/* 2.6 NOOB DEVELOPER MENTAL MODEL (Explain Like I'm 5) */}
+              {topicData.beginnerMentalModel && (
+                <section className="my-8 bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-yellow-50/70 border-2 border-amber-300/80 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div className="flex items-center space-x-2.5 pb-3 border-b border-amber-200/80">
+                    <span className="text-2xl">🐣</span>
+                    <div>
+                      <h3 className="text-base sm:text-lg font-black text-amber-950 flex items-center gap-2">
+                        {topicData.beginnerMentalModel.title || "Noob Developer's Mental Model"}
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 uppercase tracking-wide">
+                          ELI5 • Simple & Visual
+                        </span>
+                      </h3>
+                      <p className="text-xs text-amber-800/90 font-medium">
+                        Think of it this way so you never get confused in real code or technical interviews!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                    {topicData.beginnerMentalModel.analogy && (
+                      <div className="bg-white/85 border border-amber-200 rounded-xl p-3.5 space-y-1.5 shadow-2xs">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                          <span>💡</span> Real-World Analogy
+                        </span>
+                        <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-medium">
+                          {topicData.beginnerMentalModel.analogy}
+                        </p>
+                      </div>
+                    )}
+                    {topicData.beginnerMentalModel.keyTrick && (
+                      <div className="bg-white/85 border border-emerald-200 rounded-xl p-3.5 space-y-1.5 shadow-2xs">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                          <span>🎯</span> Beginner Cheat Code
+                        </span>
+                        <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-medium">
+                          {topicData.beginnerMentalModel.keyTrick}
+                        </p>
+                      </div>
+                    )}
+                    {topicData.beginnerMentalModel.gotcha && (
+                      <div className="bg-white/85 border border-rose-200 rounded-xl p-3.5 space-y-1.5 shadow-2xs">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
+                          <span>⚠️</span> The Trap That Tricks Noobs
+                        </span>
+                        <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-medium">
+                          {topicData.beginnerMentalModel.gotcha}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
 
               {/* 3. ARCHITECTURAL COMPARISON MATRIX (Generic & Dynamic) */}
               {topicData.comparisonTable && (
