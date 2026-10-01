@@ -1292,7 +1292,7 @@ export default function ScheduledQuizTake() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                         <a
-                          href={`https://www.mscprpcem.tech/register/${occData.linkedEvent?.slug || occData.linkedEvent?.id || 'visionx-season-2'}`}
+                          href={occData.linkedEvent?.external_registration_url || `https://www.mscprpcem.tech/register/${occData.linkedEvent?.slug || occData.linkedEvent?.id || 'visionx-season-2'}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="py-3 px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-98 text-center"

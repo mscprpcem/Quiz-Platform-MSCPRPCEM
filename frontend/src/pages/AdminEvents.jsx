@@ -132,7 +132,8 @@ export default function AdminEvents() {
   const handleDownloadEventQR = async (ev) => {
     if (!ev) return;
     const slug = ev.slug || ev.id;
-    const regUrl = `https://www.mscprpcem.tech/register/${slug}`;
+    const isExt = Boolean(ev.external_registration_url);
+    const regUrl = isExt ? ev.external_registration_url : `https://www.mscprpcem.tech/register/${slug}`;
     await downloadBrandedQRCard({
       svgElementId: 'admin-event-qr-svg',
       quizData: {
@@ -588,8 +589,8 @@ export default function AdminEvents() {
     });
   };
 
-  const handleCopyLink = (slugOrId) => {
-    const url = `https://www.mscprpcem.tech/register/${slugOrId}`;
+  const handleCopyLink = (slugOrId, customUrl = null) => {
+    const url = customUrl || `https://www.mscprpcem.tech/register/${slugOrId}`;
     navigator.clipboard.writeText(url);
     setCopyFeedback(slugOrId);
     setTimeout(() => setCopyFeedback(null), 2500);
@@ -651,7 +652,7 @@ export default function AdminEvents() {
         status: cleanStatus,
         registration_type: formData.registration_type || (formData.external_registration_url ? 'external' : 'internal'),
         external_registration_url: formData.external_registration_url ? formData.external_registration_url.trim() : null,
-        auto_redirect_external: Boolean(formData.auto_redirect_external)
+        auto_redirect_external: formData.registration_type === 'external' ? (formData.auto_redirect_external !== false) : Boolean(formData.auto_redirect_external)
       };
 
       if (editingEvent && !String(editingEvent.id).startsWith('auto-') && !String(editingEvent.id).startsWith('event-')) {
@@ -853,8 +854,9 @@ export default function AdminEvents() {
               </div>
             </div>
 
-            {/* Live Website Slug Registration Badge */}
-            <div className="bg-purple-50/70 border border-purple-100 rounded-xl p-2 flex items-center justify-between gap-2 text-[11px]">
+            {/* Live Website Slug Registration Badge - HIDDEN for external events */}
+            {!Boolean(ev.external_registration_url) && ev.registration_type !== 'external' && (
+              <div className="bg-purple-50/70 border border-purple-100 rounded-xl p-2 flex items-center justify-between gap-2 text-[11px]">
               <div className="flex items-center gap-1.5 truncate">
                 <LinkIcon size={12} className="text-purple-600 shrink-0" />
                 <span className="font-mono font-bold text-purple-800 truncate">
@@ -885,6 +887,7 @@ export default function AdminEvents() {
                 </a>
               </div>
             </div>
+            )}
 
             {/* External Redirection Target Display */}
             {Boolean(ev.external_registration_url) && (
@@ -896,6 +899,18 @@ export default function AdminEvents() {
                   </span>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleCopyLink(ev.id, ev.external_registration_url)}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
+                      copyFeedback === ev.id
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                    }`}
+                    title="Copy External Registration Link"
+                  >
+                    {copyFeedback === ev.id ? <Check size={11} /> : <Copy size={11} />}
+                    <span>{copyFeedback === ev.id ? 'Copied' : 'Copy'}</span>
+                  </button>
                   <a
                     href={ev.external_registration_url}
                     target="_blank"
@@ -1455,7 +1470,7 @@ export default function AdminEvents() {
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setFormData({ ...formData, registration_type: 'internal' })}
+                    onClick={() => setFormData({ ...formData, registration_type: 'internal', external_registration_url: '', auto_redirect_external: false })}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
                       formData.registration_type === 'internal' && !formData.external_registration_url
                         ? 'bg-white border-purple-600 ring-2 ring-purple-500/20 shadow-xs'
@@ -1477,7 +1492,7 @@ export default function AdminEvents() {
 
                   <button
                     type="button"
-                    onClick={() => setFormData({ ...formData, registration_type: 'external' })}
+                    onClick={() => setFormData({ ...formData, registration_type: 'external', auto_redirect_external: true })}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
                       formData.registration_type === 'external' || Boolean(formData.external_registration_url)
                         ? 'bg-white border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs'
@@ -2077,7 +2092,8 @@ export default function AdminEvents() {
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-3">
               {(() => {
                 const slug = qrModalEvent.slug || qrModalEvent.id;
-                const fullUrl = `https://www.mscprpcem.tech/register/${slug}`;
+                const isExt = Boolean(qrModalEvent.external_registration_url);
+                const fullUrl = isExt ? qrModalEvent.external_registration_url : `https://www.mscprpcem.tech/register/${slug}`;
                 return (
                   <>
                     <div className="bg-white p-3 rounded-xl shadow-xs border border-slate-100">

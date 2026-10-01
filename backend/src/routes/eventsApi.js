@@ -837,7 +837,7 @@ router.post('/', adminAuth, async (req, res) => {
         status: cleanStatus,
         registration_type: registration_type || (external_registration_url ? 'external' : 'internal'),
         external_registration_url: external_registration_url ? external_registration_url.trim() : null,
-        auto_redirect_external: Boolean(auto_redirect_external)
+        auto_redirect_external: auto_redirect_external !== undefined ? Boolean(auto_redirect_external) : (Boolean(external_registration_url) || registration_type === 'external')
       });
     } catch (createErr) {
       if (createErr.message && (/enum_Events_status/i.test(createErr.message) || /is_registration_open/i.test(createErr.message) || /initial_registration_count/i.test(createErr.message) || /column.*does not exist/i.test(createErr.message) || /no such column/i.test(createErr.message))) {
@@ -863,7 +863,7 @@ router.post('/', adminAuth, async (req, res) => {
           status: cleanStatus === 'past' ? 'completed' : cleanStatus,
           registration_type: registration_type || (external_registration_url ? 'external' : 'internal'),
           external_registration_url: external_registration_url ? external_registration_url.trim() : null,
-          auto_redirect_external: Boolean(auto_redirect_external)
+          auto_redirect_external: auto_redirect_external !== undefined ? Boolean(auto_redirect_external) : (Boolean(external_registration_url) || registration_type === 'external')
         });
       } else {
         throw createErr;
@@ -1016,6 +1016,8 @@ router.put('/:id', adminAuth, async (req, res) => {
     }
     if (auto_redirect_external !== undefined) {
       event.auto_redirect_external = Boolean(auto_redirect_external);
+    } else if (external_registration_url !== undefined && external_registration_url) {
+      event.auto_redirect_external = true;
     }
     if (status !== undefined) {
       event.status = sanitizeEventStatus(status);

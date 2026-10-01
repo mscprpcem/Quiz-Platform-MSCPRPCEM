@@ -38,7 +38,8 @@ export default function EventRegister() {
   const handleDownloadEventQR = async () => {
     if (!event) return;
     const currentSlug = event.slug || slug;
-    const regUrl = `https://www.mscprpcem.tech/register/${currentSlug}`;
+    const isExt = Boolean(event.external_registration_url);
+    const regUrl = isExt ? event.external_registration_url : `https://www.mscprpcem.tech/register/${currentSlug}`;
     await downloadBrandedQRCard({
       svgElementId: 'event-register-qr-svg',
       quizData: {
@@ -156,20 +157,8 @@ export default function EventRegister() {
 
   // Auto-redirect effect for events with external registration link
   useEffect(() => {
-    if (event?.external_registration_url && event?.auto_redirect_external && !redirectCancelled) {
-      setRedirectCountdown(3);
-      const timer = setInterval(() => {
-        setRedirectCountdown(prev => {
-          if (prev === null) return null;
-          if (prev <= 1) {
-            clearInterval(timer);
-            window.location.href = event.external_registration_url;
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
+    if (event?.external_registration_url && !redirectCancelled) {
+      window.location.href = event.external_registration_url;
     }
   }, [event, redirectCancelled]);
 
@@ -786,7 +775,8 @@ export default function EventRegister() {
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-3">
               {(() => {
                 const currentSlug = event?.slug || slug;
-                const fullUrl = `https://www.mscprpcem.tech/register/${currentSlug}`;
+                const isExt = Boolean(event?.external_registration_url);
+                const fullUrl = isExt ? event.external_registration_url : `https://www.mscprpcem.tech/register/${currentSlug}`;
                 return (
                   <>
                     <div className="bg-white p-3 rounded-xl shadow-xs border border-slate-100">
