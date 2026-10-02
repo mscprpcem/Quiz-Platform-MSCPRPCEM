@@ -102,7 +102,7 @@ router.post('/login', async (req, res) => {
     // Strictly disallow legacy .edu administrator accounts
     if (cleanEmail.endsWith('.edu') || cleanEmail.includes('.edu')) {
       return res.status(403).json({
-        error: 'Legacy .edu administrator accounts have been removed. Please use your official MSC Verification Platform administrator account.'
+        error: 'Legacy .edu administrator accounts have been removed.'
       });
     }
 
@@ -210,7 +210,7 @@ router.post('/login', async (req, res) => {
 
     if (!authenticatedAdmin) {
       return res.status(401).json({
-        error: 'Invalid administrator email or password. Please use the credentials configured on the MSC Verification Platform.'
+        error: 'Invalid administrator email or password.'
       });
     }
 
