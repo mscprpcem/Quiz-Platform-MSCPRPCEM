@@ -103,10 +103,11 @@ export default function Home() {
     const fetchHomeData = async () => {
       try {
         setLoadingData(true);
-        const [quizzesRes, scheduledRes, leaderboardRes] = await Promise.all([
+        const [quizzesRes, scheduledRes, leaderboardRes, eventsRes] = await Promise.all([
           api.get('/api/quizzes/public').catch(() => ({ data: [] })),
           api.get('/api/scheduled-quizzes/public/all').catch(() => ({ data: [] })),
-          api.get('/api/analytics/public/leaderboard').catch(() => ({ data: { leaderboard: [], recentEvents: [] } }))
+          api.get('/api/analytics/public/leaderboard').catch(() => ({ data: { leaderboard: [], recentEvents: [] } })),
+          api.get('/api/events').catch(() => ({ data: { events: [] } }))
         ]);
 
         const allPublicQuizzes = [];
@@ -181,8 +182,28 @@ export default function Home() {
 
         if (leaderboardRes?.data) {
           setLeaderboard(Array.isArray(leaderboardRes.data.leaderboard) ? leaderboardRes.data.leaderboard : []);
-          setRecentEvents(Array.isArray(leaderboardRes.data.recentEvents) ? leaderboardRes.data.recentEvents : []);
         }
+
+        // Process Recent Events: prioritize official events API sorted descending, fallback to leaderboard recentEvents
+        let eventsList = [];
+        if (Array.isArray(eventsRes?.data?.events) && eventsRes.data.events.length > 0) {
+          const sorted = [...eventsRes.data.events].sort((a, b) => {
+            const dA = new Date(a.start_date || a.startDate || a.createdAt || 0).getTime();
+            const dB = new Date(b.start_date || b.startDate || b.createdAt || 0).getTime();
+            return dB - dA;
+          });
+          eventsList = sorted.map(ev => ({
+            id: ev.id,
+            title: ev.name || ev.title || 'MSC Technical Event',
+            event_name: ev.category || 'Technical Workshop',
+            date: ev.start_date || ev.startDate || ev.createdAt,
+            players: ev.registration_count || ev.attendeeCount || ev.initial_registration_count || 0,
+            status: ev.status || (ev.isEventCompleted ? 'Completed' : 'Upcoming')
+          }));
+        } else if (Array.isArray(leaderboardRes?.data?.recentEvents)) {
+          eventsList = leaderboardRes.data.recentEvents;
+        }
+        setRecentEvents(eventsList);
       } catch (err) {
         console.error('Fetch homepage data error:', err);
       } finally {
@@ -452,6 +473,14 @@ export default function Home() {
                 const endTimeStr = endDate && !isNaN(endDate.getTime()) ? formatToISTTimeString(endDate) : null;
                 const qSlug = q.slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : q.join_code);
 
+                const isQuizEnded = Boolean(
+                  q.status === 'completed' ||
+                  q.status === 'ended' ||
+                  q.status === 'closed' ||
+                  (q.availability && ['COMPLETED', 'CLOSED', 'ARCHIVED'].includes(String(q.availability).toUpperCase())) ||
+                  (endDate && !isNaN(endDate.getTime()) && Date.now() > endDate.getTime())
+                );
+
                 return (
                   <div key={q.id || Math.random()} className="bg-white border border-brand-border rounded-2xl shadow-soft hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col xs:flex-row overflow-hidden group">
                     
@@ -495,16 +524,31 @@ export default function Home() {
                       </div>
 
                       <div className="border-t border-brand-border pt-4 flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded tracking-wide">
-                          {q.status === 'in_progress' ? 'Live Now' : q.status === 'waiting_lobby' ? 'Lobby Open' : 'Scheduled'}
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-wide ${
+                          isQuizEnded
+                            ? 'text-slate-500 bg-slate-100 border border-slate-200'
+                            : q.status === 'in_progress'
+                              ? 'text-emerald-600 bg-emerald-50 border border-emerald-100'
+                              : q.status === 'waiting_lobby'
+                                ? 'text-blue-600 bg-blue-50 border border-blue-100'
+                                : 'text-indigo-600 bg-indigo-50 border border-indigo-100'
+                        }`}>
+                          {isQuizEnded ? 'Quiz Ended' : q.status === 'in_progress' ? 'Live Now' : q.status === 'waiting_lobby' ? 'Lobby Open' : 'Scheduled'}
                         </span>
-                        <button
-                          onClick={() => navigate(q.mode === 'SCHEDULED' || q.occurrenceId ? `/q/${q.custom_slug || q.slug || qSlug}` : `/join/${q.join_code}`)}
-                          className="flex items-center justify-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer text-[10px] uppercase tracking-wider"
-                        >
-                          <span>Join Quiz</span>
-                          <ArrowRight size={10} />
-                        </button>
+
+                        {!isQuizEnded ? (
+                          <button
+                            onClick={() => navigate(q.mode === 'SCHEDULED' || q.occurrenceId ? `/q/${q.custom_slug || q.slug || qSlug}` : `/join/${q.join_code}`)}
+                            className="flex items-center justify-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer text-[10px] uppercase tracking-wider"
+                          >
+                            <span>Join Quiz</span>
+                            <ArrowRight size={10} />
+                          </button>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 bg-slate-50 rounded border border-slate-100">
+                            Closed
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -924,7 +968,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="recent-events-grid">
-              {recentEvents.map((event, idx) => {
+              {recentEvents.slice(0, 6).map((event, idx) => {
                 if (!event) return null;
                 const dateStr = formatToISTDateString(event.date);
                 return (

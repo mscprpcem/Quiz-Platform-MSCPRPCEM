@@ -242,8 +242,8 @@ export default function QuizManagement() {
         scheduled_start: '',
         scheduled_end: '',
         issue_badge: false,
-        badge_sys_id: availableBadges[0]?.id || '',
-        badge_title: availableBadges[0]?.title || 'Certified Specialist'
+        badge_sys_id: '',
+        badge_title: ''
       });
     }
     setFormError('');
@@ -1128,33 +1128,7 @@ export default function QuizManagement() {
                         </p>
                       </div>
 
-                      {availableBadges.length > 0 && (
-                        <div className="space-y-1">
-                          <label className="block text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
-                            Quick Select from Available Badges:
-                          </label>
-                          <div className="flex flex-wrap gap-1.5">
-                            {availableBadges.slice(0, 4).map((b) => (
-                              <button
-                                key={b.id}
-                                type="button"
-                                onClick={() => setQuizForm(p => ({
-                                  ...p,
-                                  badge_sys_id: b.id,
-                                  badge_title: b.title || p.badge_title
-                                }))}
-                                className={`px-2 py-1 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
-                                  quizForm.badge_sys_id === b.id
-                                    ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
-                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                                }`}
-                              >
-                                {b.title || b.id}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+
 
                       <div className="space-y-1">
                         <label className="block text-[11px] font-bold text-slate-700">Badge Title</label>

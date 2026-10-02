@@ -30,14 +30,7 @@ const POSTER_GALLERY = [
   }
 ];
 
-const DEFAULT_VENUES = [
-  'PRPCEM Main Auditorium',
-  'PRPCEM Campus, Amravati',
-  'PRPCEM Campus & Virtual',
-  'Virtual / Online',
-  'Computer Lab 1 - Department of CSE',
-  'Seminar Hall 2 - PRPCEM'
-];
+
 
 import {
   formatToIST_DateTimeLocal as formatToDateTimeLocal,
@@ -53,7 +46,6 @@ export default function AdminEvents() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('ALL');
-  const [venueSuggestions, setVenueSuggestions] = useState(DEFAULT_VENUES);
   
   // Create / Edit Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -64,7 +56,7 @@ export default function AdminEvents() {
     slug: '',
     category: 'Innovation Challenge',
     mode: 'Hybrid',
-    venue: 'PRPCEM Main Auditorium',
+    venue: '',
     poster_url: DEFAULT_SPARK_POSTER,
     description: '',
     start_date: '',
@@ -231,8 +223,6 @@ export default function AdminEvents() {
       const res = await api.get('/api/events');
       if (res.data?.success && Array.isArray(res.data.events)) {
         setEvents(res.data.events);
-        const existingVenues = res.data.events.map(e => e.venue).filter(Boolean);
-        setVenueSuggestions(prev => Array.from(new Set([...prev, ...existingVenues])));
       }
     } catch (err) {
       console.warn('Failed to load events:', err);
@@ -268,7 +258,7 @@ export default function AdminEvents() {
       slug: '',
       category: 'Innovation Challenge',
       mode: 'Hybrid',
-      venue: venueSuggestions[0] || 'PRPCEM Main Auditorium',
+      venue: '',
       poster_url: DEFAULT_SPARK_POSTER,
       description: '',
       start_date: formatToDateTimeLocal(nextWeek),
@@ -333,7 +323,7 @@ export default function AdminEvents() {
       slug: ev.slug || (ev.name ? ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''),
       category: ev.category || 'Technical Workshop',
       mode: ev.mode || 'Offline',
-      venue: ev.venue || venueSuggestions[0] || 'PRPCEM Main Auditorium',
+      venue: ev.venue || '',
       poster_url: ev.poster_url || ev.poster || ev.banner || ev.image || DEFAULT_SPARK_POSTER,
       description: ev.description || '',
       start_date: formatToDateTimeLocal(resolvedStartDate, sTime),
@@ -630,11 +620,7 @@ export default function AdminEvents() {
       const isZeroFee = isNaN(numFee) || numFee <= 0 || formData.fee === 'Free' || !formData.fee;
       const finalFee = isZeroFee ? 'Free' : `₹${numFee || String(formData.fee).replace(/[^0-9.]/g, '')}`;
       const finalPoster = (formData.poster_url && formData.poster_url.trim()) ? formData.poster_url.trim() : DEFAULT_SPARK_POSTER;
-      const cleanVenue = (formData.venue && formData.venue.trim()) ? formData.venue.trim() : (venueSuggestions[0] || 'PRPCEM Main Auditorium');
-
-      if (cleanVenue && !venueSuggestions.includes(cleanVenue)) {
-        setVenueSuggestions(prev => [cleanVenue, ...prev]);
-      }
+      const cleanVenue = (formData.venue && formData.venue.trim()) ? formData.venue.trim() : '';
 
       const payload = {
         name: formData.name.trim(),
@@ -1534,44 +1520,17 @@ export default function AdminEvents() {
 
                     {/* Venue / Location */}
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                          <MapPin size={13} className="text-slate-500" />
-                          <span>Venue / Location</span>
-                        </label>
-                        <span className="text-[10px] text-slate-400">Type or pick quick suggestion</span>
-                      </div>
+                      <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5 mb-1">
+                        <MapPin size={13} className="text-slate-500" />
+                        <span>Venue / Location</span>
+                      </label>
                       <input
                         type="text"
-                        list="admin-event-venue-suggestions"
                         placeholder="e.g. PRPCEM Main Auditorium, Virtual / Online"
                         value={formData.venue}
                         onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
                         className="events-input font-semibold"
                       />
-                      <datalist id="admin-event-venue-suggestions">
-                        {venueSuggestions.map((v, i) => (
-                          <option key={i} value={v} />
-                        ))}
-                      </datalist>
-
-                      <div className="flex items-center gap-1.5 flex-wrap pt-2">
-                        <span className="text-[10px] font-semibold text-slate-400">Suggestions:</span>
-                        {venueSuggestions.slice(0, 5).map((v, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, venue: v })}
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
-                              formData.venue === v
-                                ? 'bg-blue-50 text-blue-700 border-blue-200 font-bold'
-                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                            }`}
-                          >
-                            {v}
-                          </button>
-                        ))}
-                      </div>
                     </div>
 
                     {/* Description */}

@@ -44,6 +44,11 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
   - Resolved `ShieldCheck` icon import omission in `QuizManagement.jsx` that triggered the React ErrorBoundary (*"Quiz Session Recovery - ShieldCheck is not defined"*).
   - Fixed anti-cheat proctoring listener in `FullscreenHandler.jsx` by properly referencing `isMobileDevice()` and `isFullscreenAPISupported()`.
   - Hardened option selection fallback in `ScheduledQuizTake.jsx` using `questions[currentQIndex]`.
+- **Clean Inputs & Suggestion Elimination**:
+  - Removed all suggestions, datalists, preset buttons, and default pre-fills for Venue in Admin Events and for Badge Sys ID across `IssueBadgeModal`, `QuizManagement`, and `CreateScheduledQuiz`.
+- **Landing Page Streamlining**:
+  - Display latest 6 events only on the public homepage (matching quizzes).
+  - Automatically hide the "Join Quiz" button if a quiz has ended or passed its scheduled duration, replacing it with a clean "Closed" status indicator.
 
 ### Version 1.8.4
 *Theme: Official Standard MSC PRPCEM Email Template Architecture, Simplified Centered Header, Dynamic Content Wireframe, Admin Dispatch Formatting Toolbar & Social Link Standardization*

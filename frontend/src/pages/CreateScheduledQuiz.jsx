@@ -144,9 +144,9 @@ export default function CreateScheduledQuiz() {
     show_leaderboard: true,
 
     // Digital Badge & Certification
-    issue_badge: true,
+    issue_badge: false,
     badge_sys_id: '',
-    badge_title: 'Microsoft Azure & Cloud Fundamentals Master',
+    badge_title: '',
 
     // Questions List
     questions: []
@@ -2854,33 +2854,7 @@ export default function CreateScheduledQuiz() {
                     </p>
                   </div>
 
-                  {availableBadges.length > 0 && (
-                    <div className="space-y-1.5">
-                      <label className="block text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
-                        Quick Select from Available Verification Badges:
-                      </label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {availableBadges.slice(0, 5).map((b) => (
-                          <button
-                            key={b.id}
-                            type="button"
-                            onClick={() => setFormData(p => ({
-                              ...p,
-                              badge_sys_id: b.id,
-                              badge_title: b.title || p.badge_title
-                            }))}
-                            className={`px-2.5 py-1 rounded-lg text-[10.5px] font-semibold border transition-all cursor-pointer ${
-                              formData.badge_sys_id === b.id
-                                ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
-                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                            }`}
-                          >
-                            {b.title || b.id}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+
 
                   <div className="space-y-1">
                     <label className="block text-xs font-bold text-slate-700">Badge Certificate Title</label>

@@ -78,13 +78,6 @@ export default function IssueBadgeModal({ quiz, isOpen = true, onClose, onSucces
 
   if (!isOpen || !quiz) return null;
 
-  const handleSelectBadgePreset = (preset) => {
-    setBadgeSysId(preset.id);
-    if (preset.title) {
-      setBadgeTitle(preset.title);
-    }
-  };
-
   const handleSaveOnly = async () => {
     if (!badgeSysId.trim()) {
       setError('Please provide a Badge Sys ID.');
@@ -269,34 +262,7 @@ export default function IssueBadgeModal({ quiz, isOpen = true, onClose, onSucces
               </p>
             </div>
 
-            {/* Quick Badge Presets from Verification Portal */}
-            {statusData?.availableBadges && statusData.availableBadges.length > 0 && (
-              <div className="p-3 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2">
-                <span className="block text-[10.5px] font-bold text-slate-600 uppercase tracking-wider">
-                  Select from Verification Platform Badges:
-                </span>
-                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
-                  {statusData.availableBadges.map((badge) => {
-                    const isSelected = badgeSysId === badge.id;
-                    return (
-                      <button
-                        key={badge.id}
-                        type="button"
-                        onClick={() => handleSelectBadgePreset(badge)}
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
-                          isSelected
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-black'
-                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                        }`}
-                      >
-                        <span>{badge.title}</span>
-                        {isSelected && <Check size={11} strokeWidth={3} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+
 
             {/* Badge Title Field */}
             <div>
