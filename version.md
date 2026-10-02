@@ -40,6 +40,10 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 - **Unified IssueBadgeModal Component**:
   - Designed interactive viewport portal modal displaying live completion counts, attendee preview cards with email and scores, verification status banners, and safety confirmation checks.
   - Integrated seamlessly into Live Quiz management, Scheduled Quiz cards, and Scheduled Quiz details views.
+- **Production Integrity & Runtime Guardrails**:
+  - Resolved `ShieldCheck` icon import omission in `QuizManagement.jsx` that triggered the React ErrorBoundary (*"Quiz Session Recovery - ShieldCheck is not defined"*).
+  - Fixed anti-cheat proctoring listener in `FullscreenHandler.jsx` by properly referencing `isMobileDevice()` and `isFullscreenAPISupported()`.
+  - Hardened option selection fallback in `ScheduledQuizTake.jsx` using `questions[currentQIndex]`.
 
 ### Version 1.8.4
 *Theme: Official Standard MSC PRPCEM Email Template Architecture, Simplified Centered Header, Dynamic Content Wireframe, Admin Dispatch Formatting Toolbar & Social Link Standardization*

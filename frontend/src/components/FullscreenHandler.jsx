@@ -36,12 +36,12 @@ export default function FullscreenHandler({ quizStarted, participantId, quizId, 
     let blurTimer = null;
 
     const handleFullscreenChange = () => {
-      if (isMobile() && !isFullscreenSupported()) {
+      if (isMobileDevice() && !isFullscreenAPISupported()) {
         setIsFullscreen(true);
         return;
       }
       const isFS = checkFullscreen();
-      if (quizStarted && !isFS && !disqualified && !isMobile()) {
+      if (quizStarted && !isFS && !disqualified && !isMobileDevice()) {
         setShowWarningModal(true);
         setModalMessage('You exited fullscreen! Please return to fullscreen immediately.');
         if (socket) {
@@ -75,7 +75,7 @@ export default function FullscreenHandler({ quizStarted, participantId, quizId, 
               socket.emit('report_violation', { violationType: 'focus_loss' });
             }
           }
-        }, isMobile() ? 1500 : 400);
+        }, isMobileDevice() ? 1500 : 400);
       }
     };
 

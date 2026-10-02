@@ -449,7 +449,7 @@ export default function ScheduledQuizTake() {
   };
 
   const handleSelectOption = async (questionId, optionKey) => {
-    const q = questions.find(item => item.id === questionId) || currentQuestion;
+    const q = questions.find(item => item.id === questionId) || questions[currentQIndex];
     const isMulti = q?.question_type === 'multiple' || q?.multiple_correct;
 
     let newSelection = optionKey;

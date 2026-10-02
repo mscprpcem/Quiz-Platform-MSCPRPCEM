@@ -32,7 +32,8 @@ import {
   ExternalLink,
   Radio,
   Play,
-  RefreshCw
+  RefreshCw,
+  ShieldCheck
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import EventSelector from '../components/EventSelector';
