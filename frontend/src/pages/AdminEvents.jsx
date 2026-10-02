@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext';
 import ThemeDropdown from '../components/ThemeDropdown';
 import {
   Sparkles, Plus, Search, Calendar, MapPin, Globe, Users,
-  Trash2, Edit3, ExternalLink, Mail, ArrowRight, ShieldCheck,
+  Trash2, Edit3, ExternalLink, Mail, ArrowRight, ArrowLeft, ShieldCheck,
   AlertCircle, RefreshCw, X, Radio, BookOpen, Image, Check, Download, FileText,
   Copy, Link as LinkIcon, Upload, CloudUpload, CheckCircle2, Clock, Timer,
   Lock, Unlock, Tag, AlertTriangle, QrCode, Unlink
@@ -17,6 +17,7 @@ import {
   fetchBrandingConfig,
   getLogoUrl
 } from '../utils/qrCardGenerator';
+import './AdminEvents.css';
 
 const DEFAULT_SPARK_POSTER = 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png';
 
@@ -57,6 +58,7 @@ export default function AdminEvents() {
   // Create / Edit Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [formTab, setFormTab] = useState('details'); // 'details' | 'registration' | 'poster'
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -285,6 +287,7 @@ export default function AdminEvents() {
       auto_redirect_external: false
     });
     setErrorMsg('');
+    setFormTab('details');
     setModalOpen(true);
   };
 
@@ -353,6 +356,7 @@ export default function AdminEvents() {
       auto_redirect_external: Boolean(ev.auto_redirect_external)
     });
     setErrorMsg('');
+    setFormTab('details');
     setModalOpen(true);
   };
 
@@ -726,10 +730,48 @@ export default function AdminEvents() {
   const totalEventsPages = eventsLimit === 0 ? 1 : (Math.ceil(filteredEvents.length / eventsLimit) || 1);
   const paginatedEvents = eventsLimit === 0 ? filteredEvents : filteredEvents.slice((eventsPage - 1) * eventsLimit, eventsPage * eventsLimit);
 
+  // Compute live filter counts for segmented tabs
+  const filterCounts = useMemo(() => {
+    const now = new Date();
+    let upcoming = 0;
+    let regOpen = 0;
+    let live = 0;
+    let completed = 0;
+
+    events.forEach((e) => {
+      const status = (e.status || '').toUpperCase();
+      const startDate = e.start_date ? new Date(e.start_date) : (e.startDate ? new Date(e.startDate) : null);
+      const endDate = e.end_date ? new Date(e.end_date) : (e.endDate ? new Date(e.endDate) : null);
+      const isFutureEvent = Boolean(startDate && !isNaN(startDate.getTime()) && startDate > now);
+      const isEventEnded = Boolean(
+        endDate && !isNaN(endDate.getTime())
+          ? endDate < now
+          : (startDate && !isNaN(startDate.getTime()) ? startDate < now : false)
+      );
+      const isComp = !isFutureEvent && (status === 'COMPLETED' || status === 'PAST' || status === 'CONCLUDED' || isEventEnded);
+
+      if (isComp) {
+        completed++;
+      } else if (isFutureEvent || status === 'UPCOMING' || status === 'OPEN' || status === 'ACTIVE') {
+        upcoming++;
+      }
+
+      if ((status === 'LIVE' || e.is_live) && !isEventEnded) {
+        live++;
+      }
+      if (e.is_registration_open && !e.is_registration_ended && !isEventEnded) {
+        regOpen++;
+      }
+    });
+
+    return { all: events.length, upcoming, regOpen, live, completed };
+  }, [events]);
+
   const renderEventCard = (ev) => {
     const currentSlug = ev.slug || ev.id;
     const isCopied = copyFeedback === currentSlug;
-    const hasDates = Boolean(ev.start_date);
+    const isExternal = Boolean(ev.external_registration_url);
+    const regUrl = isExternal ? ev.external_registration_url : `https://www.mscprpcem.tech/register/${currentSlug}`;
     const isRegClosed = !ev.is_registration_open || ev.is_registration_ended;
 
     const startDateObj = ev.start_date ? new Date(ev.start_date) : (ev.startDate ? new Date(ev.startDate) : null);
@@ -740,13 +782,10 @@ export default function AdminEvents() {
     const badgeLabel = isLive ? 'Live' : (isCompleted ? 'Completed' : 'Upcoming');
 
     return (
-      <div
-        key={ev.id}
-        className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group"
-      >
+      <div key={ev.id} className="events-card group">
         <div>
-          {/* Poster Preview Header */}
-          <div className="relative h-48 bg-slate-950 overflow-hidden">
+          {/* Poster Banner Header */}
+          <div className="relative h-32 sm:h-36 bg-slate-950 overflow-hidden">
             <img
               src={ev.poster_url || POSTER_GALLERY[0].url}
               alt={ev.name}
@@ -756,79 +795,87 @@ export default function AdminEvents() {
                 e.target.src = POSTER_GALLERY[0].url;
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-            
-            {/* Status & Fee Badges */}
-            <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm ${
-                isLive
-                  ? 'bg-emerald-500 text-white animate-pulse'
-                  : isCompleted
-                  ? 'bg-slate-600/90 text-white backdrop-blur-xs'
-                  : 'bg-purple-600 text-white'
-              }`}>
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" />
+
+            {/* Top Status & Mode Badges */}
+            <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+              <span
+                className={`px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase tracking-wider shadow-xs flex items-center gap-1 ${
+                  isLive
+                    ? 'bg-emerald-500 text-white animate-pulse'
+                    : isCompleted
+                    ? 'bg-slate-700/90 text-white backdrop-blur-xs'
+                    : 'bg-blue-600 text-white'
+                }`}
+              >
+                {isLive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
                 {badgeLabel}
               </span>
-              {Boolean(ev.external_registration_url) && (
-                <span className="px-2 py-1 rounded-full text-[10px] font-black bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm flex items-center gap-1">
-                  <Globe size={10} /> External Event
-                </span>
-              )}
-              {ev.fee && (
-                <span className="px-2 py-1 rounded-full text-[10px] font-extrabold bg-black/60 text-white backdrop-blur-xs border border-white/20">
-                  {ev.fee}
+              {ev.mode && (
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-black/50 text-white backdrop-blur-xs border border-white/20">
+                  {ev.mode}
                 </span>
               )}
             </div>
 
-            {/* Top Action Icons */}
-            <div className="absolute top-3 right-3 flex items-center gap-1.5">
+            {/* Top Action Icons (Edit / Delete) */}
+            <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
               <button
+                type="button"
                 onClick={() => openEditModal(ev)}
-                className="p-1.5 bg-white/80 hover:bg-white text-slate-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer shadow-xs"
+                className="p-1.5 bg-black/40 hover:bg-black/70 text-white rounded-lg backdrop-blur-xs transition-colors cursor-pointer"
                 title="Edit event"
               >
-                <Edit3 size={13} />
+                <Edit3 size={12} />
               </button>
               {ev.source === 'database' && (
                 <button
+                  type="button"
                   onClick={() => handleDeleteEvent(ev.id, ev.name)}
-                  className="p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl backdrop-blur-xs transition-colors cursor-pointer shadow-xs"
+                  className="p-1.5 bg-rose-600/70 hover:bg-rose-600 text-white rounded-lg backdrop-blur-xs transition-colors cursor-pointer"
                   title="Delete event"
                 >
-                  <Trash2 size={13} />
+                  <Trash2 size={12} />
                 </button>
               )}
             </div>
 
-            {/* Category Pill on bottom of image */}
-            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
-              <span className="text-[11px] font-bold opacity-90 truncate">
-                {ev.category || 'MSC Flagship Event'}
+            {/* Bottom Category & Fee */}
+            <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-white text-[10px]">
+              <span className="font-bold opacity-90 truncate max-w-[170px]">
+                {ev.category || 'Flagship Event'}
               </span>
-              <span className="text-[11px] font-medium opacity-80">
-                {ev.mode || 'Offline'}
-              </span>
+              {ev.fee && (
+                <span className="font-extrabold bg-blue-600/90 px-1.5 py-0.2 rounded text-[9.5px]">
+                  {ev.fee}
+                </span>
+              )}
             </div>
           </div>
 
           {/* Event Content Body */}
-          <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+          <div className="p-3.5 space-y-2">
             <div>
-              <h3 className="text-base font-black text-slate-900 group-hover:text-purple-600 transition-colors line-clamp-1">
+              <h3
+                className="font-bold text-sm sm:text-base text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1 leading-snug"
+                title={ev.name}
+              >
                 {ev.name}
               </h3>
-              <p className="text-xs text-slate-500 line-clamp-2 mt-1 font-medium leading-relaxed">
-                {ev.description || 'No description provided.'}
+              <p
+                className="text-[11px] text-slate-500 line-clamp-1 mt-0.5 font-medium leading-relaxed"
+                title={ev.description}
+              >
+                {ev.description || 'Interactive campus & community event'}
               </p>
             </div>
 
-            {/* 📅 Event Date & Timing Badge */}
-            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 space-y-1.5 text-[11px]">
-              <div className="flex items-center justify-between text-slate-800 font-bold">
+            {/* Timing, Venue & Registration Strip */}
+            <div className="space-y-1.5 text-[11px] text-slate-600 bg-slate-50/80 border border-slate-200/70 rounded-xl p-2.5">
+              <div className="flex items-center justify-between gap-1 truncate font-semibold">
                 <div className="flex items-center gap-1.5 truncate">
-                  <Calendar size={13} className="text-purple-600 shrink-0" />
-                  <span className="truncate">
+                  <Calendar size={12} className="text-blue-600 shrink-0" />
+                  <span className="truncate text-slate-800">
                     {ev.start_date
                       ? `${formatDisplayDateTime(ev.start_date, true)}${ev.end_date ? ` → ${formatDisplayDateTime(ev.end_date, false)}` : ''}`
                       : 'Date TBA'}
@@ -836,129 +883,43 @@ export default function AdminEvents() {
                 </div>
               </div>
 
-              {/* ⏳ Registration Deadline */}
-              <div className="flex items-center justify-between text-[10px] pt-1 border-t border-slate-200/60">
-                <div className="flex items-center gap-1 text-slate-500 font-medium truncate">
-                  <Clock size={11} className="text-slate-400 shrink-0" />
-                  <span>
-                    Reg Deadline: {ev.registration_end_date ? formatDisplayDateTime(ev.registration_end_date, true) : 'Open till start'}
+              <div className="flex items-center justify-between gap-1 text-[10.5px]">
+                <div className="flex items-center gap-1 truncate text-slate-500">
+                  <MapPin size={11} className="text-slate-400 shrink-0" />
+                  <span className="truncate">{ev.venue || 'PRPCEM Amravati'}</span>
+                </div>
+                <div className="flex items-center gap-1 font-semibold shrink-0">
+                  <Clock size={11} className="text-slate-400" />
+                  <span className={isRegClosed ? 'text-rose-600 font-bold' : 'text-emerald-700 font-bold'}>
+                    {isRegClosed ? 'Reg Closed' : 'Reg Open'}
                   </span>
                 </div>
-                <span className={`px-1.5 py-0.5 rounded font-extrabold uppercase text-[9px] ${
-                  isRegClosed
-                    ? 'bg-rose-100 text-rose-700'
-                    : 'bg-emerald-100 text-emerald-800'
-                }`}>
-                  {isRegClosed ? 'Closed' : 'Open'}
-                </span>
               </div>
-            </div>
 
-            {/* Live Website Slug Registration Badge - HIDDEN for external events */}
-            {!Boolean(ev.external_registration_url) && ev.registration_type !== 'external' && (
-              <div className="bg-purple-50/70 border border-purple-100 rounded-xl p-2 flex items-center justify-between gap-2 text-[11px]">
-              <div className="flex items-center gap-1.5 truncate">
-                <LinkIcon size={12} className="text-purple-600 shrink-0" />
-                <span className="font-mono font-bold text-purple-800 truncate">
-                  /register/{currentSlug}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => handleCopyLink(currentSlug)}
-                  className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
-                    isCopied
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-white text-purple-700 border border-purple-200 hover:bg-purple-100'
-                  }`}
-                  title="Copy Full Registration URL"
-                >
-                  {isCopied ? <Check size={11} /> : <Copy size={11} />}
-                  <span>{isCopied ? 'Copied' : 'Copy'}</span>
-                </button>
-                <a
-                  href={`https://www.mscprpcem.tech/register/${currentSlug}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-1 text-purple-600 hover:text-purple-800 hover:bg-white rounded-md cursor-pointer"
-                  title="Open Registration Page"
-                >
-                  <ExternalLink size={12} />
-                </a>
-              </div>
-            </div>
-            )}
-
-            {/* External Redirection Target Display */}
-            {Boolean(ev.external_registration_url) && (
-              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/80 rounded-xl p-2 flex items-center justify-between gap-2 text-[11px]">
-                <div className="flex items-center gap-1.5 truncate">
-                  <Globe size={12} className="text-indigo-600 shrink-0" />
-                  <span className="font-mono font-bold text-indigo-900 truncate text-[10px]">
-                    {ev.external_registration_url}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => handleCopyLink(ev.id, ev.external_registration_url)}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
-                      copyFeedback === ev.id
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
-                    }`}
-                    title="Copy External Registration Link"
-                  >
-                    {copyFeedback === ev.id ? <Check size={11} /> : <Copy size={11} />}
-                    <span>{copyFeedback === ev.id ? 'Copied' : 'Copy'}</span>
-                  </button>
-                  <a
-                    href={ev.external_registration_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2 py-1 rounded-lg text-[10px] font-extrabold bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1 shadow-2xs cursor-pointer"
-                    title="Open External Registration Page"
-                  >
-                    <span>External</span>
-                    <ExternalLink size={10} />
-                  </a>
-                </div>
-              </div>
-            )}
-
-            <div className="text-[11px] text-slate-500 space-y-1.5 pt-1 border-t border-slate-100">
-              <div className="flex items-center gap-2">
-                <MapPin size={13} className="text-slate-400 shrink-0" />
-                <span className="truncate">{ev.venue || 'PRPCEM Amravati'}</span>
-              </div>
-              
-              {/* Website Registrations Count & Capacity */}
-              <div className="flex items-center justify-between pt-1">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <Users size={13} className="text-purple-600 shrink-0" />
-                  <span className="font-extrabold text-purple-700">
+              {/* Attendance & Capacity */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[10.5px]">
+                <div className="flex items-center gap-1">
+                  <Users size={11} className="text-blue-600 shrink-0" />
+                  <span className="font-bold text-slate-800">
                     {ev.registration_count || 0}
-                    {ev.max_registrations ? ` / ${ev.max_registrations} Seats` : ' Enrolled'}
+                    {ev.max_registrations ? ` / ${ev.max_registrations}` : ''}
                   </span>
-                  {parseInt(ev.initial_registration_count, 10) > 0 && (
-                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
-                      ({ev.actual_registration_count || 0} online + {ev.initial_registration_count} base)
-                    </span>
-                  )}
+                  <span className="text-slate-400 font-medium">Enrolled</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => handleViewRegistrations(ev)}
-                  className="text-[11px] font-extrabold text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                  className="text-blue-600 hover:text-blue-800 font-bold hover:underline cursor-pointer"
                 >
                   View List ({ev.actual_registration_count || 0})
                 </button>
               </div>
 
-              {/* Capacity Progress Bar if limit set */}
               {ev.max_registrations && (
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-200/80 h-1 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      (ev.registration_count || 0) >= ev.max_registrations ? 'bg-rose-500' : 'bg-purple-600'
+                      (ev.registration_count || 0) >= ev.max_registrations ? 'bg-rose-500' : 'bg-blue-600'
                     }`}
                     style={{
                       width: `${Math.min(100, Math.round(((ev.registration_count || 0) / ev.max_registrations) * 100))}%`
@@ -966,191 +927,205 @@ export default function AdminEvents() {
                   />
                 </div>
               )}
+            </div>
 
-              {/* Attached Quizzes Information on Card (Clean row, no card clutter) */}
-              <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <BookOpen size={13} className="text-purple-600 shrink-0" />
-                  <span>
-                    {ev.total_quizzes > 0 ? (
-                      <span className="text-slate-800 font-bold">
-                        {ev.total_quizzes} Quiz Track{ev.total_quizzes > 1 ? 's' : ''} Attached
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 font-medium">Standalone Event (0 Quizzes Attached)</span>
-                    )}
-                  </span>
-                </div>
+            {/* Registration URL / Slug Chip */}
+            <div className="flex items-center justify-between gap-1.5 pt-1 text-xs">
+              <div className="inline-flex items-center bg-slate-50 hover:bg-blue-50/50 border border-slate-200/80 rounded-lg p-0.5 transition-colors truncate max-w-[200px]">
+                <span className="px-1.5 text-[9px] font-black uppercase text-slate-400">
+                  {isExternal ? 'EXT' : 'SLUG'}
+                </span>
+                <span className="font-mono font-bold text-[11px] text-slate-700 truncate pr-1">
+                  {isExternal ? ev.external_registration_url.replace(/^https?:\/\//, '') : `/register/${currentSlug}`}
+                </span>
                 <button
                   type="button"
-                  onClick={() => openManageQuizzesModal(ev)}
-                  className="text-[11px] font-black text-purple-600 hover:text-purple-800 hover:bg-purple-50 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                  onClick={() => handleCopyLink(currentSlug, isExternal ? ev.external_registration_url : null)}
+                  className="p-1 text-slate-400 hover:text-blue-600 rounded cursor-pointer"
+                  title="Copy registration link"
                 >
-                  {ev.total_quizzes > 0 ? `Manage (${ev.total_quizzes})` : '+ Attach'}
+                  {isCopied ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
                 </button>
+                <a
+                  href={regUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1 text-slate-400 hover:text-blue-600 rounded cursor-pointer"
+                  title="Open registration page"
+                >
+                  <ExternalLink size={11} />
+                </a>
+              </div>
+
+              <div className="text-[11px] font-semibold text-slate-600 shrink-0">
+                <span className="text-slate-800 font-bold">{ev.total_quizzes || 0}</span>
+                <span className="text-slate-400 ml-1">Quizzes</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer Action Buttons */}
-        <div className="p-5 pt-0 grid grid-cols-3 gap-2 text-xs font-bold mt-2">
-          <button
-            onClick={() => openManageQuizzesModal(ev)}
-            className="py-2 px-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
-            title="Manage & Link/Delink Quizzes"
-          >
-            <Plus size={13} />
-            <span className="truncate">Quiz Track</span>
-          </button>
+        {/* Footer Action Buttons (Symmetrical 3-Button Grid) */}
+        <div className="p-3.5 pt-0">
+          <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => openManageQuizzesModal(ev)}
+              className="events-btn-action"
+              title="Manage & Link/Delink Quizzes"
+            >
+              <BookOpen size={12} className="text-slate-500" />
+              <span className="truncate">Quizzes ({ev.total_quizzes || 0})</span>
+            </button>
 
-          <button
-            onClick={() => navigate(`/admin/email-dispatch?eventId=${encodeURIComponent(ev.id)}&event=${encodeURIComponent(ev.name)}`)}
-            className="py-2 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
-            title="Dispatch Email"
-          >
-            <Mail size={13} />
-            <span className="truncate">Email</span>
-          </button>
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/admin/email-dispatch?eventId=${encodeURIComponent(ev.id)}&event=${encodeURIComponent(ev.name)}`)
+              }
+              className="events-btn-action"
+              title="Dispatch Email to Attendees"
+            >
+              <Mail size={12} className="text-slate-500" />
+              <span className="truncate">Email</span>
+            </button>
 
-          <button
-            onClick={() => setQrModalEvent(ev)}
-            className="py-2 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
-            title="View & Download Event QR Card"
-          >
-            <QrCode size={13} />
-            <span className="truncate">QR Card</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setQrModalEvent(ev)}
+              className="events-btn-action-primary"
+              title="View & Download Event QR Card"
+            >
+              <QrCode size={12} />
+              <span className="truncate">QR Card</span>
+            </button>
+          </div>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-8 text-left max-w-7xl mx-auto">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-2xs">
-              <Sparkles size={22} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Event Management</h1>
-              <p className="text-xs text-slate-500 font-medium">
-                Configure event dates, registration deadlines, capacity limits, and custom URLs.
-              </p>
-            </div>
-          </div>
+      <div className="events-header-card p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Events & Chapters</h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
+            Configure event schedules, registration deadlines, capacity limits, and custom URLs.
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <button
+            type="button"
             onClick={fetchEvents}
-            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl transition-colors cursor-pointer"
+            disabled={loading}
+            className="p-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl transition-all cursor-pointer disabled:opacity-50"
             title="Refresh events"
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={loading ? 'animate-spin text-blue-600' : ''} />
           </button>
           <button
+            type="button"
             onClick={openCreateModal}
-            className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl text-xs font-black flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 flex items-center space-x-1.5"
           >
-            <Plus size={16} />
+            <Plus size={14} />
             <span>Create New Event</span>
           </button>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:w-80">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+      {/* Filter and Search Bar (Linear / macOS Segmented Tabs) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
+        <div className="events-tabs-track overflow-x-auto">
+          {[
+            { key: 'ALL', label: 'All Events', count: filterCounts.all },
+            { key: 'UPCOMING', label: 'Upcoming', count: filterCounts.upcoming },
+            { key: 'REG_OPEN', label: 'Reg Open', count: filterCounts.regOpen },
+            { key: 'LIVE', label: 'Live Now', count: filterCounts.live },
+            { key: 'COMPLETED', label: 'Completed', count: filterCounts.completed }
+          ].map(({ key, label, count }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                setSelectedFilter(key);
+                setEventsPage(1);
+              }}
+              className={`events-tab-btn ${
+                selectedFilter === key ? 'events-tab-btn-active' : 'events-tab-btn-inactive'
+              }`}
+            >
+              <span>{label}</span>
+              <span className="events-tab-badge">{count}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full sm:w-72">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by event name"
+            placeholder="Search by event name..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setEventsPage(1);
             }}
-            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 placeholder-slate-400 outline-hidden focus:border-purple-600"
+            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500"
           />
-        </div>
-
-        <div className="flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-slate-200 self-stretch sm:self-auto overflow-x-auto">
-          {[
-            { key: 'ALL', label: 'All Events' },
-            { key: 'UPCOMING', label: 'Upcoming' },
-            { key: 'REG_OPEN', label: 'Reg Open' },
-            { key: 'LIVE', label: 'Live Now' },
-            { key: 'COMPLETED', label: 'Completed' }
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => {
-                setSelectedFilter(key);
-                setEventsPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-                selectedFilter === key
-                  ? 'bg-purple-600 text-white shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
         </div>
       </div>
 
       {/* Events Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-3xl border border-slate-200 p-5 space-y-4 animate-pulse">
-              <div className="h-44 bg-slate-100 rounded-2xl w-full" />
-              <div className="h-5 bg-slate-100 rounded w-3/4" />
-              <div className="h-4 bg-slate-100 rounded w-1/2" />
+            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 animate-pulse">
+              <div className="h-36 bg-slate-100 rounded-xl w-full" />
+              <div className="h-4 bg-slate-100 rounded w-3/4" />
+              <div className="h-3 bg-slate-100 rounded w-1/2" />
             </div>
           ))}
         </div>
       ) : filteredEvents.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
-            <Sparkles size={24} />
+        <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+            <Sparkles size={22} />
           </div>
-          <h3 className="text-base font-black text-slate-900">No Events Found</h3>
+          <h3 className="text-base font-bold text-slate-900">No Events Found</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             Create an event (e.g. <strong>VisionX Season 2</strong>) with full scheduling, registration deadlines, and link challenge quizzes.
           </p>
           <button
             onClick={openCreateModal}
-            className="mt-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+            className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer inline-flex items-center gap-1.5"
           >
             <Plus size={14} />
             <span>Create First Event</span>
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {paginatedEvents.map((ev) => renderEventCard(ev))}
           </div>
 
           {/* Pagination Controls Bar (9 items per page) */}
           {filteredEvents.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-2xs">
-              <div className="text-slate-500 font-bold">
+            <div className="bg-white rounded-xl border border-slate-200 p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-2xs">
+              <div className="text-slate-500 font-medium">
                 Showing{' '}
-                <span className="text-slate-900 font-extrabold">
+                <span className="text-slate-900 font-bold">
                   {filteredEvents.length === 0 ? 0 : (eventsPage - 1) * (eventsLimit || filteredEvents.length) + 1}
                 </span>{' '}
                 to{' '}
-                <span className="text-slate-900 font-extrabold">
+                <span className="text-slate-900 font-bold">
                   {eventsLimit === 0 ? filteredEvents.length : Math.min(eventsPage * eventsLimit, filteredEvents.length)}
                 </span>{' '}
-                of <span className="text-purple-600 font-black">{filteredEvents.length}</span> event(s)
+                of <span className="text-blue-600 font-bold">{filteredEvents.length}</span> event(s)
               </div>
 
               <div className="flex items-center gap-2">
@@ -1178,7 +1153,7 @@ export default function AdminEvents() {
                     <button
                       onClick={() => setEventsPage((prev) => Math.max(1, prev - 1))}
                       disabled={eventsPage === 1}
-                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all"
+                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all"
                     >
                       Prev
                     </button>
@@ -1186,9 +1161,9 @@ export default function AdminEvents() {
                       <button
                         key={pg}
                         onClick={() => setEventsPage(pg)}
-                        className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                           eventsPage === pg
-                            ? 'bg-purple-600 text-white shadow-2xs'
+                            ? 'bg-blue-600 text-white shadow-2xs'
                             : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -1198,7 +1173,7 @@ export default function AdminEvents() {
                     <button
                       onClick={() => setEventsPage((prev) => Math.min(totalEventsPages, prev + 1))}
                       disabled={eventsPage >= totalEventsPages}
-                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all"
+                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all"
                     >
                       Next
                     </button>
@@ -1373,683 +1348,775 @@ export default function AdminEvents() {
 
       {/* Create / Edit Event Modal (Rendered in Portal on document.body) */}
       {modalOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-white rounded-3xl p-5 sm:p-7 max-w-2xl w-full shadow-2xl border border-slate-200 my-auto max-h-[90vh] overflow-y-auto relative">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-2xs">
-                  <Sparkles size={20} />
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 my-auto flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <Sparkles size={18} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">
+                  <h3 className="text-base font-extrabold text-slate-900 tracking-tight leading-snug">
                     {editingEvent ? `Edit Event: ${editingEvent.name}` : 'Create New Club Event'}
                   </h3>
-                  <p className="text-xs text-slate-500">Configure event details, dates, attendee counts, and registration settings.</p>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {editingEvent ? 'Modify event schedule, registration rules, or media.' : 'Configure event details, dates, seat limits, and registration platform.'}
+                  </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer transition-colors"
               >
                 <X size={16} />
               </button>
             </div>
 
+            {/* Segmented Tab Navigation */}
+            <div className="px-6 pt-3 pb-2.5 bg-slate-50/70 border-b border-slate-100 shrink-0">
+              <div className="events-modal-tabs">
+                <button
+                  type="button"
+                  onClick={() => setFormTab('details')}
+                  className={`events-modal-tab-btn ${formTab === 'details' ? 'events-modal-tab-btn-active' : ''}`}
+                >
+                  <span>📝 1. Basic Details</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormTab('registration')}
+                  className={`events-modal-tab-btn ${formTab === 'registration' ? 'events-modal-tab-btn-active' : ''}`}
+                >
+                  <span>🎟 2. Registration & Limits</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormTab('poster')}
+                  className={`events-modal-tab-btn ${formTab === 'poster' ? 'events-modal-tab-btn-active' : ''}`}
+                >
+                  <span>🎨 3. Poster & Media</span>
+                </button>
+              </div>
+            </div>
+
             {errorMsg && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-bold flex items-center gap-2">
-                <AlertTriangle size={15} className="shrink-0" />
+              <div className="mx-6 mt-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle size={15} className="shrink-0 text-red-500" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
-            <form onSubmit={handleSaveEvent} className="mt-5 space-y-4 text-xs">
-              
-              {/* Event Name */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Event Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. VisionX Season 2, Spark '26, .NET Conf Amravati"
-                  value={formData.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-bold text-slate-900"
-                />
-              </div>
-
-              {/* Event URL Slug Configuration */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
-                  <span>Custom Registration Page URL Slug *</span>
-                  <span className="text-[10px] text-purple-600 font-medium">Direct Link on Main Website</span>
-                </label>
-                <div className="flex items-center">
-                  <span className="px-3 py-2.5 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl text-slate-500 font-mono text-[11px] select-none">
-                    www.mscprpcem.tech/register/
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    placeholder="visionx-s2, spark26, dotnet2025"
-                    value={formData.slug}
-                    onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-r-xl text-xs font-mono font-bold text-purple-700 outline-none focus:bg-white focus:border-purple-600"
-                  />
-                </div>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Students can open <code className="text-purple-600 font-bold">https://www.mscprpcem.tech/register/{formData.slug || 'event-slug'}</code> directly to register.
-                </p>
-              </div>
-
-              {/* ════════ REGISTRATION MODE & EXTERNAL REDIRECTION ════════ */}
-              <div className="p-4 bg-gradient-to-br from-indigo-50/70 via-purple-50/50 to-pink-50/40 border border-indigo-200/80 rounded-2xl space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-2xs">
-                      <Globe size={15} />
-                    </div>
+            <form onSubmit={handleSaveEvent} className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-xs events-modal-body">
+                {/* ════════ TAB 1: BASIC DETAILS ════════ */}
+                {formTab === 'details' && (
+                  <div className="space-y-4">
+                    {/* Event Name */}
                     <div>
-                      <span className="text-xs font-black text-indigo-950 uppercase tracking-wide block">
-                        Registration Platform & Redirection
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-medium">
-                        Choose native in-portal registration or redirect to Eventbrite / external platform
-                      </span>
-                    </div>
-                  </div>
-                  {formData.external_registration_url && (
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1">
-                      <ExternalLink size={10} /> External Linked
-                    </span>
-                  )}
-                </div>
-
-                {/* Registration Mode Selector */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, registration_type: 'internal', external_registration_url: '', auto_redirect_external: false })}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
-                      formData.registration_type === 'internal' && !formData.external_registration_url
-                        ? 'bg-white border-purple-600 ring-2 ring-purple-500/20 shadow-xs'
-                        : 'bg-white/60 border-slate-200 hover:bg-white text-slate-600'
-                    }`}
-                  >
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      formData.registration_type === 'internal' && !formData.external_registration_url ? 'border-purple-600' : 'border-slate-300'
-                    }`}>
-                      {formData.registration_type === 'internal' && !formData.external_registration_url && (
-                        <div className="w-2 h-2 rounded-full bg-purple-600" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-black text-slate-900 leading-tight">Native Portal Form</div>
-                      <div className="text-[9px] text-slate-500">Collect signups on MSC PRPCEM portal</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, registration_type: 'external', auto_redirect_external: true })}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
-                      formData.registration_type === 'external' || Boolean(formData.external_registration_url)
-                        ? 'bg-white border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs'
-                        : 'bg-white/60 border-slate-200 hover:bg-white text-slate-600'
-                    }`}
-                  >
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      formData.registration_type === 'external' || Boolean(formData.external_registration_url) ? 'border-indigo-600' : 'border-slate-300'
-                    }`}>
-                      {(formData.registration_type === 'external' || Boolean(formData.external_registration_url)) && (
-                        <div className="w-2 h-2 rounded-full bg-indigo-600" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-black text-slate-900 leading-tight flex items-center gap-1">
-                        <span>External URL (Eventbrite, etc.)</span>
-                        <span className="text-[8px] bg-indigo-100 text-indigo-700 px-1 py-0.2 rounded font-black">NEW</span>
-                      </div>
-                      <div className="text-[9px] text-slate-500">Redirect students to ticketing or form</div>
-                    </div>
-                  </button>
-                </div>
-
-                {/* External Redirection Configuration Inputs */}
-                {(formData.registration_type === 'external' || Boolean(formData.external_registration_url)) && (
-                  <div className="pt-2 space-y-2 border-t border-indigo-100/80">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-800 mb-1 flex items-center justify-between">
-                        <span>External Registration URL (Eventbrite, Lu.ma, Google Forms, etc.) *</span>
-                        <span className="text-[10px] text-indigo-600 font-bold">e.g. https://www.eventbrite.com/...</span>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Event Name *
                       </label>
-                      <div className="flex items-center gap-2">
-                        <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs select-none">
-                            🔗
-                          </span>
-                          <input
-                            type="url"
-                            placeholder="https://www.eventbrite.com/... or https://lu.ma/..."
-                            value={formData.external_registration_url || ''}
-                            onChange={(e) => setFormData({ ...formData, external_registration_url: e.target.value })}
-                            className="w-full pl-8 pr-3 py-2 bg-white border border-indigo-300 rounded-xl text-xs font-mono font-bold text-indigo-950 outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs"
-                          />
-                        </div>
-                        {formData.external_registration_url && (
-                          <a
-                            href={formData.external_registration_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-3 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-extrabold text-[11px] rounded-xl flex items-center gap-1 transition-all shrink-0 cursor-pointer"
-                            title="Open and test link in new tab"
-                          >
-                            <span>Test Link</span>
-                            <ExternalLink size={12} />
-                          </a>
-                        )}
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. VisionX Season 2, Spark '26, .NET Conf Amravati"
+                        value={formData.name}
+                        onChange={(e) => handleNameChange(e.target.value)}
+                        className="events-input font-bold"
+                      />
+                    </div>
+
+                    {/* Custom URL Slug */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-bold text-slate-700">Custom Registration URL Slug *</label>
+                        <span className="text-[10px] text-blue-600 font-semibold">Direct Link Preview</span>
                       </div>
-                      <p className="text-[9px] text-slate-500 mt-1">
-                        When students click to register, they will be directed to this external event registration page.
+                      <div className="flex items-center">
+                        <span className="px-3 py-2 bg-slate-100 border border-r-0 border-slate-200 rounded-l-lg text-slate-500 font-mono text-[11px] select-none">
+                          www.mscprpcem.tech/register/
+                        </span>
+                        <input
+                          type="text"
+                          required
+                          placeholder="visionx-s2, spark26, dotnet2025"
+                          value={formData.slug}
+                          onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-r-lg text-xs font-mono font-bold text-blue-600 outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Students can open <code className="text-blue-600 font-semibold">https://www.mscprpcem.tech/register/{formData.slug || 'event-slug'}</code> directly to register.
                       </p>
                     </div>
 
-                    {/* Auto-redirect Toggle */}
-                    <div className="flex items-center justify-between bg-white/90 p-2.5 rounded-xl border border-indigo-200/80 gap-3">
+                    {/* Category, Mode, and Status */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <span className="text-[11px] font-black text-slate-900 block leading-tight">
-                          Auto-Redirect Visitors Automatically
-                        </span>
-                        <span className="text-[9px] text-slate-500 font-medium">
-                          Immediately redirect with a 2-second countdown when students open <code>/register/{formData.slug || 'event'}</code>
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, auto_redirect_external: !formData.auto_redirect_external })}
-                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black shrink-0 transition-all cursor-pointer shadow-2xs ${
-                          formData.auto_redirect_external
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        {formData.auto_redirect_external ? '⚡ Auto-Redirect ON' : 'Show Landing Card'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ════════ SECTION 1: ATTENDEES & REGISTRATIONS COUNT ════════ */}
-              <div className="p-4 bg-gradient-to-br from-purple-50/70 via-indigo-50/50 to-blue-50/70 border border-purple-200/80 rounded-2xl space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-2xs">
-                      <Users size={15} />
-                    </div>
-                    <div>
-                      <span className="text-xs font-black text-purple-950 uppercase tracking-wide block">
-                        Attendees & Registration Numbers
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-medium">
-                        Set base count for past/offline events & configure seat limits
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Displayed on Website</span>
-                    <span className="text-xs font-black text-purple-700 bg-white/80 px-2 py-0.5 rounded-lg border border-purple-200 inline-block">
-                      {(parseInt(formData.initial_registration_count, 10) || 0) + (editingEvent?.actual_registration_count || 0)} Students Enrolled
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-800 mb-1 flex items-center justify-between">
-                      <span>Initial / Base Count</span>
-                      <span className="text-[9px] text-purple-600 font-bold bg-purple-100/80 px-1.5 py-0.2 rounded">Editable</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="e.g. 150 (Default: 0)"
-                      value={formData.initial_registration_count}
-                      onChange={(e) => setFormData({ ...formData, initial_registration_count: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-white border border-purple-300 rounded-xl text-xs font-black text-purple-950 outline-none focus:ring-2 focus:ring-purple-500 shadow-2xs"
-                    />
-                    <p className="text-[9px] text-slate-500 mt-1 leading-tight">
-                      Base count for past or offline participants. Online signups automatically add to this.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-800 mb-1">
-                      Seat / Capacity Limit
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="e.g. 200 (Blank = Unlimited)"
-                      value={formData.max_registrations}
-                      onChange={(e) => setFormData({ ...formData, max_registrations: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                    <p className="text-[9px] text-slate-400 mt-1 leading-tight">
-                      Maximum total seats allowed.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-800 mb-1">
-                      Registration Status
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, is_registration_open: !formData.is_registration_open })}
-                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
-                        formData.is_registration_open
-                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                          : 'bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-300'
-                      }`}
-                    >
-                      {formData.is_registration_open ? (
-                        <>
-                          <Unlock size={13} />
-                          <span>Accepting Signups</span>
-                        </>
-                      ) : (
-                        <>
-                          <Lock size={13} />
-                          <span>Registration Closed</span>
-                        </>
-                      )}
-                    </button>
-                    <p className="text-[9px] text-slate-400 mt-1 leading-tight">
-                      Toggle if student registration form is active.
-                    </p>
-                  </div>
-                </div>
-
-                {editingEvent && (
-                  <div className="flex items-center justify-between bg-white/90 backdrop-blur-xs p-2.5 rounded-xl border border-purple-100 text-[11px] flex-wrap gap-2">
-                    <span className="text-slate-600 font-medium">
-                      🌐 Online student signups: <strong className="text-purple-700 font-black">{editingEvent.actual_registration_count || 0}</strong>
-                    </span>
-                    <span className="text-slate-600 font-medium">
-                      ➕ Base count: <strong className="text-purple-700 font-black">{parseInt(formData.initial_registration_count, 10) || 0}</strong>
-                    </span>
-                    <span className="text-purple-950 font-extrabold">
-                      = Total Count: <strong className="text-purple-600 font-black">{(parseInt(formData.initial_registration_count, 10) || 0) + (editingEvent.actual_registration_count || 0)}</strong>
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* ════════ SECTION 2: EVENT DATE & TIME ════════ */}
-              <div className="p-4 bg-purple-50/40 border border-purple-100 rounded-2xl space-y-3">
-                <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-purple-600" />
-                  <span className="text-xs font-black text-purple-950 uppercase tracking-wide">
-                    Event Schedule (Date & Time)
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Event Starts At (Date & Time) *
-                    </label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={formData.start_date}
-                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Event Ends At (Date & Time)
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={formData.end_date}
-                      onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ════════ SECTION 3: REGISTRATION DEADLINE WINDOW ════════ */}
-              <div className="p-4 bg-blue-50/40 border border-blue-100 rounded-2xl space-y-3">
-                <div className="flex items-center gap-2">
-                  <Timer size={16} className="text-blue-600" />
-                  <span className="text-xs font-black text-blue-950 uppercase tracking-wide">
-                    Registration Deadline Window & Fee
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Registration Opens On
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={formData.registration_start_date}
-                      onChange={(e) => setFormData({ ...formData, registration_start_date: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-[9px] text-slate-400 mt-0.5">Leave blank for immediate opening.</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Registration Last Date / Deadline *
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={formData.registration_end_date}
-                      onChange={(e) => setFormData({ ...formData, registration_end_date: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-[9px] text-slate-400 mt-0.5">Auto-closes after this date.</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
-                      <span>Entry Fee / Price</span>
-                      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
-                        Number(formData.feeNumeric || 0) === 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {Number(formData.feeNumeric || 0) === 0 ? 'Free' : `₹${formData.feeNumeric} INR`}
-                      </span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs select-none">
-                        ₹
-                      </span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="0 for Free, or amount in INR"
-                        value={formData.feeNumeric !== undefined ? formData.feeNumeric : (formData.fee === 'Free' ? 0 : (String(formData.fee).replace(/[^0-9.]/g, '') || 0))}
-                        onChange={(e) => {
-                          const num = e.target.value;
-                          const isZero = num === '' || num === '0' || Number(num) === 0;
-                          setFormData({
-                            ...formData,
-                            feeNumeric: num,
-                            fee: isZero ? 'Free' : `₹${num}`
-                          });
-                        }}
-                        className="w-full pl-7 pr-12 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-extrabold text-slate-400 select-none">
-                        INR
-                      </span>
-                    </div>
-                    <p className="text-[9px] text-slate-400 mt-0.5">
-                      {Number(formData.feeNumeric || 0) === 0 ? '0 = Free Event. Displayed as "Free" on website.' : `Participants will pay ₹${formData.feeNumeric} INR.`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Poster Upload & Gallery Section */}
-              <div className="space-y-3 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[11px] font-black text-slate-800 flex items-center gap-1.5">
-                    <CloudUpload size={15} className="text-purple-600" />
-                    <span>Event Poster Image</span>
-                  </label>
-                  <span className="text-[10px] text-purple-600 font-bold">Azure Blob Storage Enabled</span>
-                </div>
-
-                {/* Azure Blob File Uploader Box */}
-                <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-xl border border-dashed border-purple-200 hover:border-purple-400 transition-all">
-                  {/* Current Poster Preview Thumbnail */}
-                  {formData.poster_url ? (
-                    <div className="relative w-20 h-14 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0 bg-slate-100 shadow-2xs">
-                      <img
-                        src={formData.poster_url}
-                        alt="Current Poster"
-                        className="w-full h-full object-cover"
-                      />
-                      {formData.poster_url.includes('blob.core.windows.net') && (
-                        <span className="absolute top-0.5 right-0.5 bg-blue-600 text-[7px] text-white font-bold px-1 rounded-xs">
-                          Azure
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="w-20 h-14 rounded-lg border border-slate-200 flex-shrink-0 bg-slate-100 flex items-center justify-center text-slate-400">
-                      <Image size={20} />
-                    </div>
-                  )}
-
-                  <div className="flex-1 min-w-0 text-center sm:text-left space-y-1">
-                    <div className="flex items-center gap-2 justify-center sm:justify-start">
-                      <label className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-black cursor-pointer shadow-2xs flex items-center gap-1.5 transition-all">
-                        {uploadingPoster ? (
-                          <>
-                            <RefreshCw size={12} className="animate-spin" />
-                            <span>Uploading to Azure...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload size={12} />
-                            <span>Upload Image</span>
-                          </>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePosterUpload}
-                          disabled={uploadingPoster}
-                          className="hidden"
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Category</label>
+                        <ThemeDropdown
+                          value={formData.category}
+                          onChange={(val) => setFormData({ ...formData, category: val })}
+                          options={[
+                            { value: 'Innovation Challenge', label: 'Innovation Challenge' },
+                            { value: 'Flagship Event', label: 'Flagship Event' },
+                            { value: 'Technical Workshop', label: 'Technical Workshop' },
+                            { value: 'Hackathon', label: 'Hackathon' },
+                            { value: 'AI / Cloud Skill Fest', label: 'AI / Cloud Skill Fest' },
+                            { value: 'Conference', label: 'Conference' }
+                          ]}
+                          className="w-full"
                         />
-                      </label>
+                      </div>
 
-                      {posterUploadSuccess && (
-                        <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                          <CheckCircle2 size={12} /> Uploaded!
-                        </span>
-                      )}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Mode</label>
+                        <ThemeDropdown
+                          value={formData.mode}
+                          onChange={(val) => setFormData({ ...formData, mode: val })}
+                          options={[
+                            { value: 'Hybrid', label: 'Hybrid', dotColor: 'bg-blue-500' },
+                            { value: 'Offline', label: 'Offline', dotColor: 'bg-emerald-500' },
+                            { value: 'Online', label: 'Online', dotColor: 'bg-indigo-500' }
+                          ]}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Event Status</label>
+                        <ThemeDropdown
+                          value={formData.status}
+                          onChange={(val) => setFormData({ ...formData, status: val })}
+                          options={[
+                            { value: 'upcoming', label: 'Upcoming', dotColor: 'bg-blue-500' },
+                            { value: 'registration_open', label: 'Registration Open', dotColor: 'bg-emerald-500' },
+                            { value: 'registration_closed', label: 'Registration Closed', dotColor: 'bg-rose-500' },
+                            { value: 'live', label: 'Live Now', dotColor: 'bg-amber-500' },
+                            { value: 'completed', label: 'Completed / Past', dotColor: 'bg-slate-400' }
+                          ]}
+                          className="w-full"
+                        />
+                      </div>
                     </div>
-                    <p className="text-[9px] text-slate-400">
-                      Supports PNG, JPG, WEBP, GIF, SVG (Max 10MB). Automatically stored in Azure Blob Storage.
-                    </p>
-                  </div>
-                </div>
 
-                {/* Preset Gallery */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5">
-                    Pre-Designed Event Poster:
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {POSTER_GALLERY.map((p) => {
-                      const isSelected = formData.poster_url === p.url || (!formData.poster_url && p.url === DEFAULT_SPARK_POSTER);
-                      return (
+                    {/* Event Schedule (Start & End Date/Time) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                          <Calendar size={13} className="text-blue-600" />
+                          <span>Event Starts At (Date & Time) *</span>
+                        </label>
+                        <input
+                          type="datetime-local"
+                          required
+                          value={formData.start_date}
+                          onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                          className="events-input font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                          <Clock size={13} className="text-slate-500" />
+                          <span>Event Ends At (Date & Time)</span>
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={formData.end_date}
+                          onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                          className="events-input font-semibold"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Venue / Location */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                          <MapPin size={13} className="text-slate-500" />
+                          <span>Venue / Location</span>
+                        </label>
+                        <span className="text-[10px] text-slate-400">Type or pick quick suggestion</span>
+                      </div>
+                      <input
+                        type="text"
+                        list="admin-event-venue-suggestions"
+                        placeholder="e.g. PRPCEM Main Auditorium, Virtual / Online"
+                        value={formData.venue}
+                        onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
+                        className="events-input font-semibold"
+                      />
+                      <datalist id="admin-event-venue-suggestions">
+                        {venueSuggestions.map((v, i) => (
+                          <option key={i} value={v} />
+                        ))}
+                      </datalist>
+
+                      <div className="flex items-center gap-1.5 flex-wrap pt-2">
+                        <span className="text-[10px] font-semibold text-slate-400">Suggestions:</span>
+                        {venueSuggestions.slice(0, 5).map((v, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, venue: v })}
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                              formData.venue === v
+                                ? 'bg-blue-50 text-blue-700 border-blue-200 font-bold'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            {v}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Description</label>
+                      <textarea
+                        rows={2}
+                        placeholder="Briefly describe the vision, agenda, and outcomes..."
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="events-input"
+                      />
+                    </div>
+
+                    {/* Rewards & Badges */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Rewards & Badges</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Official Microsoft Swags, Cash Prizes & Verified Certificates"
+                        value={formData.rewards}
+                        onChange={(e) => setFormData({ ...formData, rewards: e.target.value })}
+                        className="events-input"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* ════════ TAB 2: REGISTRATION & LIMITS ════════ */}
+                {formTab === 'registration' && (
+                  <div className="space-y-4">
+                    {/* Registration Platform Mode */}
+                    <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Globe size={15} className="text-blue-600" />
+                          <span className="text-xs font-bold text-slate-800">
+                            Registration Platform & Flow
+                          </span>
+                        </div>
+                        {formData.external_registration_url && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
+                            <ExternalLink size={10} /> External Linked
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <button
-                          key={p.id}
                           type="button"
-                          onClick={() => setFormData({ ...formData, poster_url: p.url })}
-                          className={`relative w-40 aspect-4/3 rounded-xl overflow-hidden border-2 transition-all cursor-pointer group ${
-                            isSelected
-                              ? 'border-purple-600 ring-2 ring-purple-600/30 shadow-xs'
-                              : 'border-slate-200 hover:border-slate-400 opacity-70 hover:opacity-100'
+                          onClick={() => setFormData({ ...formData, registration_type: 'internal', external_registration_url: '', auto_redirect_external: false })}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                            formData.registration_type === 'internal' && !formData.external_registration_url
+                              ? 'bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-xs'
+                              : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
                           }`}
-                          title={p.name}
                         >
-                          <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
-                          {isSelected && (
-                            <div className="absolute inset-0 bg-purple-600/20 flex items-center justify-center text-white">
-                              <span className="bg-purple-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
-                                <Check size={11} /> Default Spark
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                            formData.registration_type === 'internal' && !formData.external_registration_url ? 'border-blue-600' : 'border-slate-300'
+                          }`}>
+                            {formData.registration_type === 'internal' && !formData.external_registration_url && (
+                              <div className="w-2 h-2 rounded-full bg-blue-600" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-slate-900 leading-tight">Native Portal Form</div>
+                            <div className="text-[10px] text-slate-500">Collect signups on MSC PRPCEM portal</div>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, registration_type: 'external', auto_redirect_external: true })}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                            formData.registration_type === 'external' || Boolean(formData.external_registration_url)
+                              ? 'bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-xs'
+                              : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                            formData.registration_type === 'external' || Boolean(formData.external_registration_url) ? 'border-blue-600' : 'border-slate-300'
+                          }`}>
+                            {(formData.registration_type === 'external' || Boolean(formData.external_registration_url)) && (
+                              <div className="w-2 h-2 rounded-full bg-blue-600" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-slate-900 leading-tight flex items-center gap-1">
+                              <span>External Registration</span>
+                              <span className="text-[9px] bg-blue-100 text-blue-700 px-1 py-0.2 rounded font-bold">Eventbrite / Lu.ma</span>
+                            </div>
+                            <div className="text-[10px] text-slate-500">Redirect students to ticketing or form</div>
+                          </div>
+                        </button>
+                      </div>
+
+                      {/* External Redirection Configuration Inputs */}
+                      {(formData.registration_type === 'external' || Boolean(formData.external_registration_url)) && (
+                        <div className="pt-2 space-y-2.5 border-t border-slate-200">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                              <span>External Registration URL *</span>
+                              <span className="text-[10px] text-slate-500">Eventbrite, Lu.ma, Google Forms, etc.</span>
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <div className="relative flex-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs select-none">
+                                  🔗
+                                </span>
+                                <input
+                                  type="url"
+                                  placeholder="https://www.eventbrite.com/... or https://lu.ma/..."
+                                  value={formData.external_registration_url || ''}
+                                  onChange={(e) => setFormData({ ...formData, external_registration_url: e.target.value })}
+                                  className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-semibold text-slate-800 outline-none focus:border-blue-500"
+                                />
+                              </div>
+                              {formData.external_registration_url && (
+                                <a
+                                  href={formData.external_registration_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+                                  title="Open and test link in new tab"
+                                >
+                                  <span>Test Link</span>
+                                  <ExternalLink size={12} />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Auto-redirect Toggle */}
+                          <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200 gap-3">
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 block leading-tight">
+                                Auto-Redirect Visitors Automatically
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-medium">
+                                Instantly forward with a 2-second countdown when visitors visit <code>/register/{formData.slug || 'event'}</code>
                               </span>
                             </div>
-                          )}
-                          <span className="absolute bottom-0 inset-x-0 bg-black/75 text-[8px] font-bold text-white text-center py-0.5 truncate px-1">
-                            Spark Flagship Poster (Default)
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, auto_redirect_external: !formData.auto_redirect_external })}
+                              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer ${
+                                formData.auto_redirect_external
+                                  ? 'bg-blue-600 text-white shadow-xs'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              }`}
+                            >
+                              {formData.auto_redirect_external ? '⚡ Auto-Redirect ON' : 'Show Landing Card'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Attendees & Capacity Grid */}
+                    <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Users size={15} className="text-blue-600" />
+                          <span className="text-xs font-bold text-slate-800">
+                            Capacity & Attendee Numbers
                           </span>
-                        </button>
-                      );
-                    })}
-                    <div className="text-[10px] text-slate-500 font-medium leading-relaxed pl-2">
-                      <p className="font-bold text-slate-700">Official Default Poster</p>
-                      <p className="text-[9px] text-slate-400">If no custom image is uploaded, this official Spark poster is automatically attached.</p>
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-700 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                          {(parseInt(formData.initial_registration_count, 10) || 0) + (editingEvent?.actual_registration_count || 0)} Total Enrolled
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Initial / Base Count
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={formData.initial_registration_count}
+                            onChange={(e) => setFormData({ ...formData, initial_registration_count: e.target.value })}
+                            className="events-input font-bold"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                            Offline/past attendees. Online signups add to this.
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Seat / Capacity Limit
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="Unlimited"
+                            value={formData.max_registrations}
+                            onChange={(e) => setFormData({ ...formData, max_registrations: e.target.value })}
+                            className="events-input font-semibold"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                            Max seats allowed (Blank = Unlimited).
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Registration Status
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, is_registration_open: !formData.is_registration_open })}
+                            className={`w-full py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                              formData.is_registration_open
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
+                            }`}
+                          >
+                            {formData.is_registration_open ? (
+                              <>
+                                <Unlock size={13} />
+                                <span>Accepting Signups</span>
+                              </>
+                            ) : (
+                              <>
+                                <Lock size={13} />
+                                <span>Registration Closed</span>
+                              </>
+                            )}
+                          </button>
+                          <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                            Toggle if student registration form is active.
+                          </p>
+                        </div>
+                      </div>
+
+                      {editingEvent && (
+                        <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200 text-[11px] text-slate-600 flex-wrap gap-2">
+                          <span>Online signups: <strong className="text-slate-900 font-bold">{editingEvent.actual_registration_count || 0}</strong></span>
+                          <span>+ Base: <strong className="text-slate-900 font-bold">{parseInt(formData.initial_registration_count, 10) || 0}</strong></span>
+                          <span>= Total Enrolled: <strong className="text-blue-600 font-extrabold">{(parseInt(formData.initial_registration_count, 10) || 0) + (editingEvent.actual_registration_count || 0)}</strong></span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Registration Window & Fee */}
+                    <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Timer size={15} className="text-blue-600" />
+                        <span className="text-xs font-bold text-slate-800">
+                          Registration Window & Fee
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Registration Opens On
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={formData.registration_start_date}
+                            onChange={(e) => setFormData({ ...formData, registration_start_date: e.target.value })}
+                            className="events-input font-semibold"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1">Leave blank for immediate open.</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Registration Deadline *
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={formData.registration_end_date}
+                            onChange={(e) => setFormData({ ...formData, registration_end_date: e.target.value })}
+                            className="events-input font-semibold"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1">Auto-closes after deadline.</p>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[11px] font-bold text-slate-700">Entry Fee</label>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                              Number(formData.feeNumeric || 0) === 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            }`}>
+                              {Number(formData.feeNumeric || 0) === 0 ? 'Free' : `₹${formData.feeNumeric} INR`}
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs select-none">
+                              ₹
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="0 for Free"
+                              value={formData.feeNumeric !== undefined ? formData.feeNumeric : (formData.fee === 'Free' ? 0 : (String(formData.fee).replace(/[^0-9.]/g, '') || 0))}
+                              onChange={(e) => {
+                                const num = e.target.value;
+                                const isZero = num === '' || num === '0' || Number(num) === 0;
+                                setFormData({
+                                  ...formData,
+                                  feeNumeric: num,
+                                  fee: isZero ? 'Free' : `₹${num}`
+                                });
+                              }}
+                              className="w-full pl-7 pr-12 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-blue-500"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 select-none">
+                              INR
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            {Number(formData.feeNumeric || 0) === 0 ? '0 = Free Event.' : `Participants pay ₹${formData.feeNumeric} INR.`}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Direct URL Input */}
-                <div>
-                  <input
-                    type="url"
-                    placeholder="Or enter direct image URL: https://..."
-                    value={formData.poster_url}
-                    onChange={(e) => setFormData({ ...formData, poster_url: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-hidden focus:border-purple-600 font-mono text-[10px] text-slate-600"
-                  />
-                </div>
+                {/* ════════ TAB 3: POSTER & MEDIA ════════ */}
+                {formTab === 'poster' && (
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <CloudUpload size={15} className="text-blue-600" />
+                        <span>Event Poster Banner</span>
+                      </label>
+                      <span className="text-[10px] text-blue-600 font-semibold flex items-center gap-1">
+                        <ShieldCheck size={12} /> Azure Blob Storage Enabled
+                      </span>
+                    </div>
+
+                    {/* Current Poster Preview */}
+                    <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 aspect-21/9 max-h-48 flex items-center justify-center shadow-xs">
+                      {formData.poster_url ? (
+                        <>
+                          <img
+                            src={formData.poster_url}
+                            alt="Event Poster Preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent flex items-end p-3">
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-white text-[11px] font-bold drop-shadow-xs">Active Poster Preview</span>
+                              {formData.poster_url.includes('blob.core.windows.net') && (
+                                <span className="bg-blue-600 text-[9px] text-white font-bold px-2 py-0.5 rounded-md shadow-xs">
+                                  Azure Stored
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-slate-400 py-6">
+                          <Image size={32} className="mb-1" />
+                          <span className="text-xs font-medium">No poster selected</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Upload box */}
+                    <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-xl border border-slate-200">
+                      <div className="flex-1 text-center sm:text-left">
+                        <div className="text-xs font-bold text-slate-800">Upload Custom Event Poster</div>
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          Supports PNG, JPG, WEBP, GIF, SVG (Max 10MB). Automatically stored in Azure Blob Storage.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <label className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold cursor-pointer shadow-xs flex items-center gap-1.5 transition-all">
+                          {uploadingPoster ? (
+                            <>
+                              <RefreshCw size={13} className="animate-spin" />
+                              <span>Uploading to Azure...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload size={13} />
+                              <span>Upload Image</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handlePosterUpload}
+                            disabled={uploadingPoster}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {posterUploadSuccess && (
+                          <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                            <CheckCircle2 size={13} /> Uploaded!
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Preset Gallery */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-2">
+                        Official Pre-Designed Posters:
+                      </label>
+                      <div className="flex items-center gap-3">
+                        {POSTER_GALLERY.map((p) => {
+                          const isSelected = formData.poster_url === p.url || (!formData.poster_url && p.url === DEFAULT_SPARK_POSTER);
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, poster_url: p.url })}
+                              className={`relative w-36 aspect-4/3 rounded-xl overflow-hidden border-2 transition-all cursor-pointer group ${
+                                isSelected
+                                  ? 'border-blue-600 ring-2 ring-blue-500/20 shadow-xs'
+                                  : 'border-slate-200 hover:border-slate-300 opacity-80 hover:opacity-100'
+                              }`}
+                              title={p.name}
+                            >
+                              <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
+                              {isSelected && (
+                                <div className="absolute inset-0 bg-blue-600/20 flex items-center justify-center text-white">
+                                  <span className="bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
+                                    <Check size={11} /> Default Spark
+                                  </span>
+                                </div>
+                              )}
+                              <span className="absolute bottom-0 inset-x-0 bg-black/75 text-[9px] font-bold text-white text-center py-0.5 truncate px-1">
+                                Spark Flagship Poster
+                              </span>
+                            </button>
+                          );
+                        })}
+                        <div className="text-[11px] text-slate-500 leading-relaxed pl-1">
+                          <p className="font-bold text-slate-700">Official Default Poster</p>
+                          <p className="text-[10px] text-slate-400">If no custom image is uploaded, this official Spark poster is automatically attached.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Direct URL Input */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Or Direct Image URL
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://... direct image link"
+                        value={formData.poster_url}
+                        onChange={(e) => setFormData({ ...formData, poster_url: e.target.value })}
+                        className="events-input font-mono text-[11px]"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Category, Mode, and Status */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Modal Footer Controls */}
+              <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0 rounded-b-2xl">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Category</label>
-                  <ThemeDropdown
-                    value={formData.category}
-                    onChange={(val) => setFormData({ ...formData, category: val })}
-                    options={[
-                      { value: 'Innovation Challenge', label: 'Innovation Challenge' },
-                      { value: 'Flagship Event', label: 'Flagship Event' },
-                      { value: 'Technical Workshop', label: 'Technical Workshop' },
-                      { value: 'Hackathon', label: 'Hackathon' },
-                      { value: 'AI / Cloud Skill Fest', label: 'AI / Cloud Skill Fest' },
-                      { value: 'Conference', label: 'Conference' }
-                    ]}
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Mode</label>
-                  <ThemeDropdown
-                    value={formData.mode}
-                    onChange={(val) => setFormData({ ...formData, mode: val })}
-                    options={[
-                      { value: 'Hybrid', label: 'Hybrid', dotColor: 'bg-purple-500' },
-                      { value: 'Offline', label: 'Offline', dotColor: 'bg-emerald-500' },
-                      { value: 'Online', label: 'Online', dotColor: 'bg-blue-500' }
-                    ]}
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Event Status</label>
-                  <ThemeDropdown
-                    value={formData.status}
-                    onChange={(val) => setFormData({ ...formData, status: val })}
-                    options={[
-                      { value: 'upcoming', label: 'Upcoming', dotColor: 'bg-blue-500' },
-                      { value: 'registration_open', label: 'Registration Open', dotColor: 'bg-emerald-500' },
-                      { value: 'registration_closed', label: 'Registration Closed', dotColor: 'bg-rose-500' },
-                      { value: 'live', label: 'Live Now', dotColor: 'bg-amber-500' },
-                      { value: 'completed', label: 'Completed / Past', dotColor: 'bg-slate-400' }
-                    ]}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
-                  <span>Venue / Location</span>
-                  <span className="text-[10px] text-purple-600 font-medium">Type new or choose suggestion</span>
-                </label>
-                <input
-                  type="text"
-                  list="admin-event-venue-suggestions"
-                  placeholder="e.g. PRPCEM Main Auditorium, Virtual / Online"
-                  value={formData.venue}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData({ ...formData, venue: val });
-                  }}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-purple-600"
-                />
-                <datalist id="admin-event-venue-suggestions">
-                  {venueSuggestions.map((v, i) => (
-                    <option key={i} value={v} />
-                  ))}
-                </datalist>
-
-                {/* Quick Venue Suggestion Pills */}
-                <div className="flex items-center gap-1.5 flex-wrap pt-2">
-                  <span className="text-[10px] font-bold text-slate-400">Suggestions:</span>
-                  {venueSuggestions.slice(0, 6).map((v, i) => (
+                  {formTab === 'registration' && (
                     <button
-                      key={i}
                       type="button"
-                      onClick={() => setFormData({ ...formData, venue: v })}
-                      className={`text-[10px] font-extrabold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
-                        formData.venue === v
-                          ? 'bg-purple-100 text-purple-800 border-purple-300 shadow-2xs font-black'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                      }`}
+                      onClick={() => setFormTab('details')}
+                      className="px-3.5 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
-                      {v}
+                      <ArrowLeft size={13} />
+                      <span>Back: Basic Details</span>
                     </button>
-                  ))}
+                  )}
+                  {formTab === 'poster' && (
+                    <button
+                      type="button"
+                      onClick={() => setFormTab('registration')}
+                      className="px-3.5 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <ArrowLeft size={13} />
+                      <span>Back: Registration</span>
+                    </button>
+                  )}
+                  {formTab === 'details' && (
+                    <button
+                      type="button"
+                      onClick={() => setModalOpen(false)}
+                      className="px-3.5 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Description</label>
-                <textarea
-                  rows={2}
-                  placeholder="Briefly describe the vision, agenda, and outcomes..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden"
-                />
-              </div>
+                <div className="flex items-center gap-2">
+                  {formTab !== 'details' && (
+                    <button
+                      type="button"
+                      onClick={() => setModalOpen(false)}
+                      className="px-3.5 py-2 text-slate-500 hover:text-slate-800 font-bold text-xs cursor-pointer transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Rewards & Badges</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Official Microsoft Swags, Cash Prizes & Verified Certificates"
-                  value={formData.rewards}
-                  onChange={(e) => setFormData({ ...formData, rewards: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden"
-                />
-              </div>
+                  {formTab === 'details' && (
+                    <button
+                      type="button"
+                      onClick={() => setFormTab('registration')}
+                      className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <span>Next: Registration</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  )}
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs cursor-pointer transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-black text-xs shadow-sm cursor-pointer transition-all disabled:opacity-50"
-                >
-                  {submitting ? 'Saving...' : (editingEvent ? 'Update Event' : 'Create Event')}
-                </button>
+                  {formTab === 'registration' && (
+                    <button
+                      type="button"
+                      onClick={() => setFormTab('poster')}
+                      className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <span>Next: Poster</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow-xs cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {submitting ? (
+                      <>
+                        <RefreshCw size={13} className="animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>{editingEvent ? 'Update Event' : 'Create Event'}</span>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

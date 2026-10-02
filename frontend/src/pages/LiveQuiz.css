@@ -4,7 +4,48 @@
    ============================================ */
 
 .live-quiz-bg {
-  background-color: #F5FAFF !important;
+  background-color: #F8FAFC !important;
+  min-height: 100vh;
+}
+
+/* Smooth fade-in animation for question transitions */
+@keyframes quizFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: quizFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Gameplay container card */
+.live-quiz-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+/* Touch-friendly option cards with refined hover/press feel */
+.live-option-btn {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.live-option-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+}
+
+.live-option-btn:active:not(:disabled) {
+  transform: scale(0.99);
 }
 
 /* Mobile & Touch Optimizations for Live Quiz Gameplay */
@@ -40,3 +81,4 @@
     padding: 0.75rem 0.875rem !important;
   }
 }
+

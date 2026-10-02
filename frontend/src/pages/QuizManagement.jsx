@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { QRCodeSVG } from 'qrcode.react';
@@ -28,10 +29,15 @@ import {
   Sparkles,
   Globe,
   Award,
-  ExternalLink
+  ExternalLink,
+  Radio,
+  Play,
+  RefreshCw
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import EventSelector from '../components/EventSelector';
+import IssueBadgeModal from '../components/IssueBadgeModal';
+import './QuizManagement.css';
 
 /* ── Status badge helper ── */
 function StatusBadge({ status, violationCount = 0 }) {
@@ -60,18 +66,20 @@ function StatusBadge({ status, violationCount = 0 }) {
 
 /* ── Modal overlay wrapper ── */
 function Modal({ onClose, children }) {
-  return (
+  if (typeof document === 'undefined') return null;
+  return createPortal(
     <div
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-start justify-center overflow-y-auto pt-14 xs:pt-16 px-3 sm:px-4 pb-6 animate-fade-in"
+      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative w-full my-auto"
+        className="relative w-full max-h-[92vh] overflow-y-auto my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -94,6 +102,21 @@ export default function QuizManagement() {
   const [deleteTargetQuiz, setDeleteTargetQuiz] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Issue Badge Modal State
+  const [badgeModalQuiz, setBadgeModalQuiz] = useState(null);
+
+  // Prevent background scrolling while any modal is open
+  useEffect(() => {
+    if (showCreateModal || showImportModal || showQRModal || showDeleteModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showCreateModal, showImportModal, showQRModal, showDeleteModal]);
+
   // Form States
   const [quizForm, setQuizForm] = useState({
     title: '',
@@ -102,6 +125,7 @@ export default function QuizManagement() {
     scheduled_start: '',
     scheduled_end: '',
     issue_badge: false,
+    badge_sys_id: '',
     badge_title: 'Certified Specialist'
   });
   const [availableBadges, setAvailableBadges] = useState([]);
@@ -202,7 +226,8 @@ export default function QuizManagement() {
         description: quiz.description || '',
         scheduled_start: formatDateForInput(quiz.scheduled_start),
         scheduled_end: formatDateForInput(quiz.scheduled_end),
-        issue_badge: Boolean(quiz.badge_title),
+        issue_badge: Boolean(quiz.badge_title || quiz.badge_sys_id),
+        badge_sys_id: quiz.badge_sys_id || '',
         badge_title: quiz.badge_title || (availableBadges[0]?.title || 'Certified Specialist')
       });
     } else {
@@ -216,6 +241,7 @@ export default function QuizManagement() {
         scheduled_start: '',
         scheduled_end: '',
         issue_badge: false,
+        badge_sys_id: availableBadges[0]?.id || '',
         badge_title: availableBadges[0]?.title || 'Certified Specialist'
       });
     }
@@ -233,6 +259,7 @@ export default function QuizManagement() {
       setSaving(true);
       const payload = {
         ...quizForm,
+        badge_sys_id: quizForm.issue_badge ? (quizForm.badge_sys_id || null) : null,
         badge_title: quizForm.issue_badge ? (quizForm.badge_title || `${quizForm.title || 'MSC Quiz'} Certified Specialist`) : null
       };
       if (selectedQuiz) {
@@ -606,241 +633,313 @@ export default function QuizManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-zinc-800 pb-12">
+    <div className="min-h-screen bg-slate-50 text-slate-800 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 animate-fade-in space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-brand-border p-5 sm:p-6 rounded-2xl shadow-sm gap-4 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-brand-blue via-brand-cyan to-brand-purple"></div>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-brand-textMain tracking-tight">Live Quiz Catalog</h1>
-          <p className="text-xs sm:text-sm text-brand-textMuted mt-1">Configure draft sheets, launch live sessions, or view completed quiz archives.</p>
-        </div>
-        <div className="flex flex-wrap gap-2.5 items-center">
-          <div className="flex bg-slate-100 p-1 rounded-xl font-extrabold text-xs">
-            <button
-              onClick={() => setActiveTab('active')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                activeTab === 'active' ? 'bg-white text-purple-700 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Active & Draft ({quizzes.filter(q => q.mode !== 'SCHEDULED' && !isQuizExpired(q)).length})
-            </button>
-            <button
-              onClick={() => setActiveTab('completed')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                activeTab === 'completed' ? 'bg-white text-purple-700 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Completed & Expired ({quizzes.filter(q => q.mode !== 'SCHEDULED' && isQuizExpired(q)).length})
-            </button>
+        
+        {/* Page Header */}
+        <div className="quiz-mgmt-header p-5 sm:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs">
+              <Radio size={20} />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
+                Live Quiz Catalog
+              </h1>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Configure draft question sheets, launch interactive live sessions, or review archives.
+              </p>
+            </div>
           </div>
 
-          <button
-            onClick={() => handleOpenCreate()}
-            className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer flex-shrink-0"
-          >
-            <Plus size={16} />
-            Create Quiz
-          </button>
-        </div>
-      </div>
-
-      {/* Quiz Grid */}
-      {loading && quizzes.length === 0 ? (
-        <div className="text-center py-20 text-zinc-550 font-semibold animate-pulse">Loading quizzes...</div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {quizzes
-            .filter(q => q.mode !== 'SCHEDULED')
-            .filter(q => activeTab === 'completed' ? isQuizExpired(q) : !isQuizExpired(q))
-            .map((quiz) => {
-            const isExpired = quiz.scheduled_start && new Date(quiz.scheduled_start) < new Date() && quiz.status === 'draft';
-            return (
-              <div
-                key={quiz.id}
-                className="bg-white border border-brand-border hover:border-brand-blue/30 rounded-2xl p-5 hover:shadow-soft-lg hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group min-h-[260px] text-zinc-800"
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+            <div className="quiz-mgmt-tabs-track">
+              <button
+                type="button"
+                onClick={() => setActiveTab('active')}
+                className={`quiz-mgmt-tab-btn ${activeTab === 'active' ? 'quiz-mgmt-tab-btn-active' : ''}`}
               >
-                {/* Top status indicator strip */}
-                <div className={`absolute top-0 left-0 w-full h-[4px] ${
-                  quiz.status === 'in_progress' ? 'bg-emerald-500 animate-pulse' :
-                  quiz.status === 'waiting_lobby' ? 'bg-amber-500' :
-                  quiz.status === 'completed' ? 'bg-zinc-350' : 'bg-brand-blue'
-                }`} />
-
-                <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                
-                {deleteTargetQuiz?.id === quiz.id ? (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-5 space-y-3.5 text-center animate-fade-in my-auto">
-                    <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto shadow-2xs">
-                      <Trash2 size={20} />
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-black text-red-950 truncate">Delete {quiz.title}?</h4>
-                      <p className="text-[11px] text-red-700 font-medium leading-relaxed">
-                        All question sheets, student submissions, and logs will be permanently erased.
-                      </p>
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        onClick={() => setDeleteTargetQuiz(null)}
-                        className="flex-1 py-2 bg-white border border-slate-200 rounded-xl text-xs font-extrabold text-slate-700 hover:bg-slate-50 cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleConfirmDelete}
-                        disabled={deleteLoading}
-                        className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-extrabold shadow-xs cursor-pointer"
-                      >
-                        {deleteLoading ? 'Deleting...' : 'Delete Quiz'}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-4 relative z-10 flex-grow flex flex-col justify-between">
-                      <div>
-                        <div className="flex justify-between items-start gap-2 pt-1">
-                          <span className="text-[9px] font-extrabold text-zinc-550 uppercase tracking-widest bg-zinc-100 px-2.5 py-0.5 rounded-full truncate max-w-[160px]">{quiz.event_name}</span>
-                          <StatusBadge status={quiz.status} violationCount={quiz.violationCount || 0} />
-                        </div>
-                        <div className="mt-3.5">
-                          <h3 className="text-base font-extrabold text-brand-textMain leading-snug group-hover:text-brand-blue transition-colors duration-200 truncate" title={quiz.title}>{quiz.title}</h3>
-                          <p className="text-xs text-brand-textMuted line-clamp-2 mt-1 leading-relaxed">{quiz.description || 'No description provided.'}</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        {/* Date & Schedule */}
-                        <div className="space-y-1 text-[11px] text-brand-textMuted bg-slate-50/80 p-2 rounded-xl border border-slate-100">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar size={12} className="flex-shrink-0 text-brand-blue" />
-                            <span className="truncate"><strong>Start:</strong> {quiz.scheduled_start ? `${formatToISTDateTimeString(quiz.scheduled_start)} IST` : 'Flexible'}</span>
-                          </div>
-                          {quiz.scheduled_end && (
-                            <div className="flex items-center gap-1.5 text-slate-500">
-                              <Clock size={12} className="flex-shrink-0 text-emerald-600" />
-                              <span className="truncate"><strong>End:</strong> {formatToISTDateTimeString(quiz.scheduled_end)} IST</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Counts section inline */}
-                        <div className="flex justify-between items-center text-xs text-brand-textMuted border-t border-brand-border pt-2.5 gap-2">
-                          <span className="flex items-center gap-1.5" title="Total Questions">
-                            <BookOpen size={13} className="text-brand-blue" />
-                            <span><strong>{quiz.questionCount || 0}</strong> Questions</span>
-                          </span>
-                          <span className="flex items-center gap-1.5" title="Total Participants">
-                            <Users size={13} className="text-brand-blue" />
-                            <span><strong>{quiz.participantCount || 0}</strong> Plays</span>
-                          </span>
-                          <span className="flex items-center gap-1.5" title="Recorded Anti-Cheat Violations">
-                            <AlertTriangle size={13} className={(quiz.violationCount || 0) > 0 ? "text-rose-500" : "text-zinc-400"} />
-                            <span className={(quiz.violationCount || 0) > 0 ? "text-rose-600 font-bold" : ""}>
-                              <strong>{quiz.violationCount || 0}</strong> Violations
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Actions section */}
-                    <div className="flex flex-col gap-2 mt-4 pt-3.5 border-t border-brand-border relative z-10">
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <button
-                          onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
-                          title="Manage Questions"
-                          className="flex items-center justify-center gap-1.5 px-2 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-[11px] sm:text-xs font-semibold select-none cursor-pointer active:scale-95"
-                        >
-                          <ListCollapse size={13} />
-                          <span>Sheet</span>
-                        </button>
-                        <button
-                          onClick={() => handleOpenImport(quiz)}
-                          className="flex items-center justify-center gap-1.5 px-2 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl transition-all text-[11px] sm:text-xs font-bold cursor-pointer active:scale-95"
-                          title="Import Questions from Excel"
-                        >
-                          <FileSpreadsheet size={13} />
-                          <span>Import .xlsx</span>
-                        </button>
-                      </div>
-                      {quiz.status === 'draft' && (
-                        <button
-                          onClick={() => handlePublishQuiz(quiz.id)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black rounded-xl shadow-md transition-all text-xs cursor-pointer active:scale-95 uppercase tracking-wider"
-                          title="Publish quiz to generate QR Code and list on website"
-                        >
-                          <Globe size={14} />
-                          <span>Publish Quiz (Generate QR)</span>
-                        </button>
-                      )}
-
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-xl transition-all text-xs font-extrabold cursor-pointer active:scale-95"
-                          title="View Quiz Analytics & Export"
-                        >
-                          <BarChart2 size={13} />
-                          <span>Analytics</span>
-                        </button>
-                        <button
-                          onClick={() => handleOpenCreate(quiz)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-brand-border hover:bg-zinc-50 text-zinc-600 hover:text-brand-textMain rounded-xl transition-all text-xs font-bold cursor-pointer active:scale-95"
-                          title="Edit Quiz Details"
-                        >
-                          <Edit2 size={13} />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={() => handleOpenDeleteModal(quiz)}
-                          className="px-3 py-2 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-all text-xs font-extrabold cursor-pointer active:scale-95 flex items-center justify-center"
-                          title="Delete Quiz"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          })}
-
-          {quizzes.length === 0 && !loading && (
-            <div className="col-span-full py-20 flex flex-col items-center text-brand-textMuted bg-white border-2 border-dashed border-brand-border rounded-2xl gap-3">
-              <BookOpen size={36} className="opacity-30" />
-              <p className="text-sm font-semibold">No quizzes yet</p>
-              <p className="text-xs">Click <span className="font-bold text-brand-textMuted">Create Quiz</span> above to get started.</p>
+                <span>Active & Draft</span>
+                <span className="quiz-mgmt-tab-badge">
+                  {quizzes.filter(q => q.mode !== 'SCHEDULED' && !isQuizExpired(q)).length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('completed')}
+                className={`quiz-mgmt-tab-btn ${activeTab === 'completed' ? 'quiz-mgmt-tab-btn-active' : ''}`}
+              >
+                <span>Completed</span>
+                <span className="quiz-mgmt-tab-badge">
+                  {quizzes.filter(q => q.mode !== 'SCHEDULED' && isQuizExpired(q)).length}
+                </span>
+              </button>
             </div>
-          )}
+
+            <button
+              onClick={() => handleOpenCreate()}
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Plus size={15} />
+              <span>Create Live Quiz</span>
+            </button>
+          </div>
         </div>
-      )}
+
+        {/* Quiz Grid */}
+        {loading && quizzes.length === 0 ? (
+          <div className="text-center py-20 text-slate-400 font-bold animate-pulse">Loading live quizzes...</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {quizzes
+              .filter(q => q.mode !== 'SCHEDULED')
+              .filter(q => activeTab === 'completed' ? isQuizExpired(q) : !isQuizExpired(q))
+              .map((quiz) => {
+                const isDraft = quiz.status === 'draft';
+                const isLive = quiz.status === 'in_progress';
+                const isLobby = quiz.status === 'waiting_lobby';
+
+                return (
+                  <div
+                    key={quiz.id}
+                    className="quiz-mgmt-card"
+                  >
+                    {deleteTargetQuiz?.id === quiz.id ? (
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-5 space-y-3.5 text-center animate-fade-in my-auto">
+                        <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto shadow-2xs">
+                          <Trash2 size={20} />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-black text-red-950 truncate">Delete {quiz.title}?</h4>
+                          <p className="text-[11px] text-red-700 font-medium leading-relaxed">
+                            All question sheets, student submissions, and logs will be permanently erased.
+                          </p>
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => setDeleteTargetQuiz(null)}
+                            className="flex-1 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleConfirmDelete}
+                            disabled={deleteLoading}
+                            className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                          >
+                            {deleteLoading ? 'Deleting...' : 'Delete Quiz'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-3.5">
+                          {/* Top Row: Event name chip & Status */}
+                          <div className="flex justify-between items-center gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider bg-slate-100 px-2.5 py-0.5 rounded-full truncate max-w-[170px]">
+                                {quiz.event_name || 'General Quiz'}
+                              </span>
+                              {quiz.badge_issued_at ? (
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                                  <Award size={10} className="text-emerald-600" />
+                                  <span>Badge Issued</span>
+                                </span>
+                              ) : (quiz.badge_sys_id || quiz.badge_title) ? (
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                                  <Award size={10} className="text-amber-600" />
+                                  <span>Badge Ready</span>
+                                </span>
+                              ) : null}
+                            </div>
+                            <StatusBadge status={quiz.status} violationCount={quiz.violationCount || 0} />
+                          </div>
+
+                          {/* Title & Description */}
+                          <div>
+                            <h3
+                              onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
+                              className="text-sm sm:text-base font-extrabold text-slate-900 leading-snug hover:text-blue-600 transition-colors cursor-pointer truncate"
+                              title={quiz.title}
+                            >
+                              {quiz.title}
+                            </h3>
+                            <p className="text-xs text-slate-500 font-medium line-clamp-2 mt-1 leading-relaxed">
+                              {quiz.description || 'No description provided.'}
+                            </p>
+                          </div>
+
+                          {/* Schedule & Telemetry Card */}
+                          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 space-y-2">
+                            <div className="flex items-center justify-between text-[11px] text-slate-600">
+                              <span className="text-slate-400 font-semibold flex items-center gap-1">
+                                <Calendar size={11} className="text-blue-600" /> Start:
+                              </span>
+                              <span className="font-bold text-slate-800 truncate max-w-[180px]">
+                                {quiz.scheduled_start ? `${formatToISTDateTimeString(quiz.scheduled_start)} IST` : 'Flexible / On-Demand'}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-1 pt-1.5 border-t border-slate-200/60 text-center text-xs">
+                              <div>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Questions</span>
+                                <span className="font-extrabold text-slate-800 flex items-center justify-center gap-1 mt-0.5">
+                                  <BookOpen size={11} className="text-blue-600" /> {quiz.questionCount || 0}
+                                </span>
+                              </div>
+                              <div className="border-x border-slate-200/60">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Plays</span>
+                                <span className="font-extrabold text-slate-800 flex items-center justify-center gap-1 mt-0.5">
+                                  <Users size={11} className="text-blue-600" /> {quiz.participantCount || 0}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Violations</span>
+                                <span className={`font-extrabold flex items-center justify-center gap-1 mt-0.5 ${(quiz.violationCount || 0) > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                                  <AlertTriangle size={11} className={(quiz.violationCount || 0) > 0 ? 'text-rose-500' : 'text-slate-400'} /> {quiz.violationCount || 0}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons Footer */}
+                        <div className="space-y-2 mt-4 pt-3 border-t border-slate-100">
+                          {/* Row 1: Primary Action & Question Sheet */}
+                          <div className="grid grid-cols-2 gap-2">
+                            {isLive ? (
+                              <button
+                                onClick={() => navigate(`/admin/run-quiz/${quiz.id}`)}
+                                className="quiz-btn-action-primary"
+                                title="Open Live Control Room"
+                              >
+                                <Play size={12} />
+                                <span>Live Room</span>
+                              </button>
+                            ) : isLobby ? (
+                              <button
+                                onClick={() => navigate(`/admin/run-quiz/${quiz.id}`)}
+                                className="quiz-btn-action-primary"
+                                title="Open Participant Lobby"
+                              >
+                                <Users size={12} />
+                                <span>Open Lobby</span>
+                              </button>
+                            ) : isDraft ? (
+                              <button
+                                onClick={() => handlePublishQuiz(quiz.id)}
+                                className="quiz-btn-action-primary"
+                                title="Publish quiz to generate QR & link"
+                              >
+                                <Globe size={12} />
+                                <span>Publish</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
+                                className="quiz-btn-action-primary"
+                                title="View Performance Analytics"
+                              >
+                                <BarChart2 size={12} />
+                                <span>Analytics</span>
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
+                              className="quiz-btn-action"
+                              title="Manage Questions Sheet"
+                            >
+                              <ListCollapse size={12} />
+                              <span>Sheet ({quiz.questionCount || 0})</span>
+                            </button>
+                          </div>
+
+                          {/* Row 2: Secondary Utility Buttons */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleOpenImport(quiz)}
+                              className="quiz-btn-action flex-1"
+                              title="Import Questions (.xlsx / .csv)"
+                            >
+                              <FileSpreadsheet size={12} />
+                              <span>Import</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenQR(quiz)}
+                              className="quiz-btn-action px-2.5"
+                              title="View & Download QR Poster"
+                            >
+                              <QrCode size={13} />
+                            </button>
+
+                            <button
+                              onClick={() => setBadgeModalQuiz(quiz)}
+                              className={`quiz-btn-action px-2.5 ${quiz.badge_issued_at ? 'text-emerald-750 bg-emerald-50 border-emerald-300' : quiz.badge_sys_id ? 'text-amber-750 bg-amber-50 border-amber-300' : ''}`}
+                              title={quiz.badge_issued_at ? 'Badge Issued (Click to manage credentials)' : quiz.badge_sys_id ? 'Badge Configured (Click to issue credentials)' : 'Issue Verification Platform Badge'}
+                            >
+                              <Award size={13} />
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenCreate(quiz)}
+                              className="quiz-btn-action px-2.5"
+                              title="Edit Quiz Details"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenDeleteModal(quiz)}
+                              className="quiz-btn-action-danger px-2.5"
+                              title="Delete Quiz"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+
+            {quizzes.length === 0 && !loading && (
+              <div className="col-span-full py-16 flex flex-col items-center justify-center text-slate-400 bg-white border-2 border-dashed border-slate-200 rounded-2xl gap-3 text-center p-6">
+                <BookOpen size={36} className="text-slate-300" />
+                <div>
+                  <p className="text-sm font-bold text-slate-700">No live quizzes found</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Click "Create Live Quiz" above to set up a new assessment.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── CREATE / EDIT QUIZ MODAL ── */}
       {showCreateModal && (
         <Modal onClose={() => setShowCreateModal(false)}>
-          <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-2xl border border-zinc-150 overflow-hidden text-zinc-750">
+          <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden text-slate-800">
             {/* Modal header */}
-            <div className="relative bg-gradient-to-r from-brand-blue to-brand-dark px-6 py-5">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Sparkles size={20} className="text-white" />
+            <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs">
+                  <Sparkles size={18} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-extrabold text-white leading-tight">
-                    {selectedQuiz ? 'Edit Quiz' : 'Create New Quiz'}
+                  <h2 className="text-base font-extrabold text-slate-900 leading-snug">
+                    {selectedQuiz ? 'Edit Live Quiz' : 'Create New Live Quiz'}
                   </h2>
-                  <p className="text-xs text-white/70 mt-0.5">
-                    {selectedQuiz ? 'Update the quiz metadata below.' : 'Fill in the details to set up a new quiz session.'}
+                  <p className="text-xs text-slate-500 font-medium">
+                    {selectedQuiz ? 'Update the quiz session details and parameters below.' : 'Configure parameters for a real-time interactive quiz session.'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer transition-colors"
                 aria-label="Close"
               >
                 <X size={16} />
@@ -848,65 +947,71 @@ export default function QuizManagement() {
             </div>
 
             {/* Modal body */}
-            <div className="px-6 py-5">
+            <div className="px-6 py-5 max-h-[calc(85vh-120px)] overflow-y-auto space-y-4">
               {formError && (
-                <div className="mb-4 flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-                  <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold">
+                  <AlertCircle size={15} className="mt-0.5 shrink-0" />
                   <span>{formError}</span>
                 </div>
               )}
 
-              <form onSubmit={handleSaveQuiz} className="space-y-4">
-                {/* Quiz Title */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-550 uppercase tracking-widest">
-                    Quiz Title <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={quizForm.title}
-                    onChange={(e) => {
-                      const newTitle = e.target.value;
-                      const autoSlug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-                      setQuizForm((p) => ({
-                        ...p,
-                        title: newTitle,
-                        custom_slug: isSlugCustomized ? p.custom_slug : autoSlug
-                      }));
-                    }}
-                    placeholder="e.g. Both On Challenge, Cloud Fundamentals"
-                    className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm font-bold"
-                  />
+              <form id="live-quiz-details-form" onSubmit={handleSaveQuiz} className="space-y-4">
+                {/* Basic Details Group */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Quiz Title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={quizForm.title}
+                      onChange={(e) => {
+                        const newTitle = e.target.value;
+                        const autoSlug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                        setQuizForm((p) => ({
+                          ...p,
+                          title: newTitle,
+                          custom_slug: isSlugCustomized ? p.custom_slug : autoSlug
+                        }));
+                      }}
+                      placeholder="e.g. Botathon Challenge, Cloud Fundamentals"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Associated Event / Chapter <span className="text-red-500">*</span>
+                    </label>
+                    <EventSelector
+                      value={quizForm.event_name}
+                      onChange={({ eventId, eventName }) => {
+                        setQuizForm((p) => ({
+                          ...p,
+                          event_id: eventId,
+                          event_name: eventName
+                        }));
+                      }}
+                    />
+                    <p className="text-[10.5px] text-slate-400 font-medium mt-1">
+                      Assign to an event or chapter track to group this quiz on the official platform portal.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Event Selector */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-550 uppercase tracking-widest">
-                    Associated Event / Chapter <span className="text-red-500">*</span>
-                  </label>
-                  <EventSelector
-                    value={quizForm.event_name}
-                    onChange={({ eventId, eventName }) => {
-                      setQuizForm((p) => ({
-                        ...p,
-                        event_id: eventId,
-                        event_name: eventName
-                      }));
-                    }}
-                  />
-                  <p className="text-[10px] text-zinc-400 font-medium">
-                    Pick an existing event or create a new one to group this live quiz under that event on the website.
-                  </p>
-                </div>
-
-                {/* Custom Short Link / Vanity Slug */}
-                <div className="space-y-1.5 p-3.5 bg-blue-50/70 border border-blue-200/70 rounded-xl">
-                  <label className="block text-xs font-bold text-blue-900 uppercase tracking-wider">
-                    Direct Join URL Slug
-                  </label>
+                {/* Direct Join URL Vanity Slug */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Direct Join URL Slug
+                    </label>
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                      Vanity Link
+                    </span>
+                  </div>
                   <div className="flex items-center space-x-1.5">
-                    <span className="text-xs font-extrabold text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-lg whitespace-nowrap font-mono select-none">
+                    <span className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-lg whitespace-nowrap font-mono select-none shadow-2xs">
                       quiz.mscprpcem.tech/q/
                     </span>
                     <input
@@ -920,90 +1025,184 @@ export default function QuizManagement() {
                           custom_slug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')
                         }));
                       }}
-                      className="w-full px-3 py-2 border border-blue-300 rounded-lg bg-white text-blue-700 font-mono font-bold text-xs focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-blue-700 font-mono font-bold text-xs focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none shadow-2xs"
                     />
                   </div>
-                  <p className="text-[10px] text-blue-700 font-semibold leading-tight">
-                    Participants visiting <strong className="text-blue-900 font-mono">quiz.mscprpcem.tech/q/{quizForm.custom_slug || 'preview'}</strong> will join this live quiz directly.
+                  <p className="text-[10.5px] text-slate-500 font-medium leading-tight">
+                    Participants navigating to <strong className="text-blue-700 font-mono">/q/{quizForm.custom_slug || 'preview'}</strong> can enter this live session directly.
                   </p>
                 </div>
 
                 {/* Description */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-555 uppercase tracking-widest">
-                    Description <span className="text-brand-textMuted font-normal normal-case">(Optional)</span>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Description <span className="text-slate-400 font-normal">(Optional)</span>
                   </label>
                   <textarea
                     rows={2}
                     value={quizForm.description}
                     onChange={(e) => setQuizForm((p) => ({ ...p, description: e.target.value }))}
-                    placeholder="A short summary of what this quiz covers..."
-                    className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm resize-none"
+                    placeholder="Brief description of the topics and agenda covered in this quiz..."
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400 resize-none"
                   />
                 </div>
 
-                {/* Schedule Controls */}
-                <div className="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                {/* Schedule & Time Window */}
+                <div className="space-y-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200/90">
                   <div className="flex justify-between items-center">
-                    <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+                    <label className="block text-xs font-extrabold text-slate-700">
                       Quiz Schedule / Time Window
                     </label>
                     <button
                       type="button"
                       onClick={handleSetOneDaySchedule}
-                      className="px-2.5 py-1 bg-brand-blue/10 text-brand-blue hover:bg-brand-blue hover:text-white rounded-lg text-[10px] font-extrabold transition-all cursor-pointer"
+                      className="px-2.5 py-1 bg-white hover:bg-blue-50 border border-slate-200 text-blue-600 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer shadow-2xs flex items-center gap-1"
                     >
-                      Preset: Set for 1 Day (Today)
+                      <Sparkles size={11} />
+                      <span>Set for 1 Day (Today)</span>
                     </button>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-[11px] font-semibold text-slate-600">Start Date & Time</label>
+                      <label className="block text-[11px] font-bold text-slate-600">Start Date & Time</label>
                       <input
                         type="datetime-local"
                         value={quizForm.scheduled_start}
                         onChange={(e) => setQuizForm((p) => ({ ...p, scheduled_start: e.target.value }))}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-brand-textMain text-xs focus:ring-2 focus:ring-brand-blue"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-800 text-xs font-semibold focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none shadow-2xs"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="block text-[11px] font-semibold text-slate-600">End Date & Time</label>
+                      <label className="block text-[11px] font-bold text-slate-600">End Date & Time</label>
                       <input
                         type="datetime-local"
                         value={quizForm.scheduled_end}
                         onChange={(e) => setQuizForm((p) => ({ ...p, scheduled_end: e.target.value }))}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-brand-textMain text-xs focus:ring-2 focus:ring-brand-blue"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-800 text-xs font-semibold focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none shadow-2xs"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    className="flex-1 py-2.5 rounded-xl border border-brand-border text-zinc-650 font-semibold text-sm hover:bg-brand-bgLight transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-brand-blue hover:bg-brand-dark disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer text-sm"
-                  >
-                    {saving ? (
-                      <span>Saving...</span>
-                    ) : (
-                      <>
-                        <CheckCircle2 size={15} />
-                        {selectedQuiz ? 'Save Changes' : 'Create Quiz'}
-                      </>
-                    )}
-                  </button>
+                {/* Verified Digital Badge Toggle */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Award size={16} className="text-amber-500" />
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 block">Issue Verified Digital Badge</span>
+                        <span className="text-[10px] text-slate-500 font-medium">Verification Platform Integration (verify.mscprpcem.tech)</span>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={quizForm.issue_badge}
+                        onChange={(e) => setQuizForm((p) => ({ ...p, issue_badge: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+
+                  {quizForm.issue_badge && (
+                    <div className="pt-3 border-t border-slate-200/70 space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-[11px] font-bold text-slate-700">
+                            Badge Sys ID <span className="text-red-500">*</span>
+                          </label>
+                          <span className="text-[10px] text-slate-400 font-mono">verify.mscprpcem.tech</span>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="e.g. SYS-BADGE-101, EVENT-CERT-2026"
+                          value={quizForm.badge_sys_id || ''}
+                          onChange={(e) => setQuizForm((p) => ({ ...p, badge_sys_id: e.target.value }))}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-800 text-xs font-mono font-bold focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none shadow-2xs"
+                        />
+                        <p className="text-[10px] text-slate-500 font-medium mt-1 leading-tight">
+                          This Sys ID matches the badge/credential registered on the Verification Platform.
+                        </p>
+                      </div>
+
+                      {availableBadges.length > 0 && (
+                        <div className="space-y-1">
+                          <label className="block text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
+                            Quick Select from Available Badges:
+                          </label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {availableBadges.slice(0, 4).map((b) => (
+                              <button
+                                key={b.id}
+                                type="button"
+                                onClick={() => setQuizForm(p => ({
+                                  ...p,
+                                  badge_sys_id: b.id,
+                                  badge_title: b.title || p.badge_title
+                                }))}
+                                className={`px-2 py-1 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
+                                  quizForm.badge_sys_id === b.id
+                                    ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                }`}
+                              >
+                                {b.title || b.id}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-700">Badge Title</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Certified Cloud Practitioner"
+                          value={quizForm.badge_title}
+                          onChange={(e) => setQuizForm((p) => ({ ...p, badge_title: e.target.value }))}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-800 text-xs font-semibold focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none shadow-2xs"
+                        />
+                      </div>
+
+                      <div className="p-2.5 bg-blue-50/70 border border-blue-100 rounded-lg flex items-start gap-2 text-[10.5px] text-blue-800 font-medium leading-relaxed">
+                        <ShieldCheck size={14} className="text-blue-600 shrink-0 mt-0.5" />
+                        <span>Admin Permission: After event completion, admins can choose to <strong>Issue Now</strong> or <strong>Save for Later</strong> from the Quiz dashboard.</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </form>
+            </div>
+
+            {/* Modal footer */}
+            <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl font-bold text-xs cursor-pointer transition-colors shadow-2xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="live-quiz-details-form"
+                disabled={saving}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
+              >
+                {saving ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={14} />
+                    <span>{selectedQuiz ? 'Update Live Quiz' : 'Create Live Quiz'}</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </Modal>
@@ -1165,33 +1364,33 @@ export default function QuizManagement() {
       )}
 
       {/* QR CODE SHARE MODAL */}
-      {qrQuiz && showQRModal && (
+      {qrQuiz && showQRModal && typeof document !== 'undefined' && createPortal(
         <div
           onClick={() => { setShowQRModal(false); setQrQuiz(null); }}
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 cursor-pointer animate-fade-in"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-2xl max-w-[280px] w-full relative cursor-default overflow-hidden animate-fade-in"
+            className="bg-white rounded-2xl shadow-2xl max-w-[280px] w-full relative cursor-default overflow-hidden animate-fade-in border border-slate-200"
           >
             {/* Top accent bar */}
-            <div className="h-1 w-full" style={{ background: branding?.primary_color || '#2563EB' }} />
+            <div className="h-1.5 w-full bg-blue-600" style={{ background: branding?.primary_color || '#2563EB' }} />
 
             {/* Close button */}
             <button
               onClick={() => { setShowQRModal(false); setQrQuiz(null); }}
-              className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-50 hover:bg-zinc-150 text-brand-textMuted hover:text-brand-textMain transition-all cursor-pointer z-20"
+              className="absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-all cursor-pointer z-20"
             >
-              <X size={12} strokeWidth={3} />
+              <X size={13} strokeWidth={2.5} />
             </button>
 
             {/* Content */}
             <div className="px-4 pt-4 pb-3 text-center space-y-3">
               {/* Event name */}
-              <p className="text-[9px] font-bold text-brand-textMuted uppercase tracking-widest truncate pr-6">{qrQuiz.event_name}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate pr-6">{qrQuiz.event_name}</p>
 
               {/* QR Code */}
-              <div className="inline-block bg-brand-bgLight p-2.5 rounded-lg border border-zinc-100 shadow-sm">
+              <div className="inline-block bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-2xs">
                 <QRCodeSVG
                   id="catalog-qr-svg"
                   value={`${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`}
@@ -1210,64 +1409,65 @@ export default function QuizManagement() {
               </div>
 
               {/* Join Code */}
-              <div className="bg-brand-bgLight border border-zinc-100 rounded-lg py-2 px-3">
-                <span className="block text-[8px] font-bold text-brand-textMuted uppercase tracking-widest">Code</span>
-                <span className="block text-2xl font-black tracking-[0.25em] mt-0.5 select-all" style={{ color: branding?.primary_color || '#2563EB' }}>{qrQuiz.join_code}</span>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl py-2 px-3">
+                <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Entry Code</span>
+                <span className="block text-2xl font-black tracking-[0.25em] mt-0.5 select-all text-blue-600" style={{ color: branding?.primary_color || '#2563EB' }}>{qrQuiz.join_code}</span>
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="border-t border-zinc-100 px-3 py-2.5 grid grid-cols-3 gap-1.5">
+            <div className="border-t border-slate-100 px-3 py-2.5 grid grid-cols-3 gap-1.5 bg-slate-50/50">
               <button
                 onClick={handleCopyLink}
-                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-brand-border hover:bg-brand-bgLight text-brand-textMuted hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
+                className="flex flex-col items-center gap-1 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition-all text-[10px] font-bold cursor-pointer shadow-2xs"
               >
                 {copyFeedback ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
-                {copyFeedback ? 'Copied' : 'Copy'}
+                <span>{copyFeedback ? 'Copied' : 'Copy'}</span>
               </button>
               <button
                 onClick={() => handleDownloadQR('catalog-qr-svg')}
-                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-brand-border hover:bg-brand-bgLight text-brand-textMuted hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
+                className="flex flex-col items-center gap-1 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition-all text-[10px] font-bold cursor-pointer shadow-2xs"
               >
                 <Download size={13} />
-                Save
+                <span>Save</span>
               </button>
               <button
                 onClick={handleShareSession}
-                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-white transition-all text-[9px] font-bold cursor-pointer"
+                className="flex flex-col items-center gap-1 py-1.5 rounded-lg text-white transition-all text-[10px] font-bold cursor-pointer shadow-xs"
                 style={{ backgroundColor: branding?.primary_color || '#2563EB' }}
               >
                 <Share2 size={13} />
-                Share
+                <span>Share</span>
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* DELETE CONFIRMATION MODAL */}
-      {showDeleteModal && deleteTargetQuiz && (
+      {showDeleteModal && deleteTargetQuiz && typeof document !== 'undefined' && createPortal(
         <div
           onClick={() => { setShowDeleteModal(false); setDeleteTargetQuiz(null); }}
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex justify-center items-center p-4 cursor-pointer"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex justify-center items-center p-4 cursor-pointer animate-fade-in"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-200 animate-scale-in cursor-default space-y-5 text-left"
+            className="bg-white rounded-2xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-200/90 animate-fade-in cursor-default space-y-5 text-left"
           >
             <div className="flex items-center space-x-3.5">
-              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-center justify-center flex-shrink-0 shadow-xs">
-                <Trash2 size={22} />
+              <div className="w-11 h-11 bg-rose-50 text-rose-600 rounded-xl border border-rose-100 flex items-center justify-center shrink-0 shadow-2xs">
+                <Trash2 size={20} />
               </div>
               <div>
-                <h3 className="text-base font-black text-slate-900">Delete Quiz Session?</h3>
+                <h3 className="text-base font-extrabold text-slate-900">Delete Quiz Session?</h3>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">This action cannot be undone.</p>
               </div>
             </div>
 
-            <div className="bg-red-50/50 border border-red-100 rounded-xl p-3.5 space-y-1">
-              <p className="text-xs font-extrabold text-red-950 truncate">{deleteTargetQuiz.title}</p>
-              <p className="text-[11px] text-red-700 font-medium leading-relaxed">
+            <div className="bg-rose-50/60 border border-rose-100 rounded-xl p-3.5 space-y-1">
+              <p className="text-xs font-black text-rose-950 truncate">{deleteTargetQuiz.title}</p>
+              <p className="text-[11px] text-rose-700 font-medium leading-relaxed">
                 All participant response sheets, score leaderboards, and session logs will be permanently erased.
               </p>
             </div>
@@ -1276,7 +1476,7 @@ export default function QuizManagement() {
               <button
                 type="button"
                 onClick={() => { setShowDeleteModal(false); setDeleteTargetQuiz(null); }}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-2xs"
               >
                 Cancel
               </button>
@@ -1284,14 +1484,11 @@ export default function QuizManagement() {
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={deleteLoading}
-                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-xs font-extrabold transition-all cursor-pointer disabled:opacity-50 active:scale-95 shadow-md flex items-center justify-center space-x-1.5"
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all cursor-pointer disabled:opacity-50 active:scale-95 shadow-xs flex items-center justify-center space-x-1.5"
               >
                 {deleteLoading ? (
                   <>
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                    </svg>
+                    <RefreshCw size={13} className="animate-spin" />
                     <span>Deleting...</span>
                   </>
                 ) : (
@@ -1303,7 +1500,21 @@ export default function QuizManagement() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── ISSUE BADGE MODAL ── */}
+      {badgeModalQuiz && (
+        <IssueBadgeModal
+          quiz={badgeModalQuiz}
+          isOpen={Boolean(badgeModalQuiz)}
+          onClose={() => setBadgeModalQuiz(null)}
+          onSuccess={() => {
+            setBadgeModalQuiz(null);
+            loadQuizzes();
+          }}
+        />
       )}
     </div>
   );

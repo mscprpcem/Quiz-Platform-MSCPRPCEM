@@ -8,7 +8,8 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 | Version | Release Type | Key Highlights | Status |
 | :--- | :--- | :--- | :--- |
-| **v1.8.4** | **Patch (Current)** | Standard MSC PRPCEM email template, simplified centered header, dynamic content wireframe, rich laptop/mobile preview, admin dispatch formatting toolbar, official link standardization | **Active Production** |
+| **v1.8.5** | **Patch (Current)** | Verification Platform Badge Sys ID integration, Live & Scheduled Quiz credentialing, Admin permission controls ("Issue Now" vs "Save for Later"), real-time attendee sync | **Active Production** |
+| **v1.8.4** | Patch | Standard MSC PRPCEM email template, simplified centered header, dynamic content wireframe, rich laptop/mobile preview, admin dispatch formatting toolbar, official link standardization | Stable |
 | **v1.8.3** | Patch | Enterprise SQL grading engine, DDL entity & constraint verification, DML post-mutation table state diffing, qrcode bundle integrity | Stable |
 | **v1.8.2** | Patch | Viewport-centered portal modals, verification revocation guardrails, event quiz delinking, cascade mail sync, institutional email preview, opaque theme system | Stable |
 | **v1.8.1** | Patch | User Directory responsive overhaul, 1-click & bulk verification toggles, profile modal, deferred account creation until OTP verification, admin credential lockdown | Stable |
@@ -26,7 +27,21 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 ## Detailed Changelog
 
-### Version 1.8.4 (Current Release)
+### Version 1.8.5 (Current Release)
+*Theme: Verification Platform Badge Sys ID Integration, Live & Scheduled Quiz Credentialing, Admin Permission Controls & Cryptographic Publishing*
+
+- **Badge Sys ID & Verification Platform Alignment**:
+  - Integrated `badge_sys_id` and `badge_issued_at` across both Live Quizzes and Scheduled Quizzes, mapping to the unique badge credential identifier registered on the Verification Platform (`verify.mscprpcem.tech`).
+  - Added real-time quick picker allowing admins to select from existing Verification Platform badges or enter a custom `SYS-BADGE-XXXX` identifier.
+- **Admin Permission & Decision Controls**:
+  - Implemented dual-action admin permission controls:
+    - **Save for Later**: Persists the Badge Sys ID and title configuration so credentials remain safe and pending until after event conclusion.
+    - **Issue Badges Now**: Allows immediate verification sync and dispatch to all eligible participants scoring above the selectable threshold (All, ≥50%, ≥70%).
+- **Unified IssueBadgeModal Component**:
+  - Designed interactive viewport portal modal displaying live completion counts, attendee preview cards with email and scores, verification status banners, and safety confirmation checks.
+  - Integrated seamlessly into Live Quiz management, Scheduled Quiz cards, and Scheduled Quiz details views.
+
+### Version 1.8.4
 *Theme: Official Standard MSC PRPCEM Email Template Architecture, Simplified Centered Header, Dynamic Content Wireframe, Admin Dispatch Formatting Toolbar & Social Link Standardization*
 
 - **Simplified & Vertically Centered Header**:

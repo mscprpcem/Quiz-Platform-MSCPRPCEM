@@ -145,6 +145,7 @@ export default function CreateScheduledQuiz() {
 
     // Digital Badge & Certification
     issue_badge: true,
+    badge_sys_id: '',
     badge_title: 'Microsoft Azure & Cloud Fundamentals Master',
 
     // Questions List
@@ -313,7 +314,8 @@ export default function CreateScheduledQuiz() {
             positive_marks: q.positive_marks || 1,
             negative_marks: q.negative_marks || 0,
             show_leaderboard: q.show_leaderboard !== undefined ? q.show_leaderboard : true,
-            issue_badge: Boolean(q.badge_title),
+            issue_badge: Boolean(q.badge_title || q.badge_sys_id),
+            badge_sys_id: q.badge_sys_id || '',
             badge_title: q.badge_title || 'Microsoft Azure & Cloud Fundamentals Master',
             questions: sortQuestionsBySection(q.questions || [])
           });
@@ -1125,6 +1127,7 @@ export default function CreateScheduledQuiz() {
       positive_marks: formData.positive_marks,
       negative_marks: formData.negative_marks,
       show_leaderboard: formData.show_leaderboard,
+      badge_sys_id: formData.issue_badge ? (formData.badge_sys_id || null) : null,
       badge_title: formData.issue_badge ? (formData.badge_title || 'Certified Master') : null,
       questions: formData.questions,
       schedule_config: {
@@ -1185,23 +1188,23 @@ export default function CreateScheduledQuiz() {
   }
 
   return (
-    <div className="space-y-8 text-left font-segoe pb-16">
+    <div className="space-y-6 text-left font-segoe pb-16">
       
       {/* ════════ HEADER BAR ════════ */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200 p-6 rounded-3xl shadow-2xs">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200/90 p-5 sm:p-6 rounded-2xl shadow-2xs">
+        <div className="flex items-center space-x-3.5">
           <button
             onClick={() => navigate('/admin/scheduled-quizzes')}
-            className="p-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors cursor-pointer"
+            className="w-9 h-9 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl text-slate-600 flex items-center justify-center transition-all cursor-pointer shadow-2xs shrink-0"
             title="Back to Scheduled Quizzes"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} />
           </button>
           <div>
-            <span className="text-[10px] font-black uppercase text-blue-600 tracking-wider">
+            <span className="text-[10px] font-extrabold uppercase text-blue-600 tracking-wider bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md inline-block mb-0.5">
               {isEditMode ? 'Scheduled Quiz Editor' : 'Scheduled Quiz Creator'}
             </span>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
               {isEditMode ? 'Edit Scheduled Quiz' : 'Create Scheduled Quiz'}
             </h1>
           </div>
@@ -1210,34 +1213,66 @@ export default function CreateScheduledQuiz() {
         <button
           onClick={handlePublishSubmit}
           disabled={saving}
-          className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all cursor-pointer"
+          className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center gap-1.5"
         >
-          {saving ? 'Saving...' : isEditMode ? 'Save Changes' : 'Publish Scheduled Quiz'}
+          {saving ? (
+            <>
+              <RefreshCw size={13} className="animate-spin" />
+              <span>Saving...</span>
+            </>
+          ) : (
+            <>
+              <CheckCircle size={14} />
+              <span>{isEditMode ? 'Save Changes' : 'Publish Scheduled Quiz'}</span>
+            </>
+          )}
         </button>
       </div>
 
       {/* ════════ STEP TABS ════════ */}
-      <div className="flex border-b border-slate-200 bg-white rounded-2xl p-2 shadow-2xs space-x-2 overflow-x-auto">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-1.5 sm:p-2 shadow-2xs flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
         {[
-          { id: 1, title: '1. Basic & Recurrence' },
-          { id: 2, title: `2. Questions & Excel Import (${formData.questions.length})` },
-          { id: 3, title: '3. Rules & Proctoring' },
-          { id: 4, title: '4. Review & Publish' }
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              if (validateTab(activeTab)) setActiveTab(tab.id);
-            }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === tab.id
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            {tab.title}
-          </button>
-        ))}
+          { id: 1, step: '1', title: 'Basic & Recurrence' },
+          { id: 2, step: '2', title: `Questions & Import`, count: formData.questions.length },
+          { id: 3, step: '3', title: 'Rules & Proctoring' },
+          { id: 4, step: '4', title: 'Review & Publish' }
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          const isPassed = activeTab > tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => {
+                if (validateTab(activeTab)) setActiveTab(tab.id);
+              }}
+              className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center justify-center gap-2 border ${
+                isActive
+                  ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-2xs'
+                  : isPassed
+                  ? 'bg-emerald-50/50 border-emerald-200/60 text-emerald-800 hover:bg-emerald-50'
+                  : 'bg-transparent border-transparent text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                isActive
+                  ? 'bg-blue-600 text-white'
+                  : isPassed
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-200 text-slate-700'
+              }`}>
+                {isPassed ? <Check size={11} strokeWidth={3} /> : tab.step}
+              </span>
+              <span>{tab.title}</span>
+              {tab.count !== undefined && (
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                  isActive ? 'bg-blue-200/70 text-blue-900' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Error Alert Banner */}
@@ -1250,13 +1285,18 @@ export default function CreateScheduledQuiz() {
 
       {/* ════════ TAB 1: BASIC INFORMATION & RECURRENCE ════════ */}
       {activeTab === 1 && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-8 shadow-2xs">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 space-y-6 shadow-2xs">
           
           <div className="space-y-4">
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider border-b pb-2">Basic Quiz Details</h3>
+            <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <FileText size={15} />
+              </div>
+              <h3 className="text-sm font-extrabold text-slate-900">Basic Quiz Details</h3>
+            </div>
 
             <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-600">Quiz Title <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-bold text-slate-700">Quiz Title <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 required
@@ -1271,13 +1311,13 @@ export default function CreateScheduledQuiz() {
                     custom_slug: isSlugCustomized ? prev.custom_slug : autoSlug
                   }));
                 }}
-                className="w-full border rounded-xl px-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
               />
             </div>
 
             {/* Event Assignment Combobox */}
             <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-600">
+              <label className="block text-xs font-bold text-slate-700">
                 Associated Event / Chapter <span className="text-slate-400 font-normal">(Optional — links quiz to official event tracks)</span>
               </label>
               <EventSelector
@@ -1295,11 +1335,16 @@ export default function CreateScheduledQuiz() {
               </p>
             </div>
 
-            <div className="p-5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/80 rounded-2xl space-y-4">
-              <div className="flex items-center space-x-2">
-                <QrCode size={18} className="text-blue-600" />
-                <span className="text-xs font-black text-blue-900 uppercase tracking-wider">
-                  Custom URL Slug
+            <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <QrCode size={16} className="text-blue-600" />
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Custom Join URL & QR Code
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                  Vanity Link
                 </span>
               </div>
 
@@ -1823,13 +1868,13 @@ export default function CreateScheduledQuiz() {
             })()}
           </div>
 
-          <div className="flex justify-end pt-4 border-t">
+          <div className="flex justify-end pt-4 border-t border-slate-100">
             <button
               onClick={handleNextTab}
-              className="px-6 py-2.5 bg-blue-600 text-white font-extrabold rounded-xl text-xs flex items-center space-x-2 cursor-pointer shadow-sm"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center space-x-2 cursor-pointer shadow-xs hover:shadow-md transition-all"
             >
               <span>Next: Manage Questions by Section</span>
-              <ArrowRight size={16} />
+              <ArrowRight size={15} />
             </button>
           </div>
 
@@ -2097,7 +2142,7 @@ export default function CreateScheduledQuiz() {
         const emptyQuestions = formData.questions.filter(q => !q.question || !q.question.trim());
 
         return (
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xs">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 space-y-6 shadow-2xs">
             
             {/* Header & Global Actions */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
@@ -2655,23 +2700,23 @@ export default function CreateScheduledQuiz() {
             )}
 
             {/* Bottom Step Navigation */}
-            <div className="flex justify-between items-center pt-4 border-t">
+            <div className="flex justify-between items-center pt-4 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setActiveTab(1)}
-                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center space-x-1 cursor-pointer transition-all"
+                className="px-4 py-2.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all shadow-2xs"
               >
-                <ArrowLeft size={16} />
+                <ArrowLeft size={15} />
                 <span>Previous Step</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab(3)}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center space-x-2 shadow-sm cursor-pointer transition-all"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center space-x-2 shadow-xs hover:shadow-md cursor-pointer transition-all"
               >
                 <span>Next: Rules & Proctoring</span>
-                <ArrowRight size={16} />
+                <ArrowRight size={15} />
               </button>
             </div>
 
@@ -2681,8 +2726,13 @@ export default function CreateScheduledQuiz() {
 
       {/* ════════ TAB 3: RULES & PROCTORING ════════ */}
       {activeTab === 3 && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xs">
-          <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider border-b pb-2">Quiz Rules & Anti-Cheat Settings</h3>
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 space-y-6 shadow-2xs">
+          <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <ShieldCheck size={15} />
+            </div>
+            <h3 className="text-sm font-extrabold text-slate-900">Quiz Rules & Anti-Cheat Settings</h3>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
@@ -2754,21 +2804,124 @@ export default function CreateScheduledQuiz() {
             </label>
           </div>
 
-          <div className="flex justify-between items-center pt-4 border-t">
+          {/* ════════ VERIFIED DIGITAL BADGE & CREDENTIALING ════════ */}
+          <div className="pt-4 border-t border-slate-100 space-y-4">
+            <div className="flex items-center gap-2 pb-1">
+              <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <Award size={15} />
+              </div>
+              <div>
+                <h4 className="text-sm font-extrabold text-slate-900">Verified Digital Badge (Verification Platform)</h4>
+                <p className="text-[11px] text-slate-500 font-medium">Issue cryptographic digital credentials via verify.mscprpcem.tech upon admin approval</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">Issue Verified Digital Badge</span>
+                  <span className="text-[10px] text-slate-500 font-medium">Synchronize credential record with Verification Platform</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.issue_badge}
+                    onChange={e => setFormData({ ...formData, issue_badge: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+
+              {formData.issue_badge && (
+                <div className="pt-3 border-t border-slate-200/80 space-y-3.5">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-700">
+                        Badge Sys ID <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono">verify.mscprpcem.tech</span>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="e.g. SYS-BADGE-101, EVENT-CERT-2026"
+                      value={formData.badge_sys_id || ''}
+                      onChange={e => setFormData({ ...formData, badge_sys_id: e.target.value })}
+                      className="w-full border rounded-xl px-3.5 py-2 text-xs font-mono font-bold bg-white text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-[10.5px] text-slate-500 font-medium">
+                      Enter the unique badge / credential ID registered in the Verification Platform database.
+                    </p>
+                  </div>
+
+                  {availableBadges.length > 0 && (
+                    <div className="space-y-1.5">
+                      <label className="block text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
+                        Quick Select from Available Verification Badges:
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {availableBadges.slice(0, 5).map((b) => (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => setFormData(p => ({
+                              ...p,
+                              badge_sys_id: b.id,
+                              badge_title: b.title || p.badge_title
+                            }))}
+                            className={`px-2.5 py-1 rounded-lg text-[10.5px] font-semibold border transition-all cursor-pointer ${
+                              formData.badge_sys_id === b.id
+                                ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
+                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                            }`}
+                          >
+                            {b.title || b.id}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-700">Badge Certificate Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Microsoft Azure Cloud Fundamentals Master"
+                      value={formData.badge_title}
+                      onChange={e => setFormData({ ...formData, badge_title: e.target.value })}
+                      className="w-full border rounded-xl px-3.5 py-2 text-xs font-bold bg-white text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl flex items-start gap-2.5 text-xs text-blue-900 leading-relaxed">
+                    <ShieldCheck size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="font-extrabold text-blue-950">Admin Permission Workflow:</strong>
+                      <p className="text-[11px] text-blue-800 mt-0.5">
+                        Badges will not be dispatched automatically without admin consent. After the assessment period finishes, admins can choose to <strong>"Issue Badges Now"</strong> or <strong>"Save for Later"</strong> from the Scheduled Quiz Management dashboard.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center pt-4 border-t border-slate-100">
             <button
               onClick={() => setActiveTab(2)}
-              className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs flex items-center space-x-1"
+              className="px-4 py-2.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all shadow-2xs"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={15} />
               <span>Previous Step</span>
             </button>
 
             <button
               onClick={() => setActiveTab(4)}
-              className="px-6 py-2.5 bg-blue-600 text-white font-extrabold rounded-xl text-xs flex items-center space-x-2 shadow-sm"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center space-x-2 shadow-xs hover:shadow-md cursor-pointer transition-all"
             >
               <span>Next: Review & Publish</span>
-              <ArrowRight size={16} />
+              <ArrowRight size={15} />
             </button>
           </div>
         </div>
@@ -2776,34 +2929,52 @@ export default function CreateScheduledQuiz() {
 
       {/* ════════ TAB 4: REVIEW & PUBLISH ════════ */}
       {activeTab === 4 && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xs text-left">
-          <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider border-b pb-2">Review Scheduled Quiz Configuration</h3>
-
-          <div className="p-6 bg-blue-50/60 border border-blue-100 rounded-2xl space-y-3 text-xs font-semibold text-slate-700">
-            <div><strong>Title:</strong> {formData.title}</div>
-            <div><strong>Schedule Pattern:</strong> {formData.schedule_type}</div>
-            <div><strong>Date Window:</strong> {formData.start_date} to {formData.end_date}</div>
-            <div><strong>Daily Time Window:</strong> {buildTimeString(formData.start_time_hh, formData.start_time_mm, formData.start_time_ss, formData.start_time_ampm)} to {buildTimeString(formData.end_time_hh, formData.end_time_mm, formData.end_time_ss, formData.end_time_ampm)} IST (Indian Standard Time)</div>
-            <div><strong>Total Questions:</strong> {formData.questions.length} Questions</div>
-            <div><strong>Time Limit:</strong> {formData.time_limit} Mins</div>
-            <div><strong>Proctoring:</strong> {formData.anti_cheat_enabled ? 'Anti-Cheat Enabled' : 'Standard'}</div>
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 space-y-6 shadow-2xs text-left">
+          <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <CheckCircle size={15} />
+            </div>
+            <h3 className="text-sm font-extrabold text-slate-900">Review Scheduled Quiz Configuration</h3>
           </div>
 
-          <div className="flex justify-between items-center pt-4 border-t">
+          <div className="p-5 sm:p-6 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-3 text-xs font-semibold text-slate-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><strong className="text-slate-900">Title:</strong> {formData.title}</div>
+              <div><strong className="text-slate-900">Schedule Pattern:</strong> {formData.schedule_type}</div>
+              <div><strong className="text-slate-900">Date Window:</strong> {formData.start_date} to {formData.end_date}</div>
+              <div><strong className="text-slate-900">Daily Time Window:</strong> {buildTimeString(formData.start_time_hh, formData.start_time_mm, formData.start_time_ss, formData.start_time_ampm)} to {buildTimeString(formData.end_time_hh, formData.end_time_mm, formData.end_time_ss, formData.end_time_ampm)} IST</div>
+              <div><strong className="text-slate-900">Total Questions:</strong> {formData.questions.length} Questions</div>
+              <div><strong className="text-slate-900">Time Limit:</strong> {formData.time_limit} Mins</div>
+              <div><strong className="text-slate-900">Proctoring:</strong> {formData.anti_cheat_enabled ? 'Anti-Cheat Enabled' : 'Standard'}</div>
+              <div><strong className="text-slate-900">Digital Badge:</strong> {formData.issue_badge ? `${formData.badge_title || 'Enabled'} (Sys ID: ${formData.badge_sys_id || 'Not assigned'})` : 'Disabled'}</div>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center pt-4 border-t border-slate-100">
             <button
               onClick={() => setActiveTab(3)}
-              className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs flex items-center space-x-1"
+              className="px-4 py-2.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all shadow-2xs"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={15} />
               <span>Previous Step</span>
             </button>
 
             <button
               onClick={handlePublishSubmit}
               disabled={saving}
-              className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer"
+              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center gap-1.5"
             >
-              {saving ? 'Publishing...' : 'Publish Scheduled Quiz'}
+              {saving ? (
+                <>
+                  <RefreshCw size={13} className="animate-spin" />
+                  <span>Publishing...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={14} />
+                  <span>Publish Scheduled Quiz</span>
+                </>
+              )}
             </button>
           </div>
         </div>

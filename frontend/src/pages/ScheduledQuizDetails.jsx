@@ -14,6 +14,7 @@ import {
   Send, Copy, Check, Trash2, Download, AlertTriangle, FileSpreadsheet,
   BarChart2, ChevronDown, Award, TrendingUp, Percent, Loader2
 } from 'lucide-react';
+import IssueBadgeModal from '../components/IssueBadgeModal';
 
 export default function ScheduledQuizDetails() {
   const { id } = useParams();
@@ -27,6 +28,7 @@ export default function ScheduledQuizDetails() {
   const [mailSentMessage, setMailSentMessage] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [selectedOccurrenceFilter, setSelectedOccurrenceFilter] = useState('all');
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
 
   // Dropdown states
   const [activeExportDropdown, setActiveExportDropdown] = useState(null); // 'results' | 'responses' | null
@@ -239,27 +241,27 @@ export default function ScheduledQuizDetails() {
     <div className="space-y-8 text-left font-segoe pb-16">
       
       {/* ════════ HEADER ════════ */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-slate-200 p-6 rounded-3xl shadow-2xs">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-slate-200/90 p-5 sm:p-6 rounded-2xl shadow-2xs">
+        <div className="flex items-center space-x-3.5">
           <button
             onClick={() => navigate('/admin/scheduled-quizzes')}
-            className="p-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 cursor-pointer shadow-2xs"
+            className="w-9 h-9 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl text-slate-600 flex items-center justify-center transition-all cursor-pointer shadow-2xs shrink-0"
             title="Back to Scheduled Quizzes"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} />
           </button>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-[10px] font-black uppercase text-blue-600 tracking-wider bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+              <span className="text-[10px] font-extrabold uppercase text-blue-600 tracking-wider bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
                 Scheduled Assessment Manager
               </span>
               {quiz?.schedule_type && (
-                <span className="text-[10px] font-extrabold uppercase text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-100">
+                <span className="text-[10px] font-extrabold uppercase text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
                   {quiz.schedule_type}
                 </span>
               )}
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{quiz?.title}</h1>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug mt-1">{quiz?.title}</h1>
             <p className="text-xs text-slate-500 font-medium">{quiz?.description || 'No description provided.'}</p>
           </div>
         </div>
@@ -351,6 +353,22 @@ export default function ScheduledQuizDetails() {
             )}
           </div>
 
+          {/* Issue Badge Modal Trigger */}
+          <button
+            onClick={() => setShowBadgeModal(true)}
+            className={`px-4 py-2.5 font-extrabold rounded-xl text-xs flex items-center space-x-1.5 shadow-xs cursor-pointer transition-all active:scale-95 ${
+              quiz?.badge_issued_at 
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
+                : (quiz?.badge_sys_id || quiz?.badge_title)
+                ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                : 'bg-slate-800 hover:bg-slate-900 text-white'
+            }`}
+            title={quiz?.badge_issued_at ? 'Badge Issued (Click to manage)' : quiz?.badge_sys_id ? 'Badge Configured (Click to issue)' : 'Configure and Issue Badges'}
+          >
+            <Award size={15} />
+            <span>{quiz?.badge_issued_at ? 'Badge Issued' : quiz?.badge_sys_id ? 'Issue Badges' : 'Configure Badge'}</span>
+          </button>
+
           <button
             onClick={() => navigate(`/admin/email-dispatch?quizId=${id}`)}
             className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md cursor-pointer transition-all"
@@ -370,6 +388,44 @@ export default function ScheduledQuizDetails() {
           </button>
         </div>
       </div>
+
+      {/* Digital Badge Status Banner */}
+      {(quiz?.badge_sys_id || quiz?.badge_title || quiz?.badge_issued_at) && (
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50/50 border border-amber-200/90 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
+          <div className="flex items-center space-x-3.5">
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-xs shrink-0 ${quiz?.badge_issued_at ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}`}>
+              <Award size={22} />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2 flex-wrap">
+                <span className="text-xs font-black text-slate-900">
+                  {quiz?.badge_title || 'Certified Specialist Badge'}
+                </span>
+                {quiz?.badge_issued_at ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    Badges Issued • {formatToISTDateTimeString(quiz.badge_issued_at)}
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
+                    Pending Issue (Admin Permission Required)
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                Verification Sys ID: <code className="font-mono font-bold text-amber-900 bg-amber-100/60 px-1.5 py-0.5 rounded">{quiz?.badge_sys_id || 'Not Assigned'}</code> • Syncs credentials with <strong>verify.mscprpcem.tech</strong> upon admin approval.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowBadgeModal(true)}
+            className={`px-4 py-2 text-white font-extrabold rounded-xl text-xs flex items-center space-x-1.5 shadow-xs cursor-pointer transition-all active:scale-95 shrink-0 ${quiz?.badge_issued_at ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+          >
+            <Award size={14} />
+            <span>{quiz?.badge_issued_at ? 'Manage Credentials' : 'Issue Badges Now'}</span>
+          </button>
+        </div>
+      )}
 
       {mailSentMessage && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-extrabold flex items-center space-x-2">
@@ -695,6 +751,19 @@ export default function ScheduledQuizDetails() {
           </div>
         )}
       </div>
+
+      {/* ── ISSUE BADGE MODAL ── */}
+      {showBadgeModal && quiz && (
+        <IssueBadgeModal
+          quiz={quiz}
+          isOpen={showBadgeModal}
+          onClose={() => setShowBadgeModal(false)}
+          onSuccess={() => {
+            setShowBadgeModal(false);
+            fetchDetails();
+          }}
+        />
+      )}
 
     </div>
   );

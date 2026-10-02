@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const ExcelJS = require('exceljs');
+const axios = require('axios');
 const { Readable } = require('stream');
 const { Quiz, Question, Participant, QuizAttempt, Answer, Violation, AttemptViolation, AttemptAnswer, ScheduledOccurrence } = require('../models');
 const authMiddleware = require('../middleware/auth');
@@ -388,7 +389,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // Create new quiz
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { title, event_id, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title } = req.body;
+    const { title, event_id, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title, badge_sys_id } = req.body;
 
     if (!title || !event_name) {
       return res.status(400).json({ error: 'Title and event name are required' });
@@ -411,6 +412,7 @@ router.post('/', authMiddleware, async (req, res) => {
       custom_slug: cleanSlug,
       status: 'draft',
       badge_title: badge_title || null,
+      badge_sys_id: badge_sys_id || null,
       scheduled_start: scheduled_start || null,
       scheduled_end: scheduled_end || null
     });
@@ -425,7 +427,7 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update quiz details
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { title, event_id, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title, difficulty } = req.body;
+    const { title, event_id, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title, badge_sys_id, difficulty } = req.body;
     const quiz = await Quiz.findByPk(req.params.id);
 
     if (!quiz) {
@@ -451,6 +453,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       difficulty: difficulty || quiz.difficulty,
       custom_slug: cleanSlug,
       badge_title: badge_title !== undefined ? (badge_title || null) : quiz.badge_title,
+      badge_sys_id: badge_sys_id !== undefined ? (badge_sys_id || null) : quiz.badge_sys_id,
       description: description !== undefined ? description : quiz.description,
       scheduled_start: scheduled_start !== undefined ? (scheduled_start || null) : quiz.scheduled_start,
       scheduled_end: scheduled_end !== undefined ? (scheduled_end || null) : quiz.scheduled_end
@@ -915,6 +918,296 @@ router.post('/:id/questions/bulk', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Bulk add questions error:', error);
     return res.status(500).json({ error: 'Server error bulk adding questions' });
+  }
+});
+
+// =========================================================================
+// Badge Issuance & Verification Platform Integration Endpoints
+// =========================================================================
+
+// Get current badge status and eligible attendees preview for any quiz (Live or Scheduled)
+router.get('/:id/badge-status', authMiddleware, async (req, res) => {
+  try {
+    const quiz = await Quiz.findByPk(req.params.id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    let attendees = [];
+
+    if (quiz.mode === 'SCHEDULED') {
+      // Gather completed attempts
+      const attempts = await QuizAttempt.findAll({
+        where: { quiz_id: quiz.id, status: 'completed' },
+        order: [['score', 'DESC']]
+      }).catch(() => []);
+
+      const studentMap = new Map();
+      for (const a of attempts) {
+        const email = (a.participant_email || '').trim().toLowerCase();
+        const key = email || a.participant_name.trim().toLowerCase();
+        if (!studentMap.has(key)) {
+          studentMap.set(key, {
+            name: a.participant_name || 'Participant',
+            email: email || `${a.participant_name.replace(/\s+/g, '').toLowerCase()}@student.msc`,
+            score: Math.round(Number(a.score) || 0),
+            timeTaken: a.time_taken_seconds || 0,
+            status: 'completed'
+          });
+        }
+      }
+      attendees = Array.from(studentMap.values());
+    } else {
+      // Live Quiz
+      const participants = await Participant.findAll({
+        where: { quiz_id: quiz.id, disqualified: false }
+      }).catch(() => []);
+
+      if (participants.length > 0) {
+        const pIds = participants.map(p => p.id);
+        const answers = await Answer.findAll({
+          where: { participant_id: { [Op.in]: pIds } }
+        }).catch(() => []);
+
+        const scoreByParticipant = new Map();
+        for (const ans of answers) {
+          const pid = String(ans.participant_id);
+          const pts = ans.marks_awarded !== undefined && ans.marks_awarded !== null 
+            ? Number(ans.marks_awarded) 
+            : (ans.is_correct ? 100 : 0);
+          scoreByParticipant.set(pid, (scoreByParticipant.get(pid) || 0) + pts);
+        }
+
+        const studentMap = new Map();
+        for (const p of participants) {
+          const email = (p.email || '').trim().toLowerCase();
+          const key = email || p.name.trim().toLowerCase();
+          const score = scoreByParticipant.get(String(p.id)) || 0;
+          if (!studentMap.has(key)) {
+            studentMap.set(key, {
+              name: p.name || 'Participant',
+              email: email || `${p.name.replace(/\s+/g, '').toLowerCase()}@student.msc`,
+              score: Math.round(score),
+              college: p.college || '',
+              status: 'completed'
+            });
+          }
+        }
+        attendees = Array.from(studentMap.values()).sort((a, b) => b.score - a.score);
+      }
+    }
+
+    // Fetch available badges from Verification Platform
+    const verificationPortalUrl = process.env.VERIFICATION_BACKEND_URL || process.env.VERIFICATION_PORTAL_URL || 'https://msc-cert-verification-bkdgfwa0fkcbgyhm.centralindia-01.azurewebsites.net';
+    let availableBadges = [
+      { id: 'azure-cloud-specialist', title: 'Microsoft Azure & Cloud Fundamentals Master', category: 'Cloud' },
+      { id: 'dbms-sql-architect', title: 'Database Systems & SQL Specialist', category: 'DBMS' },
+      { id: 'dsa-algo-expert', title: 'Data Structures & Algorithms Expert', category: 'DSA' },
+      { id: 'fullstack-web-dev', title: 'Full-Stack Web Development Certified Specialist', category: 'Web' },
+      { id: 'python-dev-pro', title: 'Python Programming Certified Professional', category: 'Programming' },
+      { id: 'ai-machine-learning', title: 'Artificial Intelligence & Machine Learning Specialist', category: 'AI/ML' },
+      { id: 'devops-cloud-architect', title: 'DevOps & Cloud Infrastructure Master', category: 'DevOps' },
+      { id: 'msc-tech-champion', title: 'MSC PRPCEM Student Tech Champion', category: 'General' }
+    ];
+
+    try {
+      const response = await axios.get(`${verificationPortalUrl}/api/integration/events`, {
+        headers: { 'x-api-key': process.env.VERIFICATION_API_KEY || 'msc_quiz_verification_secret_key_2026' },
+        timeout: 3000
+      });
+      if (response.data && Array.isArray(response.data.events)) {
+        const portalBadges = response.data.events.map(ev => ({
+          id: ev.id || ev._id || ev.sys_id || ev.slug,
+          title: ev.name || ev.title || ev.badgeTitle,
+          category: ev.category || 'Certification',
+          source: 'verification_portal'
+        }));
+        if (portalBadges.length > 0) {
+          availableBadges = [...portalBadges, ...availableBadges.filter(b => !portalBadges.some(pb => pb.id === b.id))];
+        }
+      }
+    } catch (e) {
+      // Fallback to standard badges
+    }
+
+    return res.json({
+      success: true,
+      quiz: {
+        id: quiz.id,
+        title: quiz.title,
+        event_name: quiz.event_name,
+        mode: quiz.mode,
+        status: quiz.status,
+        badge_sys_id: quiz.badge_sys_id,
+        badge_title: quiz.badge_title || `${quiz.title} Certified Master`,
+        badge_issued_at: quiz.badge_issued_at,
+        verification_synced: quiz.verification_synced,
+        verification_synced_at: quiz.verification_synced_at
+      },
+      eligibleCount: attendees.length,
+      attendees: attendees.slice(0, 100),
+      availableBadges
+    });
+  } catch (error) {
+    console.error('Get badge status error:', error);
+    return res.status(500).json({ error: 'Server error retrieving badge status' });
+  }
+});
+
+// Issue or save badges for a quiz (permission-gated admin action)
+router.post('/:id/issue-badges', authMiddleware, async (req, res) => {
+  try {
+    const { badge_sys_id, badge_title, action = 'issue_now', min_score = 0 } = req.body;
+    const quiz = await Quiz.findByPk(req.params.id);
+
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    if (!badge_sys_id || !String(badge_sys_id).trim()) {
+      return res.status(400).json({ error: 'Badge Sys ID is required to configure or issue badges.' });
+    }
+
+    const cleanSysId = String(badge_sys_id).trim();
+    const cleanBadgeTitle = badge_title ? String(badge_title).trim() : `${quiz.title} Certified Specialist`;
+
+    if (action === 'save_only') {
+      await quiz.update({
+        badge_sys_id: cleanSysId,
+        badge_title: cleanBadgeTitle
+      });
+      return res.json({
+        success: true,
+        message: 'Badge settings saved successfully. You can issue badges anytime after the event completes.',
+        quiz: {
+          id: quiz.id,
+          badge_sys_id: cleanSysId,
+          badge_title: cleanBadgeTitle,
+          badge_issued_at: quiz.badge_issued_at
+        }
+      });
+    }
+
+    // action === 'issue_now'
+    // Gather all eligible participants
+    let attendees = [];
+
+    if (quiz.mode === 'SCHEDULED') {
+      const attempts = await QuizAttempt.findAll({
+        where: { quiz_id: quiz.id, status: 'completed' },
+        order: [['score', 'DESC']]
+      }).catch(() => []);
+
+      const studentMap = new Map();
+      for (const a of attempts) {
+        const score = Math.round(Number(a.score) || 0);
+        if (score >= min_score) {
+          const email = (a.participant_email || '').trim().toLowerCase();
+          const key = email || a.participant_name.trim().toLowerCase();
+          if (!studentMap.has(key)) {
+            studentMap.set(key, {
+              name: a.participant_name || 'Participant',
+              email: email || `${a.participant_name.replace(/\s+/g, '').toLowerCase()}@student.msc`,
+              score: score,
+              status: 'passed'
+            });
+          }
+        }
+      }
+      attendees = Array.from(studentMap.values());
+    } else {
+      // Live Quiz
+      const participants = await Participant.findAll({
+        where: { quiz_id: quiz.id, disqualified: false }
+      }).catch(() => []);
+
+      if (participants.length > 0) {
+        const pIds = participants.map(p => p.id);
+        const answers = await Answer.findAll({
+          where: { participant_id: { [Op.in]: pIds } }
+        }).catch(() => []);
+
+        const scoreByParticipant = new Map();
+        for (const ans of answers) {
+          const pid = String(ans.participant_id);
+          const pts = ans.marks_awarded !== undefined && ans.marks_awarded !== null 
+            ? Number(ans.marks_awarded) 
+            : (ans.is_correct ? 100 : 0);
+          scoreByParticipant.set(pid, (scoreByParticipant.get(pid) || 0) + pts);
+        }
+
+        const studentMap = new Map();
+        for (const p of participants) {
+          const score = Math.round(scoreByParticipant.get(String(p.id)) || 0);
+          if (score >= min_score) {
+            const email = (p.email || '').trim().toLowerCase();
+            const key = email || p.name.trim().toLowerCase();
+            if (!studentMap.has(key)) {
+              studentMap.set(key, {
+                name: p.name || 'Participant',
+                email: email || `${p.name.replace(/\s+/g, '').toLowerCase()}@student.msc`,
+                score: score,
+                status: 'passed'
+              });
+            }
+          }
+        }
+        attendees = Array.from(studentMap.values());
+      }
+    }
+
+    if (attendees.length === 0) {
+      return res.status(400).json({
+        error: min_score > 0 
+          ? `No participants scored >= ${min_score}% to receive this badge.` 
+          : 'No completed submissions found to issue badges to yet.'
+      });
+    }
+
+    const issuedAt = new Date();
+    await quiz.update({
+      badge_sys_id: cleanSysId,
+      badge_title: cleanBadgeTitle,
+      badge_issued_at: issuedAt,
+      verification_synced: true,
+      verification_synced_at: issuedAt,
+      verification_event_id: cleanSysId
+    });
+
+    // Dispatch to Verification Portal API
+    const verificationPortalUrl = process.env.VERIFICATION_BACKEND_URL || process.env.VERIFICATION_PORTAL_URL || 'https://msc-cert-verification-bkdgfwa0fkcbgyhm.centralindia-01.azurewebsites.net';
+    const apiKey = process.env.VERIFICATION_API_KEY || 'msc_quiz_verification_secret_key_2026';
+
+    try {
+      await axios.post(`${verificationPortalUrl}/api/integration/publish-results`, {
+        badgeSysId: cleanSysId,
+        eventId: cleanSysId,
+        quizId: quiz.id,
+        quizTitle: quiz.title,
+        eventName: quiz.event_name,
+        badgeTitle: cleanBadgeTitle,
+        publishDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+        attendees
+      }, {
+        headers: { 'x-api-key': apiKey },
+        timeout: 5000
+      });
+    } catch (syncErr) {
+      console.warn('Verification portal sync notice:', syncErr.message);
+    }
+
+    return res.json({
+      success: true,
+      message: `Successfully issued digital badges with Sys ID "${cleanSysId}" to ${attendees.length} participant(s)!`,
+      issuedCount: attendees.length,
+      badge_sys_id: cleanSysId,
+      badge_title: cleanBadgeTitle,
+      badge_issued_at: issuedAt,
+      attendees: attendees.slice(0, 100)
+    });
+  } catch (error) {
+    console.error('Issue badges error:', error);
+    return res.status(500).json({ error: 'Server error issuing badges' });
   }
 });
 

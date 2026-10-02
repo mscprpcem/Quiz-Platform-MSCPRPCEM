@@ -137,6 +137,14 @@ const Quiz = sequelize.define('Quiz', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  badge_sys_id: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  badge_issued_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   difficulty: {
     type: DataTypes.STRING,
     defaultValue: 'Intermediate',

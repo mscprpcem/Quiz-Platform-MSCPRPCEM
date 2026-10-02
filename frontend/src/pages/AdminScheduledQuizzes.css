@@ -1,0 +1,176 @@
+/* ============================================================
+   ADMIN SCHEDULED QUIZZES STYLES - MODERN MSC DESIGN
+   ============================================================ */
+
+/* ── Page Header Card ── */
+.scheduled-header-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+}
+
+/* ── Metrics Strip in Header ── */
+.scheduled-metric-pill {
+  padding: 6px 12px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Segmented Tab Track ── */
+.scheduled-tabs-track {
+  background: #F1F5F9;
+  padding: 3px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid #E2E8F0;
+}
+
+.scheduled-tab-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  border: none;
+  background: transparent;
+  color: #64748B;
+}
+
+.scheduled-tab-btn:hover {
+  color: #0F172A;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.scheduled-tab-btn-active {
+  background: #FFFFFF;
+  color: #2563EB;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.scheduled-tab-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: rgba(148, 163, 184, 0.2);
+  color: #64748B;
+  line-height: 1.2;
+}
+
+.scheduled-tab-btn-active .scheduled-tab-badge {
+  background: #EFF6FF;
+  color: #2563EB;
+}
+
+/* ── Scheduled Quiz Card ── */
+.scheduled-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+
+.scheduled-card:hover {
+  border-color: #93C5FD;
+  box-shadow: 0 6px 18px -3px rgba(37, 99, 235, 0.08);
+  transform: translateY(-1.5px);
+}
+
+/* ── Action Buttons Footer ── */
+.scheduled-btn-action {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.scheduled-btn-action:hover {
+  background: #F1F5F9;
+  border-color: #CBD5E1;
+  color: #0F172A;
+}
+
+.scheduled-btn-action:active {
+  transform: scale(0.98);
+}
+
+.scheduled-btn-action-primary {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #BFDBFE;
+  background: #EFF6FF;
+  color: #2563EB;
+  font-size: 11px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.scheduled-btn-action-primary:hover {
+  background: #DBEAFE;
+  border-color: #93C5FD;
+  color: #1D4ED8;
+}
+
+.scheduled-btn-action-primary:active {
+  transform: scale(0.98);
+}
+
+.scheduled-btn-action-danger {
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid #FECDD3;
+  background: #FFF1F2;
+  color: #E11D48;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.scheduled-btn-action-danger:hover {
+  background: #FFE4E6;
+  border-color: #FDA4AF;
+  color: #BE123C;
+}

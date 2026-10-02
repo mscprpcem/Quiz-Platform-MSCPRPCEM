@@ -42,6 +42,8 @@ async function runAutoMigrations(sequelize) {
     `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}svg_template${quote} TEXT;`,
     `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}custom_slug${quote} VARCHAR(255);`,
     `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}badge_title${quote} VARCHAR(255);`,
+    `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}badge_sys_id${quote} VARCHAR(255);`,
+    `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}badge_issued_at${quote} ${dateType};`,
     `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}event_id${quote} UUID;`,
     `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}difficulty${quote} VARCHAR(255) DEFAULT 'Intermediate';`,
 

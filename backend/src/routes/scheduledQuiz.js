@@ -696,7 +696,7 @@ router.post('/', authMiddleware, async (req, res) => {
       time_limit, max_attempts, score_policy, shuffle_questions, shuffle_answers,
       require_fullscreen, anti_cheat_enabled, max_violations, positive_marks,
       negative_marks, show_leaderboard, questions, schedule_config, custom_slug,
-      badge_title
+      badge_title, badge_sys_id
     } = req.body;
 
     if (!title || !schedule_type || !start_date || !end_date) {
@@ -719,6 +719,7 @@ router.post('/', authMiddleware, async (req, res) => {
       join_code,
       custom_slug: cleanSlug,
       badge_title: badge_title || null,
+      badge_sys_id: badge_sys_id || null,
       mode: 'SCHEDULED',
       status: 'draft',
       schedule_type,
@@ -1078,7 +1079,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       time_limit, max_attempts, score_policy, shuffle_questions, shuffle_answers,
       require_fullscreen, anti_cheat_enabled, max_violations, positive_marks,
       negative_marks, show_leaderboard, questions, schedule_config, custom_slug,
-      badge_title
+      badge_title, badge_sys_id
     } = req.body;
 
     const cleanSlug = custom_slug !== undefined ? (custom_slug ? custom_slug.trim().replace(/^\//, '') : null) : quiz.custom_slug;
@@ -1100,6 +1101,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       subject: category || quiz.subject,
       custom_slug: cleanSlug,
       badge_title: badge_title !== undefined ? badge_title : quiz.badge_title,
+      badge_sys_id: badge_sys_id !== undefined ? badge_sys_id : quiz.badge_sys_id,
       scheduled_start: start_iso ? new Date(start_iso) : (start_date ? parseISTDateTime(start_date, start_time || '00:00:00') : quiz.scheduled_start),
       scheduled_end: end_iso ? new Date(end_iso) : (end_date ? parseISTDateTime(end_date, end_time || '23:59:59') : quiz.scheduled_end),
       mode: 'SCHEDULED',
