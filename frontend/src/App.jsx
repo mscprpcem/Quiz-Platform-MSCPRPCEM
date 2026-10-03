@@ -207,85 +207,112 @@ function App() {
                     <AdminRoute>
                       <AdminDashboard />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/users"
                   element={
                     <AdminRoute>
                       <AdminUsers />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/quizzes"
                   element={
                     <AdminRoute>
                       <QuizManagement />
                     </AdminRoute>
-
+                  }
+                />
                 <Route
                   path="/admin/scheduled-quizzes"
                   element={
                     <AdminRoute>
                       <AdminScheduledQuizzes />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/scheduled-quizzes/create"
                   element={
                     <AdminRoute>
                       <CreateScheduledQuiz />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/scheduled-quizzes/edit/:id"
                   element={
                     <AdminRoute>
                       <CreateScheduledQuiz />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/scheduled-quizzes/:id"
                   element={
                     <AdminRoute>
                       <ScheduledQuizDetails />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/quizzes/:id"
                   element={
                     <AdminRoute>
                       <QuestionManagement />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/run-quiz/:id"
                   element={
                     <AdminRoute>
                       <RunQuiz />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/analytics"
                   element={
                     <AdminRoute>
                       <Analytics />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/analytics/:id"
                   element={
                     <AdminRoute>
                       <Analytics />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/courses"
                   element={
                     <AdminRoute>
                       <AdminCourses />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/email-dispatch"
                   element={
                     <AdminRoute>
                       <AdminEmailDispatch />
                     </AdminRoute>
+                  }
+                />
                 <Route
                   path="/admin/cumulative-leaderboard"
                   element={
                     <AdminRoute>
                       <AdminCumulativeLeaderboard />
                     </AdminRoute>
+                  }
+                />
 
                 {/* Fallback 404 route */}
                 <Route path="*" element={<NotFound />} />
