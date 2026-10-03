@@ -17,7 +17,7 @@
    - 5.1 [Real-Time Socket.io Live Quiz Engine](#51-real-time-socketio-live-quiz-engine)
    - 5.2 [Scheduled Self-Paced Exam & Assessment Engine](#52-scheduled-self-paced-exam--assessment-engine)
    - 5.3 [Anti-Cheating, Proctoring & Violation Detection Subsystem](#53-anti-cheating-proctoring--violation-detection-subsystem)
-   - 5.4 [Branded QR Code Generation & Card Download Subsystem](#54-branded-qr-code-generation--card-download-subsystem)
+   - 5.4 [QR Code Studio & Event Authoring Delegation (Centralized in Event Platform)](#54-branded-qr-code-generation--card-download-subsystem)
    - 5.5 [Digital Badge, Certificate & Credential Issuance Engine](#55-digital-badge-certificate--credential-issuance-engine)
    - 5.6 [Vanity Slug & Intelligent Direct Routing Engine](#56-vanity-slug--intelligent-direct-routing-engine)
    - 5.7 [Flagship Event Management & Dynamic Expiration Engine](#57-flagship-event-management--dynamic-expiration-engine)
@@ -41,6 +41,13 @@
 ---
 
 ## 1. Executive Summary & Core Architectural Tenets
+
+> [!NOTE]
+> **Architecture Update (v2.5.0 Consolidation)**:
+> In accordance with the centralized institutional architecture, **Event Creation & Authoring**, **QR Code Studio**, and **Link Shortening** are centrally managed in the **PRPCEM Event Platform** (`portal.mscprpcem.tech`).
+> The **Quiz Assessment Platform** is strictly dedicated as the high-throughput, low-latency **Assessment & Competition Engine** (Real-Time Live Quizzes, Scheduled Exams, Automated Question Banks, and Cumulative Leaderboards).
+> Events are automatically mirrored into the Quiz Platform's `"Events"` table and `events.json` in real time via the Event Platform's synchronization engine.
+
 
 The **MSC PRPCEM Quiz & Assessment Platform** is an enterprise-grade testing and event operations ecosystem engineered to support:
 1. **High-concurrency live multiplayer quiz competitions** with sub-50ms WebSocket latency.
