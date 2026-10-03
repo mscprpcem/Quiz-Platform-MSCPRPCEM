@@ -118,7 +118,33 @@ const AdminRoute = ({ children }) => {
   return <AdminLayout>{children}</AdminLayout>;
 };
 
-export default function App() {
+export default 
+// Central Event Platform Redirects
+function RedirectToCentralPortal({ target = 'events' }) {
+  React.useEffect(() => {
+    window.location.href = target === 'qr-studio' 
+      ? 'https://portal.mscprpcem.tech/portal/qr-studio' 
+      : 'https://portal.mscprpcem.tech/portal/events';
+  }, [target]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 font-segoe p-4 text-center">
+      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md">
+        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4 font-bold text-xl">↗</div>
+        <h2 className="text-lg font-black text-slate-900 mb-2">Redirecting to Central Event Platform...</h2>
+        <p className="text-xs text-slate-500 mb-4">Event and QR management are now centrally hosted on portal.mscprpcem.tech.</p>
+        <a 
+          href={target === 'qr-studio' ? 'https://portal.mscprpcem.tech/portal/qr-studio' : 'https://portal.mscprpcem.tech/portal/events'}
+          className="inline-block px-4 py-2 bg-blue-600 text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition-colors"
+        >
+          Click here if not redirected automatically
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function App() {
   return (
     <ErrorBoundary>
       <ToastProvider>
@@ -211,14 +237,7 @@ export default function App() {
                     </AdminRoute>
                   }
                 />
-                <Route
-                  path="/admin/events"
-                  element={
-                    <AdminRoute>
-                      <AdminEvents />
-                    </AdminRoute>
-                  }
-                />
+                <Route path="/admin/events" element={<RedirectToCentralPortal target="events" />} />
                 <Route
                   path="/admin/users"
                   element={
@@ -324,14 +343,7 @@ export default function App() {
                     </AdminRoute>
                   }
                 />
-                <Route
-                  path="/admin/qr-generator"
-                  element={
-                    <AdminRoute>
-                      <AdminQRGenerator />
-                    </AdminRoute>
-                  }
-                />
+                <Route path="/admin/qr-generator" element={<RedirectToCentralPortal target="qr-studio" />} />
 
                 {/* Fallback 404 route */}
                 <Route path="*" element={<NotFound />} />

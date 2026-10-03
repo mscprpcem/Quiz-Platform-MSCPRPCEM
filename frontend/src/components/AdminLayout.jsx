@@ -30,14 +30,12 @@ export default function AdminLayout({ children }) {
       ]
     },
     {
-      title: 'EVENT & QUIZ MANAGEMENT',
+      title: 'QUIZ & COMPETITION ENGINE',
       items: [
-        { label: 'Events & Chapters', icon: Sparkles, path: '/admin/events' },
-        { label: 'Live Quiz', icon: Radio, path: '/admin/quizzes' },
+                { label: 'Live Quiz', icon: Radio, path: '/admin/quizzes' },
         { label: 'Scheduled Quiz', icon: Calendar, path: '/admin/scheduled-quizzes' },
         { label: 'Cumulative Leaderboard', icon: Trophy, path: '/admin/cumulative-leaderboard' },
-        { label: 'QR Code Studio', icon: QrCode, path: '/admin/qr-generator' }
-      ]
+              ]
     },
     {
       title: 'USER & MEMBER MANAGEMENT',
