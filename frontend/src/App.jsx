@@ -43,8 +43,6 @@ import StudentAuth from './pages/StudentAuth';
 import AuthCallback from './pages/AuthCallback';
 import AdminEmailDispatch from './pages/AdminEmailDispatch';
 import AdminCumulativeLeaderboard from './pages/AdminCumulativeLeaderboard';
-import AdminQRGenerator from './pages/AdminQRGenerator';
-import AdminEvents from './pages/AdminEvents';
 import AdminUsers from './pages/AdminUsers';
 import EventRegister from './pages/EventRegister';
 import SqlPractice from './pages/SqlPractice';
@@ -117,32 +115,6 @@ const AdminRoute = ({ children }) => {
 
   return <AdminLayout>{children}</AdminLayout>;
 };
-
-export default 
-// Central Event Platform Redirects
-function RedirectToCentralPortal({ target = 'events' }) {
-  React.useEffect(() => {
-    window.location.href = target === 'qr-studio' 
-      ? 'https://portal.mscprpcem.tech/portal/qr-studio' 
-      : 'https://portal.mscprpcem.tech/portal/events';
-  }, [target]);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 font-segoe p-4 text-center">
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md">
-        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4 font-bold text-xl">↗</div>
-        <h2 className="text-lg font-black text-slate-900 mb-2">Redirecting to Central Event Platform...</h2>
-        <p className="text-xs text-slate-500 mb-4">Event and QR management are now centrally hosted on portal.mscprpcem.tech.</p>
-        <a 
-          href={target === 'qr-studio' ? 'https://portal.mscprpcem.tech/portal/qr-studio' : 'https://portal.mscprpcem.tech/portal/events'}
-          className="inline-block px-4 py-2 bg-blue-600 text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition-colors"
-        >
-          Click here if not redirected automatically
-        </a>
-      </div>
-    </div>
-  );
-}
 
 function App() {
   return (
@@ -235,25 +207,18 @@ function App() {
                     <AdminRoute>
                       <AdminDashboard />
                     </AdminRoute>
-                  }
-                />
-                <Route path="/admin/events" element={<RedirectToCentralPortal target="events" />} />
                 <Route
                   path="/admin/users"
                   element={
                     <AdminRoute>
                       <AdminUsers />
                     </AdminRoute>
-                  }
-                />
                 <Route
                   path="/admin/quizzes"
                   element={
                     <AdminRoute>
                       <QuizManagement />
                     </AdminRoute>
-                  }
-                />
 
                 <Route
                   path="/admin/scheduled-quizzes"
@@ -261,89 +226,66 @@ function App() {
                     <AdminRoute>
                       <AdminScheduledQuizzes />
                     </AdminRoute>
-                  }
-                />
                 <Route
                   path="/admin/scheduled-quizzes/create"
                   element={
                     <AdminRoute>
                       <CreateScheduledQuiz />
                     </AdminRoute>
-                  }
-                />
                 <Route
                   path="/admin/scheduled-quizzes/edit/:id"
                   element={
                     <AdminRoute>
                       <CreateScheduledQuiz />
                     </AdminRoute>
-                  }
-                />
                 <Route
                   path="/admin/scheduled-quizzes/:id"
                   element={
                     <AdminRoute>
                       <ScheduledQuizDetails />
                     </AdminRoute>
-                  }
-                />
                 <Route
                   path="/admin/quizzes/:id"
                   element={
                     <AdminRoute>
                       <QuestionManagement />
                     </AdminRoute>
-                  }
-                />
                 <Route
                   path="/admin/run-quiz/:id"
                   element={
                     <AdminRoute>
                       <RunQuiz />
                     </AdminRoute>
-                  }
-                />
                 <Route
                   path="/admin/analytics"
                   element={
                     <AdminRoute>
                       <Analytics />
                     </AdminRoute>
-                  }
-                />
                 <Route
                   path="/admin/analytics/:id"
                   element={
                     <AdminRoute>
                       <Analytics />
                     </AdminRoute>
-                  }
-                />
                 <Route
                   path="/admin/courses"
                   element={
                     <AdminRoute>
                       <AdminCourses />
                     </AdminRoute>
-                  }
-                />
                 <Route
                   path="/admin/email-dispatch"
                   element={
                     <AdminRoute>
                       <AdminEmailDispatch />
                     </AdminRoute>
-                  }
-                />
                 <Route
                   path="/admin/cumulative-leaderboard"
                   element={
                     <AdminRoute>
                       <AdminCumulativeLeaderboard />
                     </AdminRoute>
-                  }
-                />
-                <Route path="/admin/qr-generator" element={<RedirectToCentralPortal target="qr-studio" />} />
 
                 {/* Fallback 404 route */}
                 <Route path="*" element={<NotFound />} />
@@ -359,3 +301,5 @@ function App() {
 </ErrorBoundary>
 );
 }
+
+export default App;
