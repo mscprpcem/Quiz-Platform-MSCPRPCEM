@@ -38,7 +38,7 @@ export default function AdminLayout({ children }) {
               ]
     },
     {
-      title: 'USER & MEMBER MANAGEMENT',
+      title: 'USER DIRECTORY & ANALYTICS',
       items: [
         { label: 'User Directory', icon: Users, path: '/admin/users' }
       ]

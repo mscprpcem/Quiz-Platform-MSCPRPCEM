@@ -1,35 +1,43 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
 import ThemeDropdown from '../components/ThemeDropdown';
 import {
   Users,
   Search,
-  Trash2,
   Download,
   RefreshCw,
-  AlertTriangle,
   CheckCircle2,
   Clock,
   Shield,
   GraduationCap,
   ChevronLeft,
   ChevronRight,
-  Filter,
   Check,
   Copy,
   X,
-  UserCheck,
-  UserX,
-  UserPlus,
-  Sparkles,
   Eye,
   ExternalLink,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  ShieldCheck
+  ShieldCheck,
+  BarChart2,
+  TrendingUp,
+  Award,
+  AlertCircle
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  CartesianGrid,
+  AreaChart,
+  Area
+} from 'recharts';
 
 const ROLE_OPTIONS = [
   { value: 'all', label: 'All Roles' },
@@ -53,7 +61,6 @@ const LIMIT_OPTIONS = [
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [seeding, setSeeding] = useState(false);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalVerified: 0,
@@ -78,27 +85,16 @@ export default function AdminUsers() {
     hasNext: false
   });
 
-  // Modals State
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  // Read-Only User Details Modal
   const [viewDetailUser, setViewDetailUser] = useState(null);
-  const [revokeTarget, setRevokeTarget] = useState(null);
-  const [revoking, setRevoking] = useState(false);
-  const [showBulkRevokeModal, setShowBulkRevokeModal] = useState(false);
 
   // Copy Feedback State
   const [copiedId, setCopiedId] = useState(null);
 
-  // Bulk Selection State
-  const [selectedUserIds, setSelectedUserIds] = useState([]);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
-  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-  const [bulkVerifying, setBulkVerifying] = useState(false);
-
-  // Feedback State
+  // Alert Feedback State
   const [alertMsg, setAlertMsg] = useState(null);
 
-  // Auto-dismiss alert after 5 seconds
+  // Auto-dismiss alert banner after 5 seconds
   useEffect(() => {
     if (alertMsg) {
       const timer = setTimeout(() => setAlertMsg(null), 5000);
@@ -106,14 +102,9 @@ export default function AdminUsers() {
     }
   }, [alertMsg]);
 
-  // Determine if any modal is currently open
-  const isAnyModalOpen = Boolean(
-    viewDetailUser || revokeTarget || showBulkRevokeModal || deleteTarget || showBulkDeleteModal
-  );
-
-  // Prevent background page scrolling while any modal/popup is open
+  // Lock background scroll when Details Modal is open
   useEffect(() => {
-    if (isAnyModalOpen) {
+    if (viewDetailUser) {
       const originalBodyOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       const mainEl = document.querySelector('main');
@@ -125,9 +116,9 @@ export default function AdminUsers() {
         if (mainEl) mainEl.style.overflow = prevMainOverflow;
       };
     }
-  }, [isAnyModalOpen]);
+  }, [viewDetailUser]);
 
-  // Copy handle to clipboard
+  // Copy handle or email to clipboard
   const handleCopy = (text, id) => {
     if (!text) return;
     if (navigator?.clipboard?.writeText) {
@@ -135,29 +126,6 @@ export default function AdminUsers() {
     }
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  // Quick Seed Sample Students (for empty/demo directories)
-  const handleSeedSamples = async () => {
-    try {
-      setSeeding(true);
-      const res = await api.post('/api/users-directory/seed-samples');
-      if (res.data?.success) {
-        setAlertMsg({
-          type: 'success',
-          text: res.data.message || 'Demo student accounts populated successfully!'
-        });
-        fetchUsers();
-      }
-    } catch (err) {
-      console.error('Seed demo students error:', err);
-      setAlertMsg({
-        type: 'error',
-        text: err.response?.data?.error || 'Failed to populate demo students.'
-      });
-    } finally {
-      setSeeding(false);
-    }
   };
 
   // Load Users from Backend Directory
@@ -200,20 +168,9 @@ export default function AdminUsers() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Handle Search Input Change
+  // Handlers for search & filters
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
-    setPage(1);
-  };
-
-  // Handle Filter Changes
-  const handleRoleFilterChange = (e) => {
-    setRoleFilter(e.target.value);
-    setPage(1);
-  };
-
-  const handleStatusFilterChange = (e) => {
-    setStatusFilter(e.target.value);
     setPage(1);
   };
 
@@ -230,169 +187,6 @@ export default function AdminUsers() {
       setSortOrder('ASC');
     }
     setPage(1);
-  };
-
-  // Toggle Single User Selection
-  const toggleSelectUser = (id) => {
-    setSelectedUserIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  // Toggle Select All Users on Current Page
-  const toggleSelectAll = () => {
-    if (users.every((u) => selectedUserIds.includes(u.id))) {
-      setSelectedUserIds((prev) => prev.filter((id) => !users.some((u) => u.id === id)));
-    } else {
-      const currentPageIds = users.map((u) => u.id);
-      setSelectedUserIds((prev) => Array.from(new Set([...prev, ...currentPageIds])));
-    }
-  };
-
-  // Toggle Single User Verification (With confirmation before revoking)
-  const handleToggleVerify = (user) => {
-    if (user.is_verified) {
-      // User is currently verified — confirm first before revoking!
-      setRevokeTarget(user);
-    } else {
-      // User is pending / unverified — verify directly
-      executeVerifyUser(user, true);
-    }
-  };
-
-  // Execute verification update
-  const executeVerifyUser = async (user, newStatus) => {
-    try {
-      setRevoking(true);
-      const res = await api.patch(`/api/users-directory/${user.id}/verify`, {
-        is_verified: newStatus
-      });
-      if (res.data?.success) {
-        setAlertMsg({
-          type: 'success',
-          text: res.data.message || `User ${user.name} is now ${newStatus ? 'verified' : 'unverified'}.`
-        });
-        setRevokeTarget(null);
-        fetchUsers(true);
-        if (viewDetailUser && viewDetailUser.id === user.id) {
-          setViewDetailUser((prev) => ({ ...prev, is_verified: newStatus }));
-        }
-      }
-    } catch (err) {
-      setAlertMsg({
-        type: 'error',
-        text: err.response?.data?.error || 'Failed to update verification status.'
-      });
-    } finally {
-      setRevoking(false);
-    }
-  };
-
-  // Bulk Verify or Unverify
-  const handleBulkVerify = async (verifyStatus = true) => {
-    if (selectedUserIds.length === 0) return;
-    try {
-      setBulkVerifying(true);
-      const res = await api.post('/api/users-directory/bulk-verify', {
-        userIds: selectedUserIds,
-        verify: verifyStatus
-      });
-      if (res.data?.success) {
-        setAlertMsg({
-          type: 'success',
-          text: res.data.message || `Successfully updated ${res.data.updatedCount} user(s).`
-        });
-        setSelectedUserIds([]);
-        fetchUsers(true);
-      }
-    } catch (err) {
-      setAlertMsg({
-        type: 'error',
-        text: err.response?.data?.error || 'Failed to bulk update verification status.'
-      });
-    } finally {
-      setBulkVerifying(false);
-    }
-  };
-
-  // Change User Role
-  const handleChangeRole = async (user, newRole) => {
-    try {
-      const res = await api.patch(`/api/users-directory/${user.id}/role`, { role: newRole });
-      if (res.data?.success) {
-        setAlertMsg({
-          type: 'success',
-          text: res.data.message || `Role updated to ${newRole.toUpperCase()}.`
-        });
-        fetchUsers(true);
-        if (viewDetailUser && viewDetailUser.id === user.id) {
-          setViewDetailUser((prev) => ({ ...prev, role: newRole }));
-        }
-      }
-    } catch (err) {
-      setAlertMsg({
-        type: 'error',
-        text: err.response?.data?.error || 'Failed to update user role.'
-      });
-    }
-  };
-
-  // Delete a single user
-  const handleDeleteSingle = async () => {
-    if (!deleteTarget) return;
-    try {
-      setDeleting(true);
-      const res = await api.delete(`/api/users-directory/${deleteTarget.id}`);
-      if (res.data?.success) {
-        setAlertMsg({
-          type: 'success',
-          text: `User "${deleteTarget.name || deleteTarget.email}" deleted successfully.`
-        });
-        setDeleteTarget(null);
-        if (viewDetailUser && viewDetailUser.id === deleteTarget.id) {
-          setViewDetailUser(null);
-        }
-        setSelectedUserIds((prev) => prev.filter((id) => id !== deleteTarget.id));
-        fetchUsers(true);
-      }
-    } catch (err) {
-      console.error('Delete user error:', err);
-      setAlertMsg({
-        type: 'error',
-        text: err.response?.data?.error || 'Failed to delete user.'
-      });
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // Bulk delete selected users
-  const handleBulkDelete = async () => {
-    if (selectedUserIds.length === 0) return;
-    try {
-      setBulkDeleting(true);
-      const res = await api.post('/api/users-directory/bulk-delete', {
-        userIds: selectedUserIds
-      });
-
-      if (res.data?.success) {
-        setAlertMsg({
-          type: 'success',
-          text: `Successfully deleted ${res.data.deletedCount} user(s).`
-        });
-        setShowBulkDeleteModal(false);
-        setSelectedUserIds([]);
-        fetchUsers(true);
-      }
-    } catch (err) {
-      console.error('Bulk delete error:', err);
-      setAlertMsg({
-        type: 'error',
-        text: err.response?.data?.error || 'Failed to perform bulk delete.'
-      });
-    } finally {
-      setBulkDeleting(false);
-    }
   };
 
   // Export Users as CSV
@@ -426,6 +220,48 @@ export default function AdminUsers() {
     document.body.removeChild(link);
   };
 
+  // Real-time Computed Analytics
+  const verificationRate = stats.totalUsers > 0
+    ? Math.round((stats.totalVerified / stats.totalUsers) * 100)
+    : 0;
+
+  const studentRate = stats.totalUsers > 0
+    ? Math.round((stats.totalStudents / stats.totalUsers) * 100)
+    : 0;
+
+  // Status & Role Distribution Data for Analytics Chart
+  const statusRoleDistribution = useMemo(() => {
+    return [
+      { category: 'Verified', count: stats.totalVerified, fill: '#10b981' },
+      { category: 'Pending', count: stats.totalPending, fill: '#f59e0b' },
+      { category: 'Students', count: stats.totalStudents, fill: '#6366f1' },
+      { category: 'Admins', count: Math.max(0, stats.totalUsers - stats.totalStudents), fill: '#a855f7' }
+    ];
+  }, [stats]);
+
+  // Signups Trend by Date
+  const signupTrendData = useMemo(() => {
+    if (!users || users.length === 0) return [];
+    const dateMap = {};
+    users.forEach((u) => {
+      if (!u.createdAt) return;
+      const d = new Date(u.createdAt);
+      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateMap[label] = (dateMap[label] || 0) + 1;
+    });
+    const result = Object.entries(dateMap).map(([date, signups]) => ({ date, signups }));
+    return result.length > 0 ? result.slice(-8) : [{ date: 'Recent', signups: users.length }];
+  }, [users]);
+
+  // College Representation Count
+  const uniqueCollegesCount = useMemo(() => {
+    const colSet = new Set();
+    users.forEach((u) => {
+      if (u.college) colSet.add(u.college.trim());
+    });
+    return colSet.size > 0 ? colSet.size : 1;
+  }, [users]);
+
   const startRecord = (page - 1) * limit + (users.length > 0 ? 1 : 0);
   const endRecord = Math.min(page * limit, pagination.total);
 
@@ -442,9 +278,9 @@ export default function AdminUsers() {
           }`}
         >
           {alertMsg.type === 'success' ? (
-            <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
+            <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
           ) : (
-            <AlertTriangle size={18} className="text-rose-600 flex-shrink-0" />
+            <AlertCircle size={18} className="text-rose-600 shrink-0" />
           )}
           <span>{alertMsg.text}</span>
           <button
@@ -456,30 +292,30 @@ export default function AdminUsers() {
         </div>
       )}
 
-      {/* Top Header */}
+      {/* ════════ TOP HEADER ════════ */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
             <span>Admin Console</span>
             <span>•</span>
-            <span className="text-blue-600 font-extrabold">Identity & Access Management</span>
+            <span className="text-blue-600 font-extrabold">User Directory & Analytics</span>
           </div>
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 flex-shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
               <Users size={22} className="text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                  User Directory
+                  User Directory & Analytics
                 </h1>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  {stats.totalUsers} {stats.totalUsers === 1 ? 'Account' : 'Accounts'}
+                  {stats.totalUsers} {stats.totalUsers === 1 ? 'Registered User' : 'Registered Users'}
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-                Manage student profiles, verify accounts, search members, and oversee platform access.
+                Comprehensive directory details, verification analytics, enrollment statistics, and student profiles.
               </p>
             </div>
           </div>
@@ -487,18 +323,6 @@ export default function AdminUsers() {
 
         {/* Top Header Action Buttons */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          {stats.totalUsers === 0 && (
-            <button
-              onClick={handleSeedSamples}
-              disabled={seeding || loading}
-              className="px-3.5 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-500/20 transition-all cursor-pointer hover:shadow-lg hover:-translate-y-0.5"
-              title="Populate demo student accounts to preview features"
-            >
-              <Sparkles size={14} className={seeding ? 'animate-spin' : ''} />
-              <span>{seeding ? 'Populating...' : 'Add Demo Students'}</span>
-            </button>
-          )}
-
           <button
             onClick={exportUsersCSV}
             disabled={users.length === 0}
@@ -515,7 +339,7 @@ export default function AdminUsers() {
           </button>
 
           <button
-            onClick={fetchUsers}
+            onClick={() => fetchUsers(false)}
             disabled={loading}
             className="p-2.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 rounded-xl text-xs flex items-center justify-center shadow-xs transition-all cursor-pointer hover:-translate-y-0.5"
             title="Refresh user directory"
@@ -525,7 +349,7 @@ export default function AdminUsers() {
         </div>
       </div>
 
-      {/* Metric Stats Cards (Clickable Quick Filters) */}
+      {/* ════════ COUNT METRICS CARDS (CLICKABLE FILTERS) ════════ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Users Card */}
         {(() => {
@@ -550,7 +374,7 @@ export default function AdminUsers() {
                 <p className="text-3xl font-black text-slate-900 tracking-tight">{stats.totalUsers}</p>
                 <p className="text-[11px] text-slate-400 font-medium">All registered accounts</p>
               </div>
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-sm ${
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-sm ${
                 isAllActive
                   ? 'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-blue-500/30'
                   : 'bg-blue-50 text-blue-600 border border-blue-100'
@@ -577,19 +401,19 @@ export default function AdminUsers() {
               <div className="space-y-1.5 z-10">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Verified</span>
-                  {isVerifiedActive && (
-                    <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-700">Active</span>
-                  )}
+                  <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-700">
+                    {verificationRate}%
+                  </span>
                 </div>
                 <p className="text-3xl font-black text-emerald-600 tracking-tight">{stats.totalVerified}</p>
-                <p className="text-[11px] text-slate-400 font-medium">Confirmed & active</p>
+                <p className="text-[11px] text-slate-400 font-medium">Identity confirmed</p>
               </div>
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-sm ${
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-sm ${
                 isVerifiedActive
                   ? 'bg-gradient-to-tr from-emerald-600 to-teal-600 text-white shadow-emerald-500/30'
                   : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
               }`}>
-                <UserCheck size={22} />
+                <ShieldCheck size={22} />
               </div>
             </button>
           );
@@ -611,14 +435,14 @@ export default function AdminUsers() {
               <div className="space-y-1.5 z-10">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Students</span>
-                  {isStudentActive && (
-                    <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-700">Active</span>
-                  )}
+                  <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-700">
+                    {studentRate}%
+                  </span>
                 </div>
                 <p className="text-3xl font-black text-indigo-600 tracking-tight">{stats.totalStudents}</p>
                 <p className="text-[11px] text-slate-400 font-medium">Student enrollments</p>
               </div>
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-sm ${
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-sm ${
                 isStudentActive
                   ? 'bg-gradient-to-tr from-indigo-600 to-purple-600 text-white shadow-indigo-500/30'
                   : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
@@ -644,27 +468,112 @@ export default function AdminUsers() {
             >
               <div className="space-y-1.5 z-10">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Unverified / Pending</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Pending</span>
                   {isPendingActive && (
                     <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">Active</span>
                   )}
                 </div>
                 <p className="text-3xl font-black text-amber-600 tracking-tight">{stats.totalPending}</p>
-                <p className="text-[11px] text-slate-400 font-medium">Awaiting email / OTP</p>
+                <p className="text-[11px] text-slate-400 font-medium">Awaiting OTP / email</p>
               </div>
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-sm ${
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-sm ${
                 isPendingActive
                   ? 'bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-amber-500/30'
                   : 'bg-amber-50 text-amber-600 border border-amber-100'
               }`}>
-                <UserX size={22} />
+                <Clock size={22} />
               </div>
             </button>
           );
         })()}
       </div>
 
-      {/* Filter & Search Bar */}
+      {/* ════════ ANALYTICS SECTION: DISTRIBUTION & ACTIVITY ════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* Status & Role Distribution Chart */}
+        <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-black text-slate-900 flex items-center space-x-2">
+              <BarChart2 size={16} className="text-blue-600" />
+              <span>User Base & Role Distribution</span>
+            </h3>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Account Telemetry</span>
+          </div>
+
+          <div className="h-52 text-xs font-semibold">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={statusRoleDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="category" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" allowDecimals={false} />
+                <RechartsTooltip
+                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                  formatter={(value) => [value, 'Accounts']}
+                />
+                <Bar dataKey="count" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-[11px] font-semibold text-slate-600">
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
+              <span className="text-slate-400">Verification Rate:</span>
+              <span className="font-extrabold text-emerald-600">{verificationRate}%</span>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
+              <span className="text-slate-400">Student Share:</span>
+              <span className="font-extrabold text-indigo-600">{studentRate}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Registration Activity Trend */}
+        <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-black text-slate-900 flex items-center space-x-2">
+              <TrendingUp size={16} className="text-indigo-600" />
+              <span>Recent Signups & Registrations</span>
+            </h3>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Onboarding Activity</span>
+          </div>
+
+          <div className="h-52 text-xs font-semibold">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={signupTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="userSignupGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="date" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" allowDecimals={false} />
+                <RechartsTooltip
+                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                  formatter={(value) => [value, 'Signups']}
+                />
+                <Area type="monotone" dataKey="signups" stroke="#6366f1" fillOpacity={1} fill="url(#userSignupGrad)" strokeWidth={2.5} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-[11px] font-semibold text-slate-600">
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
+              <span className="text-slate-400">Total Institutions:</span>
+              <span className="font-extrabold text-slate-900">{uniqueCollegesCount}</span>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
+              <span className="text-slate-400">Directory Status:</span>
+              <span className="font-extrabold text-blue-600">Active Sync</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* ════════ FILTER & SEARCH BAR ════════ */}
       <div className="bg-white/95 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
         <div className="flex flex-col lg:flex-row gap-3">
           {/* Search Input */}
@@ -772,73 +681,16 @@ export default function AdminUsers() {
         )}
       </div>
 
-      {/* Floating Bulk Action Bar (When users are selected) */}
-      {selectedUserIds.length > 0 && (
-        <div className="p-3 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-fade-in">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-black flex items-center justify-center">
-              {selectedUserIds.length}
-            </span>
-            <span className="text-xs font-bold text-slate-200">
-              user(s) selected
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => handleBulkVerify(true)}
-              disabled={bulkVerifying}
-              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
-            >
-              <CheckCircle2 size={13} />
-              <span>Verify Selected</span>
-            </button>
-
-            <button
-              onClick={() => setShowBulkRevokeModal(true)}
-              disabled={bulkVerifying}
-              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
-            >
-              <Clock size={13} />
-              <span>Unverify Selected</span>
-            </button>
-
-            <button
-              onClick={() => setShowBulkDeleteModal(true)}
-              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
-            >
-              <Trash2 size={13} />
-              <span>Delete Selected</span>
-            </button>
-
-            <button
-              onClick={() => setSelectedUserIds([])}
-              className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Users Table Card */}
+      {/* ════════ USERS DETAILS DIRECTORY TABLE ════════ */}
       <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
         
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[1050px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[950px]">
             <thead>
               <tr className="bg-slate-50/90 backdrop-blur-sm text-slate-600 font-extrabold uppercase text-[11px] tracking-wider border-b border-slate-200 select-none">
-                <th className="p-3.5 w-12 text-center">
-                  <input
-                    type="checkbox"
-                    checked={users.length > 0 && users.every((u) => selectedUserIds.includes(u.id))}
-                    onChange={toggleSelectAll}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                </th>
                 <th
                   onClick={() => handleSort('name')}
-                  className={`p-3.5 cursor-pointer hover:bg-slate-100/70 hover:text-slate-900 transition-colors min-w-[200px] ${
+                  className={`p-3.5 cursor-pointer hover:bg-slate-100/70 hover:text-slate-900 transition-colors min-w-[220px] ${
                     sortBy === 'name' ? 'text-blue-600 font-black bg-blue-50/40' : ''
                   }`}
                 >
@@ -854,7 +706,7 @@ export default function AdminUsers() {
                 <th className="p-3.5 min-w-[170px]">Username Handle</th>
                 <th
                   onClick={() => handleSort('email')}
-                  className={`p-3.5 cursor-pointer hover:bg-slate-100/70 hover:text-slate-900 transition-colors min-w-[210px] ${
+                  className={`p-3.5 cursor-pointer hover:bg-slate-100/70 hover:text-slate-900 transition-colors min-w-[220px] ${
                     sortBy === 'email' ? 'text-blue-600 font-black bg-blue-50/40' : ''
                   }`}
                 >
@@ -867,10 +719,10 @@ export default function AdminUsers() {
                     )}
                   </div>
                 </th>
-                <th className="p-3.5 min-w-[190px]">College / Institution</th>
+                <th className="p-3.5 min-w-[200px]">College / Institution</th>
                 <th
                   onClick={() => handleSort('role')}
-                  className={`p-3.5 cursor-pointer hover:bg-slate-100/70 hover:text-slate-900 transition-colors min-w-[100px] ${
+                  className={`p-3.5 cursor-pointer hover:bg-slate-100/70 hover:text-slate-900 transition-colors min-w-[110px] ${
                     sortBy === 'role' ? 'text-blue-600 font-black bg-blue-50/40' : ''
                   }`}
                 >
@@ -900,7 +752,7 @@ export default function AdminUsers() {
                 </th>
                 <th
                   onClick={() => handleSort('createdAt')}
-                  className={`p-3.5 cursor-pointer hover:bg-slate-100/70 hover:text-slate-900 transition-colors min-w-[120px] ${
+                  className={`p-3.5 cursor-pointer hover:bg-slate-100/70 hover:text-slate-900 transition-colors min-w-[130px] ${
                     sortBy === 'createdAt' ? 'text-blue-600 font-black bg-blue-50/40' : ''
                   }`}
                 >
@@ -913,13 +765,13 @@ export default function AdminUsers() {
                     )}
                   </div>
                 </th>
-                <th className="p-3.5 text-right min-w-[130px]">Actions</th>
+                <th className="p-3.5 text-right min-w-[100px]">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {loading && users.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-16 text-center text-slate-400 font-bold">
+                  <td colSpan={8} className="p-16 text-center text-slate-400 font-bold">
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs">
                         <RefreshCw size={22} className="animate-spin text-blue-600" />
@@ -931,75 +783,31 @@ export default function AdminUsers() {
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-12 text-center">
-                    {stats.totalUsers === 0 ? (
-                      /* Zero registered users empty state */
-                      <div className="max-w-md mx-auto flex flex-col items-center justify-center space-y-4 py-8 animate-fade-in">
-                        <div className="relative">
-                          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-blue-100 via-indigo-100 to-violet-100 border border-blue-200/60 flex items-center justify-center text-blue-600 shadow-inner">
-                            <Users size={36} />
-                          </div>
-                          <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md">
-                            <Sparkles size={14} />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5 text-center">
-                          <h3 className="text-lg font-black text-slate-900 tracking-tight">No Registered Users Yet</h3>
-                          <p className="text-xs text-slate-500 leading-relaxed max-w-sm">
-                            Your platform directory is ready. As students register, sign in via SSO, or take scheduled quizzes, their profiles will populate here automatically.
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-3 pt-2">
-                          <button
-                            type="button"
-                            onClick={handleSeedSamples}
-                            disabled={seeding || loading}
-                            className="px-4 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-md shadow-blue-500/20 flex items-center gap-2 cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5"
-                          >
-                            <Sparkles size={14} className={seeding ? 'animate-spin' : ''} />
-                            <span>{seeding ? 'Generating Students...' : 'Add Demo Students'}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={fetchUsers}
-                            disabled={loading}
-                            className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition-all hover:-translate-y-0.5"
-                          >
-                            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-                            <span>Refresh</span>
-                          </button>
-                        </div>
+                  <td colSpan={8} className="p-12 text-center">
+                    <div className="max-w-md mx-auto flex flex-col items-center justify-center space-y-3.5 py-6 animate-fade-in">
+                      <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200/80 text-blue-600 flex items-center justify-center shadow-xs">
+                        <Users size={26} />
                       </div>
-                    ) : (
-                      /* Filter yielded 0 results */
-                      <div className="max-w-md mx-auto flex flex-col items-center justify-center space-y-3.5 py-6 animate-fade-in">
-                        <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center shadow-xs">
-                          <UserX size={26} />
-                        </div>
-                        <div className="space-y-1 text-center">
-                          <h3 className="text-sm font-extrabold text-slate-800">No Matching Users Found</h3>
-                          <p className="text-xs text-slate-500 max-w-xs">
-                            {search
-                              ? `No users match query "${search}" with the current role/status filters.`
-                              : 'No users match the selected role or verification status.'}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => { setSearch(''); setRoleFilter('all'); setStatusFilter('all'); setPage(1); }}
-                          className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold rounded-xl cursor-pointer transition-all shadow-2xs hover:-translate-y-0.5"
-                        >
-                          Clear All Filters
-                        </button>
+                      <div className="space-y-1 text-center">
+                        <h3 className="text-sm font-extrabold text-slate-800">No Users Found</h3>
+                        <p className="text-xs text-slate-500 max-w-xs">
+                          {search
+                            ? `No user records match query "${search}".`
+                            : 'No user accounts match the current filters.'}
+                        </p>
                       </div>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => { setSearch(''); setRoleFilter('all'); setStatusFilter('all'); setPage(1); }}
+                        className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold rounded-xl cursor-pointer transition-all shadow-2xs hover:-translate-y-0.5"
+                      >
+                        Clear All Filters
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 users.map((u) => {
-                  const isSelected = selectedUserIds.includes(u.id);
                   const initials = (u.name || 'Student')
                     .split(' ')
                     .map((n) => n[0])
@@ -1010,28 +818,16 @@ export default function AdminUsers() {
                   return (
                     <tr
                       key={u.id}
-                      className={`hover:bg-slate-50/70 transition-colors ${
-                        isSelected ? 'bg-blue-50/40' : ''
-                      }`}
+                      className="hover:bg-slate-50/80 transition-colors"
                     >
-                      {/* Checkbox */}
-                      <td className="p-3.5 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelectUser(u.id)}
-                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                        />
-                      </td>
-
                       {/* Name & Initials */}
                       <td className="p-3.5">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-2xs flex-shrink-0">
+                          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-2xs shrink-0">
                             {initials}
                           </div>
                           <div className="min-w-0">
-                            <span className="font-extrabold text-slate-900 block truncate max-w-[180px]">
+                            <span className="font-extrabold text-slate-900 block truncate max-w-[190px]">
                               {u.name || 'Unnamed Student'}
                             </span>
                             {u.subject_id && (
@@ -1052,7 +848,7 @@ export default function AdminUsers() {
                           <button
                             type="button"
                             onClick={() => handleCopy(`@${u.username || u.email?.split('@')[0]}`, u.id)}
-                            className="text-slate-400 hover:text-slate-600 cursor-pointer flex-shrink-0 p-0.5"
+                            className="text-slate-400 hover:text-slate-600 cursor-pointer shrink-0 p-0.5"
                             title="Copy handle"
                           >
                             {copiedId === u.id ? (
@@ -1066,14 +862,14 @@ export default function AdminUsers() {
 
                       {/* Email Address */}
                       <td className="p-3.5">
-                        <span className="text-slate-600 font-semibold block truncate max-w-[200px]" title={u.email}>
+                        <span className="text-slate-600 font-semibold block truncate max-w-[210px]" title={u.email}>
                           {u.email}
                         </span>
                       </td>
 
                       {/* College / Institution */}
                       <td className="p-3.5">
-                        <span className="text-slate-700 font-bold block truncate max-w-[190px]" title={u.college || 'PRPCEM Amravati'}>
+                        <span className="text-slate-700 font-bold block truncate max-w-[200px]" title={u.college || 'PRPCEM Amravati'}>
                           {u.college || 'PRPCEM Amravati'}
                         </span>
                       </td>
@@ -1111,43 +907,17 @@ export default function AdminUsers() {
                         {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                       </td>
 
-                      {/* Actions Column */}
+                      {/* Actions Column: View Details */}
                       <td className="p-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Toggle Verification Quick Button */}
-                          <button
-                            type="button"
-                            onClick={() => handleToggleVerify(u)}
-                            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                              u.is_verified
-                                ? 'text-emerald-600 hover:bg-emerald-50'
-                                : 'text-amber-500 hover:bg-amber-50'
-                            }`}
-                            title={u.is_verified ? 'Revoke verification (Mark pending)' : 'Verify user account'}
-                          >
-                            {u.is_verified ? <CheckCircle2 size={15} /> : <UserCheck size={15} />}
-                          </button>
-
-                          {/* View Profile Details Modal */}
-                          <button
-                            type="button"
-                            onClick={() => setViewDetailUser(u)}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
-                            title="View user details"
-                          >
-                            <Eye size={15} />
-                          </button>
-
-                          {/* Delete User */}
-                          <button
-                            type="button"
-                            onClick={() => setDeleteTarget(u)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
-                            title={`Delete user ${u.name}`}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setViewDetailUser(u)}
+                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1 shadow-2xs hover:-translate-y-0.5 active:scale-95"
+                          title="View user profile details"
+                        >
+                          <Eye size={13} />
+                          <span>Details</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -1157,7 +927,7 @@ export default function AdminUsers() {
           </table>
         </div>
 
-        {/* ════════ PAGINATOR BAR ════════ */}
+        {/* ════════ PAGINATION BAR ════════ */}
         <div className="p-4 bg-slate-50/80 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           
           {/* Range text */}
@@ -1225,7 +995,7 @@ export default function AdminUsers() {
         </div>
       </div>
 
-      {/* User Details Modal */}
+      {/* ════════ READ-ONLY USER DETAILS MODAL ════════ */}
       {viewDetailUser && createPortal(
         <div
           className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-[10000] animate-fade-in"
@@ -1237,7 +1007,7 @@ export default function AdminUsers() {
             {/* Modal Header */}
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-sm">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-sm shrink-0">
                   {(viewDetailUser.name || 'S').slice(0, 2).toUpperCase()}
                 </div>
                 <div>
@@ -1264,6 +1034,7 @@ export default function AdminUsers() {
                 type="button"
                 onClick={() => setViewDetailUser(null)}
                 className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Close modal"
               >
                 <X size={18} />
               </button>
@@ -1281,26 +1052,17 @@ export default function AdminUsers() {
               </div>
               <div className="flex justify-between items-center py-1 border-b border-slate-200/60">
                 <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Subject ID</span>
-                <span className="font-mono text-slate-500">{viewDetailUser.subject_id || viewDetailUser.id}</span>
+                <span className="font-mono text-slate-600 font-bold">{viewDetailUser.subject_id || viewDetailUser.id}</span>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-slate-200/60">
                 <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">System Role</span>
-                <div className="flex items-center gap-1.5">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                    viewDetailUser.role === 'admin'
-                      ? 'bg-purple-100 text-purple-800'
-                      : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {viewDetailUser.role || 'student'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleChangeRole(viewDetailUser, viewDetailUser.role === 'admin' ? 'student' : 'admin')}
-                    className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
-                  >
-                    Change to {viewDetailUser.role === 'admin' ? 'student' : 'admin'}
-                  </button>
-                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                  viewDetailUser.role === 'admin'
+                    ? 'bg-purple-100 text-purple-800'
+                    : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {viewDetailUser.role || 'student'}
+                </span>
               </div>
               <div className="flex justify-between items-center py-1">
                 <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Account Registered</span>
@@ -1317,270 +1079,21 @@ export default function AdminUsers() {
                 href={`https://verify.mscprpcem.tech/u/${encodeURIComponent(viewDetailUser.username || viewDetailUser.email?.split('@')[0])}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 font-black inline-flex items-center gap-1"
+                className="text-blue-600 hover:text-blue-800 font-black inline-flex items-center gap-1 hover:underline"
               >
                 <span>View Public Card</span>
                 <ExternalLink size={12} />
               </a>
             </div>
 
-            {/* Quick Actions in Modal */}
-            <div className="flex items-center gap-3 pt-2">
+            {/* Modal Close Action */}
+            <div className="pt-2">
               <button
                 type="button"
-                onClick={() => handleToggleVerify(viewDetailUser)}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs ${
-                  viewDetailUser.is_verified
-                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
-                }`}
+                onClick={() => setViewDetailUser(null)}
+                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black transition-all cursor-pointer"
               >
-                {viewDetailUser.is_verified ? (
-                  <>
-                    <Clock size={14} />
-                    <span>Revoke Verification</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 size={14} />
-                    <span>Verify Account</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteTarget(viewDetailUser);
-                }}
-                className="py-2.5 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5"
-              >
-                <Trash2 size={14} />
-                <span>Delete</span>
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Single Delete Confirmation Modal */}
-      {deleteTarget && createPortal(
-        <div
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-[10000] animate-fade-in"
-          onWheel={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
-        >
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 text-center space-y-5 my-auto max-h-[90vh] overflow-y-auto animate-scale-in">
-            
-            <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-              <Trash2 size={26} />
-            </div>
-
-            <div className="space-y-1.5">
-              <h3 className="text-lg font-black text-slate-900">Delete User Account?</h3>
-              <p className="text-xs text-slate-600 leading-relaxed font-semibold">
-                Are you sure you want to permanently delete{' '}
-                <strong className="text-slate-900">{deleteTarget.name}</strong> (
-                <span className="font-mono text-blue-600">@{deleteTarget.username || deleteTarget.email}</span>)?
-              </p>
-              <p className="text-[11px] text-rose-600 font-bold bg-rose-50 border border-rose-100 p-2.5 rounded-xl">
-                ⚠️ This action cannot be undone and will permanently remove this user's profile and quiz attempt logs.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteSingle}
-                disabled={deleting}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                {deleting ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin" />
-                    <span>Deleting...</span>
-                  </>
-                ) : (
-                  <span>Confirm Delete</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Bulk Delete Confirmation Modal */}
-      {showBulkDeleteModal && createPortal(
-        <div
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-[10000] animate-fade-in"
-          onWheel={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
-        >
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 text-center space-y-5 my-auto max-h-[90vh] overflow-y-auto animate-scale-in">
-            
-            <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-              <Trash2 size={26} />
-            </div>
-
-            <div className="space-y-1.5">
-              <h3 className="text-lg font-black text-slate-900">
-                Delete {selectedUserIds.length} Selected Users?
-              </h3>
-              <p className="text-xs text-slate-600 leading-relaxed font-semibold">
-                You are about to permanently delete{' '}
-                <strong className="text-rose-600 font-black">{selectedUserIds.length} user account(s)</strong>.
-              </p>
-              <p className="text-[11px] text-rose-600 font-bold bg-rose-50 border border-rose-100 p-2.5 rounded-xl">
-                ⚠️ All selected accounts and their history will be permanently erased.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                onClick={() => setShowBulkDeleteModal(false)}
-                disabled={bulkDeleting}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleBulkDelete}
-                disabled={bulkDeleting}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                {bulkDeleting ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin" />
-                    <span>Deleting...</span>
-                  </>
-                ) : (
-                  <span>Delete All Selected</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Single Revoke Verification Confirmation Modal */}
-      {revokeTarget && createPortal(
-        <div
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-[10000] animate-fade-in"
-          onWheel={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
-        >
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 text-center space-y-5 my-auto max-h-[90vh] overflow-y-auto animate-scale-in">
-            <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-              <AlertTriangle size={26} />
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-lg font-black text-slate-900">Revoke User Verification?</h3>
-              <p className="text-xs text-slate-600 leading-relaxed font-semibold">
-                Are you sure you want to revoke verified status for{' '}
-                <strong className="text-slate-900">{revokeTarget.name}</strong> (
-                <span className="font-mono text-blue-600">@{revokeTarget.username || revokeTarget.email}</span>)?
-              </p>
-              <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-2xl text-left text-xs space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-amber-900">
-                  <Clock size={14} className="text-amber-600 flex-shrink-0" />
-                  <span>Status will revert to Unverified / Pending</span>
-                </div>
-                <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
-                  This user will no longer be considered verified and will need to re-verify or await manual administrative approval.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => setRevokeTarget(null)}
-                disabled={revoking}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => executeVerifyUser(revokeTarget, false)}
-                disabled={revoking}
-                className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black shadow-md shadow-amber-600/20 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                {revoking ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin" />
-                    <span>Revoking...</span>
-                  </>
-                ) : (
-                  <span>Yes, Revoke Verification</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Bulk Revoke Verification Confirmation Modal */}
-      {showBulkRevokeModal && createPortal(
-        <div
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-[10000] animate-fade-in"
-          onWheel={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
-        >
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 text-center space-y-5 my-auto max-h-[90vh] overflow-y-auto animate-scale-in">
-            <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-              <Clock size={26} />
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-lg font-black text-slate-900">
-                Revoke Verification for {selectedUserIds.length} User(s)?
-              </h3>
-              <p className="text-xs text-slate-600 leading-relaxed font-semibold">
-                You are about to unverify <strong className="text-amber-600 font-black">{selectedUserIds.length} user account(s)</strong>.
-              </p>
-              <p className="text-[11px] text-amber-800 font-bold bg-amber-50 border border-amber-200 p-2.5 rounded-xl">
-                ⚠️ All selected accounts will have their verified status removed and be returned to Unverified / Pending.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => setShowBulkRevokeModal(false)}
-                disabled={bulkVerifying}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBulkRevokeModal(false);
-                  handleBulkVerify(false);
-                }}
-                disabled={bulkVerifying}
-                className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black shadow-md shadow-amber-600/20 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                {bulkVerifying ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin" />
-                    <span>Updating...</span>
-                  </>
-                ) : (
-                  <span>Yes, Unverify Selected</span>
-                )}
+                Close
               </button>
             </div>
           </div>
