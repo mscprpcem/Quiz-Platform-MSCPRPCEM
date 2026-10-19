@@ -74,6 +74,58 @@ export default function AdminEmailDispatch() {
     { label: 'Status', tag: '{status}', desc: 'Completion status' }
   ];
 
+  // Official standard template presets matching platform design
+  const standardTemplates = [
+    {
+      id: 'announcement',
+      label: '📢 Official Announcement',
+      desc: 'Standard general broadcast or technical track launch update',
+      subject: '📢 Announcement: Important Update for {event_name}',
+      heading: 'Announcement: {event_name}',
+      body: 'Hello {name},\n\nWe are pleased to welcome all participants from **{college}** to the technical initiatives organized by Microsoft Student Club PRPCEM.\n\nPlease review the guidelines, challenge schedule, and learning resources below.\n\n> 💡 Note: Ensure your portal login credentials and assessment workspace are active before starting.\n\nBest regards,\nMicrosoft Student Club PRPCEM',
+      ctaText: 'Access Participant Portal',
+      ctaUrl: typeof window !== 'undefined' ? window.location.origin + '/courses' : '/courses'
+    },
+    {
+      id: 'quiz_reminder',
+      label: '⏱️ Assessment Reminder',
+      desc: 'Scheduled challenge or live assessment starting reminder with join code',
+      subject: '⏱️ Reminder: Assessment for {quiz_title} is Starting Soon',
+      heading: '{quiz_title} — Assessment Starting Soon',
+      body: 'Hello {name},\n\nGet ready! Your scheduled assessment **{quiz_title}** is starting soon for all registered learners.\n\n• **Participant:** {name}\n• **College:** {college}\n• **Assessment Track:** {quiz_title}\n\n> 💡 Note: Please join 5 minutes early, read the challenge rules, and keep a stable internet connection ready.\n\nGood luck with your challenge!',
+      ctaText: 'Start Assessment Now',
+      ctaUrl: typeof window !== 'undefined' ? window.location.origin + '/q' : '/q'
+    },
+    {
+      id: 'event_welcome',
+      label: '🎟️ Event Registration Ticket',
+      desc: 'Seat confirmation, ticket pass, and attendee onboarding',
+      subject: '🎟️ Registration Confirmed: Welcome to {event_name}',
+      heading: 'Welcome to {event_name}',
+      body: 'Hello {name},\n\nYour seat reservation and registration for **{event_name}** has been officially confirmed!\n\nAll challenge tracks, workshop guidelines, and schedule details have been published to your student profile.\n\n• **Participant:** {name}\n• **College:** {college}\n• **Status:** Active Registered Attendee\n\nWe look forward to seeing your technical innovation and creativity!',
+      ctaText: 'View Event Guidelines',
+      ctaUrl: typeof window !== 'undefined' ? window.location.origin + '/courses' : '/courses'
+    },
+    {
+      id: 'results_badges',
+      label: '🏆 Scores & Credential Release',
+      desc: 'Assessment results announcement with verified badge validation',
+      subject: '🏆 Assessment Results & Verified Credentials for {quiz_title}',
+      heading: 'Assessment Results Released: {quiz_title}',
+      body: 'Hello {name},\n\nCongratulations on completing your assessment for **{quiz_title}**!\n\n• **Your Score:** {score}\n• **Status:** {status}\n\nYour verified digital credentials and certificates can be viewed, validated, and added directly to your **LinkedIn Profile** from the credential registry.',
+      ctaText: 'Verify Your Credential',
+      ctaUrl: 'https://verify.mscprpcem.tech'
+    }
+  ];
+
+  const applyStandardTemplate = (tmpl) => {
+    setSubject(tmpl.subject);
+    setHeading(tmpl.heading);
+    setMessageBody(tmpl.body);
+    setCtaText(tmpl.ctaText);
+    setCtaUrl(tmpl.ctaUrl);
+  };
+
   // Fetch audiences on mount
   useEffect(() => {
     fetchAudiences();
@@ -1152,6 +1204,32 @@ export default function AdminEmailDispatch() {
             {activeTab === 'compose' && (
               <div className="space-y-4 animate-fade-in">
                 
+                {/* Official Standard Template Presets */}
+                <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles size={13} className="text-blue-600" />
+                      <span>Official Standard Email Template Presets (1-Click Load):</span>
+                    </label>
+                    <span className="text-[9px] text-blue-700 font-extrabold bg-white px-2 py-0.5 rounded-full border border-blue-200 shadow-2xs">
+                      MSC PRPCEM Standard
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {standardTemplates.map((tmpl) => (
+                      <button
+                        key={tmpl.id}
+                        type="button"
+                        onClick={() => applyStandardTemplate(tmpl)}
+                        className="px-3 py-1.5 bg-white hover:bg-blue-600 hover:text-white text-slate-800 rounded-xl text-xs font-bold border border-blue-200/80 shadow-2xs hover:shadow-sm transition-all cursor-pointer flex items-center space-x-1.5 active:scale-95"
+                        title={tmpl.desc}
+                      >
+                        <span>{tmpl.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Dynamic Tag Selector Pills */}
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1">
