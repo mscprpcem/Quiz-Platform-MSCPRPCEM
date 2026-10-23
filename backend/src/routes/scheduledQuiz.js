@@ -4,6 +4,7 @@ const {
   Quiz, Question, ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation, Event, EventRegistration, Participant, Answer, Violation 
 } = require('../models');
 const authMiddleware = require('../middleware/auth');
+const adminAuth = [authMiddleware, authMiddleware.requireAdmin];
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 const { sendQuizReminderEmail } = require('../services/emailService');
@@ -618,7 +619,7 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
 // ----------------------------------------------------
 
 // 1. Get all scheduled quizzes (Admin)
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
   try {
     let quizzes = [];
     try {
@@ -687,7 +688,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // 2. Create Scheduled Quiz (Admin)
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
   try {
     const {
       title, description, event_id, event_name, subject, difficulty, instructions,
@@ -914,7 +915,7 @@ router.get('/public/all', async (req, res) => {
 });
 
 // Get Single Scheduled Quiz (Admin)
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', adminAuth, async (req, res) => {
   try {
     const quiz = await Quiz.findByPk(req.params.id, {
       include: [
@@ -1067,7 +1068,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Update Scheduled Quiz (Admin)
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', adminAuth, async (req, res) => {
   try {
     const quiz = await Quiz.findByPk(req.params.id);
     if (!quiz) return res.status(404).json({ error: 'Scheduled Quiz not found.' });
@@ -1167,7 +1168,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // Delete Scheduled Quiz (Admin)
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', adminAuth, async (req, res) => {
   try {
     const quiz = await Quiz.findByPk(req.params.id);
     if (!quiz) {
@@ -2095,7 +2096,7 @@ router.get('/slug/:slug', async (req, res) => {
 });
 
 // 14. Send Email Notification / Weekly Reminder (Admin)
-router.post('/:id/notify', authMiddleware, async (req, res) => {
+router.post('/:id/notify', adminAuth, async (req, res) => {
   try {
     const quiz = await Quiz.findByPk(req.params.id, {
       include: [{ model: ScheduledOccurrence, as: 'occurrences' }]

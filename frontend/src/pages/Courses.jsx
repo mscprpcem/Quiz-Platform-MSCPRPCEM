@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Sparkles, Clock, ArrowRight, CheckCircle2, Maximize2, Shuffle, ShieldCheck, Loader2, Code2, Zap } from 'lucide-react';
+import { BookOpen, Sparkles, Clock, ArrowRight, CheckCircle2, Maximize2, Shuffle, ShieldCheck, Loader2, Code2, Zap, Terminal } from 'lucide-react';
 import api from '../services/api';
 
 const BLOB_BASE = 'https://mscprpcem.blob.core.windows.net/quiz';
@@ -65,13 +65,14 @@ const FALLBACK_COURSES = [
   },
   {
     title: 'Git & GitHub',
-    slug: 'frontend',
+    slug: 'git',
     category: 'Version Control & Open Source',
-    desc: 'Master Git branching, pull requests, merge conflict resolution, CI/CD workflows, and open-source collaboration.',
+    desc: 'Master Git branching, pull requests, merge conflict resolution, CI/CD workflows, and open-source collaboration in our virtual terminal.',
     imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/github.svg',
     color: 'from-rose-50/80 to-pink-50/50 border-rose-200/80',
     status: 'coming_soon',
-    badge: 'Coming Soon'
+    badge: 'Coming Soon',
+    hasInteractiveLab: true
   }
 ];
 
@@ -281,8 +282,26 @@ export default function Courses() {
                       </div>
                     )}
 
+                    {/* Git Lab Feature Badges */}
+                    {course.slug === 'git' && isPublished && (
+                      <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold text-slate-600">
+                        <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center gap-1">
+                          <BookOpen size={10} /> 34 Topics & Lessons
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/80 flex items-center gap-1">
+                          <Clock size={10} /> 30-Day Roadmap
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 flex items-center gap-1">
+                          <Terminal size={10} /> Virtual Git Engine
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200/80 flex items-center gap-1">
+                          <ShieldCheck size={10} /> 20+ Practice Labs
+                        </span>
+                      </div>
+                    )}
+
                     {/* Quiz parameters overview */}
-                    {isPublished && course.slug !== 'dbms' && (
+                    {isPublished && course.slug !== 'dbms' && course.slug !== 'git' && (
                       <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold text-slate-600">
                         {qs.requireFullScreen && (
                           <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-100 flex items-center gap-1">
@@ -318,6 +337,25 @@ export default function Courses() {
                           title="Interactive In-Browser SQL Lab"
                         >
                           <Code2 size={12} />
+                          <span>Code Lab</span>
+                        </button>
+                      </div>
+                    ) : course.slug === 'git' && isPublished ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => navigate('/courses/git')}
+                          className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-extrabold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 text-xs"
+                        >
+                          <BookOpen size={13} />
+                          <span>Git Course Hub</span>
+                          <ArrowRight size={13} />
+                        </button>
+                        <button
+                          onClick={() => navigate('/practice/git/lab')}
+                          className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 text-[11px]"
+                          title="Interactive In-Browser Git Lab"
+                        >
+                          <Terminal size={12} />
                           <span>Code Lab</span>
                         </button>
                       </div>

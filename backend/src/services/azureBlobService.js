@@ -58,12 +58,15 @@ const uploadImageToAzureBlob = async (buffer, originalFilename, mimeType, prefix
 
   // Derive file extension
   let ext = path.extname(originalFilename || '').toLowerCase().replace('.', '');
+  if (ext === 'svg' || mimeType === 'image/svg+xml') {
+    throw new Error('SVG image uploads are prohibited for security reasons (prevents script execution). Please upload a PNG, JPG, or WEBP image.');
+  }
+
   if (!ext || ext.length > 5) {
     if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') ext = 'jpg';
     else if (mimeType === 'image/png') ext = 'png';
     else if (mimeType === 'image/webp') ext = 'webp';
     else if (mimeType === 'image/gif') ext = 'gif';
-    else if (mimeType === 'image/svg+xml') ext = 'svg';
     else ext = 'png';
   }
 

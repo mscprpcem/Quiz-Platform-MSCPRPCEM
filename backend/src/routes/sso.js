@@ -38,18 +38,31 @@ router.get('/authorize', async (req, res) => {
       return res.status(400).json({ error: 'invalid_request', error_description: error });
     }
 
-    // If request contains email (direct SSO initiation or session user)
-    const targetEmail = (email || req.query.sso_email || '').toLowerCase().trim();
-    const targetName = name || req.query.sso_name || (targetEmail ? targetEmail.split('@')[0] : 'MSC Student');
+    // Verify authenticated session (Bearer token in header, or verified token parameter)
+    let authenticatedEmail = null;
+    const authHeader = req.headers.authorization;
+    const candidateToken = (authHeader && authHeader.startsWith('Bearer '))
+      ? authHeader.split(' ')[1]
+      : (req.query.session_token || req.query.token);
+
+    if (candidateToken) {
+      try {
+        const decoded = jwt.verify(candidateToken, JWT_SECRET);
+        authenticatedEmail = (decoded.email || '').toLowerCase().trim();
+      } catch (tokenErr) {
+        authenticatedEmail = null;
+      }
+    }
 
     let user = null;
-    if (targetEmail) {
-      user = await User.findOne({ where: { email: targetEmail } });
+    if (authenticatedEmail) {
+      user = await User.findOne({ where: { email: authenticatedEmail } });
     }
 
     if (!user) {
-      // If user isn't logged in, redirect to authentication page on central portal with callback params
-      const loginUrl = new URL(`${req.protocol}://${req.get('host')}/login`);
+      // If user isn't authenticated, redirect to login page with preserved OAuth callback params
+      const frontendBase = process.env.PUBLIC_QUIZ_URL || process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+      const loginUrl = new URL(`${frontendBase.replace(/\/+$/, '')}/login`);
       loginUrl.searchParams.set('client_id', client_id);
       loginUrl.searchParams.set('redirect_uri', redirect_uri);
       loginUrl.searchParams.set('state', state || '');

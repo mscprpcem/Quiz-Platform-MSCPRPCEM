@@ -6,6 +6,7 @@ const axios = require('axios');
 const { Readable } = require('stream');
 const { Quiz, Question, Participant, QuizAttempt, Answer, Violation, AttemptViolation, AttemptAnswer, ScheduledOccurrence } = require('../models');
 const authMiddleware = require('../middleware/auth');
+const adminAuth = [authMiddleware, authMiddleware.requireAdmin];
 const { Op } = require('sequelize');
 const { normalizeAnswers, determineQuestionType } = require('../utils/answerUtils');
 const { getInjectedScoresForQuiz } = require('../services/injectedScoresService');
@@ -180,7 +181,7 @@ router.get('/public', async (req, res) => {
 });
 
 // Create 1-click Instant DBMS Preset Quiz (Admin)
-router.post('/preset/dbms', authMiddleware, async (req, res) => {
+router.post('/preset/dbms', adminAuth, async (req, res) => {
   try {
     const { title, event_name, scheduled_start, scheduled_end } = req.body;
 
@@ -274,7 +275,7 @@ router.post('/preset/dbms', authMiddleware, async (req, res) => {
 });
 
 // Get all quizzes (admin)
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
   try {
     const { mode, all } = req.query;
     const where = {};
@@ -365,6 +366,19 @@ router.get('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
+    // Security (SEC-07): If requester is not an admin, sanitize questions and remove correct_answer
+    if (!req.user || req.user.role !== 'admin') {
+      const sanitized = quiz.toJSON ? quiz.toJSON() : { ...quiz };
+      if (Array.isArray(sanitized.questions)) {
+        sanitized.questions = sanitized.questions.map(q => {
+          const qJson = q.toJSON ? q.toJSON() : { ...q };
+          delete qJson.correct_answer;
+          return qJson;
+        });
+      }
+      return res.json(sanitized);
+    }
+
     return res.json(quiz);
   } catch (error) {
     console.error('Fetch quiz error:', error);
@@ -373,7 +387,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Delete quiz (Admin)
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', adminAuth, async (req, res) => {
   try {
     const success = await deleteQuizWithFullCascade(req.params.id);
     if (!success) {
@@ -387,7 +401,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 // Create new quiz
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
   try {
     const { title, event_id, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title, badge_sys_id } = req.body;
 
@@ -425,7 +439,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Update quiz details
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', adminAuth, async (req, res) => {
   try {
     const { title, event_id, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title, badge_sys_id, difficulty } = req.body;
     const quiz = await Quiz.findByPk(req.params.id);
@@ -478,7 +492,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // Publish quiz (changes status from 'draft' to 'waiting_lobby')
-router.put('/:id/publish', authMiddleware, async (req, res) => {
+router.put('/:id/publish', adminAuth, async (req, res) => {
   try {
     const quiz = await Quiz.findByPk(req.params.id);
     if (!quiz) {
@@ -505,7 +519,7 @@ router.put('/:id/publish', authMiddleware, async (req, res) => {
 // ----------------------------------------------------
 
 // Add a question manually
-router.post('/:id/questions', authMiddleware, async (req, res) => {
+router.post('/:id/questions', adminAuth, async (req, res) => {
   try {
     const { question, option_a, option_b, option_c, option_d, correct_answer, timer, marks, difficulty, question_type } = req.body;
     const quiz_id = req.params.id;
@@ -563,7 +577,7 @@ router.post('/:id/questions', authMiddleware, async (req, res) => {
 });
 
 // Update a question
-router.put('/questions/:id', authMiddleware, async (req, res) => {
+router.put('/questions/:id', adminAuth, async (req, res) => {
   try {
     const { question, option_a, option_b, option_c, option_d, correct_answer, timer, marks, difficulty, question_type } = req.body;
     const existingQuestion = await Question.findByPk(req.params.id);
@@ -609,7 +623,7 @@ router.put('/questions/:id', authMiddleware, async (req, res) => {
 });
 
 // Delete a question
-router.delete('/questions/:id', authMiddleware, async (req, res) => {
+router.delete('/questions/:id', adminAuth, async (req, res) => {
   try {
     const existingQuestion = await Question.findByPk(req.params.id);
     if (!existingQuestion) {
@@ -627,7 +641,7 @@ router.delete('/questions/:id', authMiddleware, async (req, res) => {
 });
 
 // Bulk update timer for all questions of a quiz
-router.put('/:id/questions/timer', authMiddleware, async (req, res) => {
+router.put('/:id/questions/timer', adminAuth, async (req, res) => {
   try {
     const { timer } = req.body;
     const quizId = req.params.id;
@@ -657,7 +671,7 @@ router.put('/:id/questions/timer', authMiddleware, async (req, res) => {
 // EXCEL QUESTION IMPORT ROUTE
 // ----------------------------------------------------
 
-router.post('/:id/import', authMiddleware, upload.single('file'), async (req, res) => {
+router.post('/:id/import', adminAuth, upload.single('file'), async (req, res) => {
   try {
     const quiz_id = req.params.id;
     const quiz = await Quiz.findByPk(quiz_id);
@@ -874,7 +888,7 @@ router.post('/:id/import', authMiddleware, upload.single('file'), async (req, re
 });
 
 // Bulk add questions via JSON array
-router.post('/:id/questions/bulk', authMiddleware, async (req, res) => {
+router.post('/:id/questions/bulk', adminAuth, async (req, res) => {
   try {
     const quiz_id = req.params.id;
     const quiz = await Quiz.findByPk(quiz_id);
@@ -926,7 +940,7 @@ router.post('/:id/questions/bulk', authMiddleware, async (req, res) => {
 // =========================================================================
 
 // Get current badge status and eligible attendees preview for any quiz (Live or Scheduled)
-router.get('/:id/badge-status', authMiddleware, async (req, res) => {
+router.get('/:id/badge-status', adminAuth, async (req, res) => {
   try {
     const quiz = await Quiz.findByPk(req.params.id);
     if (!quiz) {
@@ -1055,7 +1069,7 @@ router.get('/:id/badge-status', authMiddleware, async (req, res) => {
 });
 
 // Issue or save badges for a quiz (permission-gated admin action)
-router.post('/:id/issue-badges', authMiddleware, async (req, res) => {
+router.post('/:id/issue-badges', adminAuth, async (req, res) => {
   try {
     const { badge_sys_id, badge_title, action = 'issue_now', min_score = 0 } = req.body;
     const quiz = await Quiz.findByPk(req.params.id);

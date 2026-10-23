@@ -3,11 +3,16 @@ const router = express.Router();
 const { sequelize, User, Admin, QuizAttempt, EventRegistration, Participant, Subscriber } = require('../models');
 const { Op } = require('sequelize');
 const authMiddleware = require('../middleware/auth');
+const requireAdmin = authMiddleware.requireAdmin;
+
+// All user directory routes require valid Administrator authentication
+router.use(authMiddleware);
+router.use(requireAdmin);
 
 // ==========================================
 // GET /api/admin/users — Paginated User Directory
 // ==========================================
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(5, parseInt(req.query.limit, 10) || 10));

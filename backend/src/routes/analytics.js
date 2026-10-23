@@ -158,7 +158,16 @@ router.get('/public/leaderboard', async (req, res) => {
       const accuracy = u.totalQuestions > 0 ? Math.round((u.correctCount / u.totalQuestions) * 100) : 100;
       const { xp } = calculateNormalizedScoreAndXP({ score: u.score, maxScore: Math.max(100, u.score) });
       return {
-        ...u,
+        id: u.id,
+        sso_user_id: u.sso_user_id,
+        name: u.name,
+        college: u.college,
+        score: u.score,
+        correctCount: u.correctCount,
+        totalQuestions: u.totalQuestions,
+        quizzesCompleted: u.quizzesCompleted,
+        totalTimeSeconds: u.totalTimeSeconds,
+        is_authenticated: u.is_authenticated,
         accuracy,
         xp,
         avgResponseTime: u.quizzesCompleted > 0 ? Math.round(u.totalTimeSeconds / u.quizzesCompleted) : 0

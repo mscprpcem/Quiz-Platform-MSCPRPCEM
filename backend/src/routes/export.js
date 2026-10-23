@@ -6,7 +6,12 @@ const {
   ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation 
 } = require('../models');
 const authMiddleware = require('../middleware/auth');
+const requireAdmin = authMiddleware.requireAdmin;
 const { Op } = require('sequelize');
+
+// All quiz export routes strictly require Administrator authentication
+router.use(authMiddleware);
+router.use(requireAdmin);
 
 // Helper: Sanitize filename for headers
 const getCleanFilename = (title, prefix) => {
@@ -15,7 +20,7 @@ const getCleanFilename = (title, prefix) => {
 };
 
 // 1. Export Leaderboard Results (Supports both Live & Scheduled Quizzes)
-router.get('/quiz/:id/results', authMiddleware, async (req, res) => {
+router.get('/quiz/:id/results', async (req, res) => {
   try {
     const quizId = req.params.id;
     const format = req.query.format === 'csv' ? 'csv' : 'xlsx';

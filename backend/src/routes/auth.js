@@ -244,18 +244,22 @@ router.post('/external-sync', async (req, res) => {
   try {
     const { email, name, password, apiKey } = req.body;
     const providedKey = req.headers['x-api-key'] || apiKey;
-    const expectedKey = process.env.QUIZ_PLATFORM_API_KEY || 'msc_quiz_api_key_2026';
-    const integrationKey = process.env.INTEGRATION_API_KEY || 'msc_quiz_verification_secret_key_2026';
-    const verificationKey = process.env.VERIFICATION_API_KEY || 'msc_quiz_verification_secret_key_2026';
 
-    const isAuthorized = Boolean(
-      !expectedKey ||
-      providedKey === expectedKey ||
-      providedKey === integrationKey ||
-      providedKey === verificationKey ||
-      providedKey === 'msc_quiz_verification_secret_key_2026' ||
-      providedKey === 'msc_quiz_api_key_2026'
-    );
+    // Fail-closed verification against non-empty environment keys
+    const validKeys = [
+      process.env.QUIZ_PLATFORM_API_KEY,
+      process.env.INTEGRATION_API_KEY,
+      process.env.VERIFICATION_API_KEY
+    ].filter(k => Boolean(k && k.trim()));
+
+    let isAuthorized = false;
+    if (providedKey && typeof providedKey === 'string' && validKeys.length > 0) {
+      const provBuf = Buffer.from(providedKey.trim());
+      isAuthorized = validKeys.some(k => {
+        const keyBuf = Buffer.from(k.trim());
+        return provBuf.length === keyBuf.length && crypto.timingSafeEqual(provBuf, keyBuf);
+      });
+    }
 
     if (!isAuthorized) {
       return res.status(401).json({ error: 'Unauthorized: Valid API Key is required for admin sync.' });

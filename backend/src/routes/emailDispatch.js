@@ -3,10 +3,15 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const authMiddleware = require('../middleware/auth');
+const requireAdmin = authMiddleware.requireAdmin;
 const { User, Quiz, ScheduledOccurrence, QuizAttempt, Participant, Event, EventRegistration } = require('../models');
 const { sendCustomBroadcastEmail, sendTestEmail } = require('../services/emailService');
 const { Op } = require('sequelize');
 const { getInjectedScoresForQuiz } = require('../services/injectedScoresService');
+
+// All email dispatch broadcast routes strictly require Administrator authentication
+router.use(authMiddleware);
+router.use(requireAdmin);
 
 // Load static/old events from events.json
 let staticEvents = [];

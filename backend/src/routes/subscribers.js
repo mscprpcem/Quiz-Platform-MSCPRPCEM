@@ -67,11 +67,13 @@ router.post('/notify', async (req, res) => {
   }
 });
 
+const requireAdmin = authMiddleware.requireAdmin;
+
 /**
  * GET /api/subscribers
  * Admin endpoint to view list of all notification subscribers
  */
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', [authMiddleware, requireAdmin], async (req, res) => {
   try {
     const subscribers = await Subscriber.findAll({
       order: [['createdAt', 'DESC']]

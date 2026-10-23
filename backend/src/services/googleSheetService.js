@@ -49,38 +49,27 @@ async function syncSubscriberToGoogleSheet(subscriberData) {
     console.log('[GoogleSheetService] Successfully synced email to Google Sheet via POST:', subscriberData.email);
     return { success: true, synced: true, data: response.data };
   } catch (postErr) {
-    console.warn(`[GoogleSheetService] POST sync returned (${postErr.message}). Attempting GET fallback...`);
+    console.warn(`[GoogleSheetService] Primary POST sync returned (${postErr.message}). Retrying with form-urlencoded POST...`);
 
-    // 2. Fallback Method: GET with URL query parameters (100% reliable on Google Apps Script Web Apps)
+    // 2. Fallback Method: POST with application/x-www-form-urlencoded (avoids putting PII in GET query strings)
     try {
-      const queryParams = new URLSearchParams({
-        action: 'subscribe_notify',
-        email: payload.email,
-        source: payload.source,
-        topic: payload.topic,
-        ip_address: payload.ip_address,
-        timestamp: payload.timestamp,
-        dateIST: payload.dateIST,
-        status: payload.status
-      }).toString();
-
-      const getUrl = sheetWebhookUrl.includes('?') 
-        ? `${sheetWebhookUrl}&${queryParams}`
-        : `${sheetWebhookUrl}?${queryParams}`;
-
-      const getResponse = await axios.get(getUrl, {
+      const formParams = new URLSearchParams(payload);
+      const retryResponse = await axios.post(sheetWebhookUrl, formParams.toString(), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
         timeout: 12000,
         maxRedirects: 5
       });
 
-      console.log('[GoogleSheetService] Successfully synced email to Google Sheet via GET fallback:', subscriberData.email);
-      return { success: true, synced: true, data: getResponse.data };
-    } catch (getErr) {
-      console.error('[GoogleSheetService] Error syncing subscriber to Google Sheet:', getErr.message);
+      console.log('[GoogleSheetService] Successfully synced email to Google Sheet via form-urlencoded POST:', subscriberData.email);
+      return { success: true, synced: true, data: retryResponse.data };
+    } catch (retryErr) {
+      console.error('[GoogleSheetService] Error syncing subscriber to Google Sheet:', retryErr.message);
       return { 
         success: false, 
         synced: false, 
-        error: `Google Apps Script returned ${getErr.response?.status || postErr.response?.status || 403}. Ensure Web App deployment access is set to 'Anyone'.` 
+        error: `Google Apps Script returned error: ${retryErr.message}. Stored in local database.` 
       };
     }
   }

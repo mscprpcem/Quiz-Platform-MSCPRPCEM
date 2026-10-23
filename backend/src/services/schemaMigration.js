@@ -180,7 +180,24 @@ async function runAutoMigrations(sequelize) {
     );`,
 
     // ═══════════════════════════════════════════
-    // 7. Postgres Unquoted Lowercase Fallbacks (if tables created unquoted)
+    // 8. GitProgress Table
+    // ═══════════════════════════════════════════
+    `CREATE TABLE IF NOT EXISTS ${quote}GitProgress${quote} (
+      ${quote}id${quote} UUID PRIMARY KEY,
+      ${quote}user_id${quote} UUID,
+      ${quote}user_email${quote} VARCHAR(255) NOT NULL,
+      ${quote}completed_lessons${quote} TEXT DEFAULT '[]',
+      ${quote}completed_challenges${quote} TEXT DEFAULT '[]',
+      ${quote}quiz_scores${quote} TEXT DEFAULT '{}',
+      ${quote}skill_level${quote} VARCHAR(50) DEFAULT 'Beginner',
+      ${quote}last_active_lesson${quote} VARCHAR(255),
+      ${quote}achievements${quote} TEXT DEFAULT '[]',
+      ${quote}createdAt${quote} ${dateType},
+      ${quote}updatedAt${quote} ${dateType}
+    );`,
+
+    // ═══════════════════════════════════════════
+    // 9. Postgres Unquoted Lowercase Fallbacks (if tables created unquoted)
     // ═══════════════════════════════════════════
     ...(isPostgres ? [
       `ALTER TABLE IF EXISTS events ADD COLUMN IF NOT EXISTS slug VARCHAR(255);`,
@@ -246,7 +263,9 @@ async function runAutoMigrations(sequelize) {
     `CREATE INDEX IF NOT EXISTS idx_quizzes_join_code ON ${quote}Quizzes${quote} (${quote}join_code${quote});`,
     `CREATE INDEX IF NOT EXISTS idx_events_slug ON ${quote}Events${quote} (${quote}slug${quote});`,
     `CREATE INDEX IF NOT EXISTS idx_event_registrations_event_id ON ${quote}EventRegistrations${quote} (${quote}event_id${quote});`,
-    `CREATE INDEX IF NOT EXISTS idx_event_registrations_email ON ${quote}EventRegistrations${quote} (${quote}email${quote});`
+    `CREATE INDEX IF NOT EXISTS idx_event_registrations_email ON ${quote}EventRegistrations${quote} (${quote}email${quote});`,
+    `CREATE INDEX IF NOT EXISTS idx_git_progress_email ON ${quote}GitProgress${quote} (${quote}user_email${quote});`,
+    `CREATE INDEX IF NOT EXISTS idx_git_progress_user_id ON ${quote}GitProgress${quote} (${quote}user_id${quote});`
   ];
 
   for (const idxQ of indexQueries) {

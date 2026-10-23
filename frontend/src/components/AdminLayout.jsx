@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Radio, Calendar, BookOpen, Mail, Sparkles, Users,
-  LogOut, Menu, X, GraduationCap, ChevronLeft, ChevronRight, Trophy, QrCode
+  LogOut, Menu, X, GraduationCap, ChevronLeft, ChevronRight, Trophy, QrCode, GitBranch
 } from 'lucide-react';
 
 export default function AdminLayout({ children }) {
@@ -52,7 +52,8 @@ export default function AdminLayout({ children }) {
     {
       title: 'COURSES & LEARNING',
       items: [
-        { label: 'Courses & Practice', icon: BookOpen, path: '/admin/courses' }
+        { label: 'Courses & Practice', icon: BookOpen, path: '/admin/courses' },
+        { label: 'Git Module Manager', icon: GitBranch, path: '/admin/git' }
       ]
     }
   ];

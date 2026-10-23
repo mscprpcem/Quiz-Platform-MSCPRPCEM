@@ -214,7 +214,7 @@ router.post('/send-otp', async (req, res) => {
 
     // Check if email belongs to an administrator
     if (await isAdministratorEmail(cleanEmail)) {
-      return res.status(403).json({ error: 'This email address is reserved for platform administrators and cannot be used for student accounts.' });
+      return res.status(400).json({ error: 'Unable to process verification code for this email. Please check your credentials or contact support.' });
     }
 
     let localUser = null;
@@ -353,6 +353,20 @@ router.post('/verify-otp', async (req, res) => {
       // Ignore remote portal error so clean message is returned
     }
 
+    // Rate-limiting / brute-force lockout: Invalidate OTP after 5 failed attempts
+    if (memoryRecord) {
+      memoryRecord.attempts = (memoryRecord.attempts || 0) + 1;
+      if (memoryRecord.attempts >= 5) {
+        otpStore.delete(cleanEmail);
+        if (User) {
+          User.update({ otp: null, otp_expiry: null }, { where: { email: cleanEmail } }).catch(() => {});
+        }
+        return res.status(400).json({
+          error: 'Too many failed attempts. This verification code has been invalidated for security. Please request a new code.'
+        });
+      }
+    }
+
     return res.status(400).json({ error: 'Invalid verification code. Please check the 6-digit code sent to your email.' });
   } catch (err) {
     console.error('Verify OTP error:', err);
@@ -444,7 +458,7 @@ router.post('/reset-password', async (req, res) => {
     }
 
     if (await isAdministratorEmail(cleanEmail)) {
-      return res.status(403).json({ error: 'Administrator accounts cannot be reset through the student portal.' });
+      return res.status(400).json({ error: 'Unable to reset password for this account. Please check your details or contact support.' });
     }
 
     if (newPassword.length < 8) {
@@ -540,6 +554,20 @@ router.post('/reset-password', async (req, res) => {
     } catch (portalErr) {
       const detail = portalErr.response?.data?.error || portalErr.response?.data?.message || portalErr.message;
       console.warn(`Portal reset password notice (${cleanEmail}):`, detail);
+    }
+
+    // Rate-limiting / brute-force lockout: Invalidate OTP after 5 failed attempts
+    if (memoryRecord) {
+      memoryRecord.attempts = (memoryRecord.attempts || 0) + 1;
+      if (memoryRecord.attempts >= 5) {
+        otpStore.delete(cleanEmail);
+        if (User) {
+          User.update({ otp: null, otp_expiry: null }, { where: { email: cleanEmail } }).catch(() => {});
+        }
+        return res.status(400).json({
+          error: 'Too many failed attempts. This verification code has been invalidated for security. Please request a new code.'
+        });
+      }
     }
 
     return res.status(400).json({ error: 'Invalid or expired verification code. Please check your OTP code and try again.' });
@@ -716,10 +744,10 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Both Email Address and Password are required.' });
     }
 
-    // Disallow admin accounts from student portal
+    // Disallow admin accounts from student portal with generic error (prevents admin enumeration & portal path leak)
     if (await isAdministratorEmail(cleanEmail)) {
-      return res.status(403).json({
-        error: 'This email belongs to an Administrator. Please use the Administrator Portal (/frogger/login) to sign in.'
+      return res.status(401).json({
+        error: 'Invalid email address or password. Please verify your credentials and try again.'
       });
     }
 
@@ -867,10 +895,10 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
-    // 1. Enforce admin protection: Admin credentials / accounts cannot be created as student accounts
+    // 1. Enforce admin protection: Admin credentials cannot be registered as student accounts
     if (await isAdministratorEmail(cleanEmail)) {
-      return res.status(403).json({
-        error: 'This email address is reserved for platform administrators and cannot be registered as a student account.'
+      return res.status(400).json({
+        error: 'An account with this email address already exists. Please log in.'
       });
     }
 
@@ -1117,18 +1145,22 @@ router.post('/sso-verify', (req, res) => {
 router.post('/external-sync', async (req, res) => {
   const { email, name, password, username, apiKey } = req.body;
   const providedKey = req.headers['x-api-key'] || apiKey;
-  const expectedKey = process.env.QUIZ_PLATFORM_API_KEY || 'msc_quiz_api_key_2026';
-  const integrationKey = process.env.INTEGRATION_API_KEY || 'msc_quiz_verification_secret_key_2026';
-  const verificationKey = process.env.VERIFICATION_API_KEY || 'msc_quiz_verification_secret_key_2026';
 
-  const isAuthorized = Boolean(
-    !expectedKey ||
-    providedKey === expectedKey ||
-    providedKey === integrationKey ||
-    providedKey === verificationKey ||
-    providedKey === 'msc_quiz_verification_secret_key_2026' ||
-    providedKey === 'msc_quiz_api_key_2026'
-  );
+  // Fail-closed verification against non-empty environment keys
+  const validKeys = [
+    process.env.QUIZ_PLATFORM_API_KEY,
+    process.env.INTEGRATION_API_KEY,
+    process.env.VERIFICATION_API_KEY
+  ].filter(k => Boolean(k && k.trim()));
+
+  let isAuthorized = false;
+  if (providedKey && typeof providedKey === 'string' && validKeys.length > 0) {
+    const provBuf = Buffer.from(providedKey.trim());
+    isAuthorized = validKeys.some(k => {
+      const keyBuf = Buffer.from(k.trim());
+      return provBuf.length === keyBuf.length && crypto.timingSafeEqual(provBuf, keyBuf);
+    });
+  }
 
   if (!isAuthorized) {
     return res.status(401).json({ error: 'Unauthorized: Valid API Key is required.' });

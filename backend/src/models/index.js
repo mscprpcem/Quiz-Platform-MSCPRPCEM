@@ -13,6 +13,7 @@ const AttemptViolation = require('./AttemptViolation');
 const Event = require('./Event');
 const EventRegistration = require('./EventRegistration');
 const Subscriber = require('./Subscriber');
+const GitProgress = require('./GitProgress');
 
 // Event <-> Quiz
 Event.hasMany(Quiz, { foreignKey: 'event_id', as: 'quizzes', onDelete: 'SET NULL' });
@@ -85,5 +86,6 @@ module.exports = {
   AttemptViolation,
   Event,
   EventRegistration,
-  Subscriber
+  Subscriber,
+  GitProgress
 };

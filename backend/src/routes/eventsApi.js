@@ -15,7 +15,7 @@ const authMiddleware = require('../middleware/auth');
 const JWT_SECRET = process.env.JWT_SECRET || 'msc_quiz_secret_key_2026';
 
 // Strict admin auth handler
-const adminAuth = authMiddleware;
+const adminAuth = [authMiddleware, authMiddleware.requireAdmin];
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -23,10 +23,12 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024 // 10MB max
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype && (file.mimetype.startsWith('image/') || file.mimetype === 'application/octet-stream')) {
+    const allowedMimes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
+    const hasValidExt = /\.(png|jpe?g|webp|gif)$/i.test(file.originalname || '');
+    if (file.mimetype && allowedMimes.includes(file.mimetype.toLowerCase()) && hasValidExt) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files (PNG, JPG, JPEG, WEBP, GIF, SVG) are allowed.'), false);
+      cb(new Error('Only safe image files (PNG, JPG, JPEG, WEBP, GIF) are allowed. SVG files are prohibited for security.'), false);
     }
   }
 });

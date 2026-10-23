@@ -38,19 +38,28 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 const corsOriginFn = (origin, callback) => {
   if (!origin) return callback(null, true);
-  const isAllowed =
-    allowedOrigins.includes(origin) ||
-    allowedOrigins.includes('*') ||
-    origin.includes('localhost') ||
-    origin.includes('127.0.0.1') ||
-    origin.endsWith('.mscprpcem.tech') ||
-    origin.endsWith('.azurestaticapps.net') ||
-    origin.endsWith('.azurewebsites.net');
-  if (isAllowed) {
-    callback(null, true);
-  } else {
-    callback(new Error('CORS origin denied by security policy'), false);
+
+  // Exact configured origins
+  if (allowedOrigins.includes(origin)) {
+    return callback(null, true);
   }
+
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname.toLowerCase();
+
+    // Localhost / 127.0.0.1 for development
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return callback(null, true);
+    }
+
+    // Official MSC domain and legitimate subdomains only (e.g. quiz.mscprpcem.tech)
+    if (parsed.protocol === 'https:' && (host === 'mscprpcem.tech' || host.endsWith('.mscprpcem.tech'))) {
+      return callback(null, true);
+    }
+  } catch (e) {}
+
+  callback(new Error('CORS origin denied by security policy'), false);
 };
 
 // =======================
@@ -165,6 +174,7 @@ const emailDispatchRoutes = require('./routes/emailDispatch');
 const eventsApiRoutes = require('./routes/eventsApi');
 const userDirectoryRoutes = require('./routes/userDirectory');
 const subscribersRoutes = require('./routes/subscribers');
+const gitApiRoutes = require('./routes/gitApi');
 
 app.use("/api/auth", authRoutes);
 app.use("/api/quizzes", quizRoutes);
@@ -180,6 +190,8 @@ app.use("/api/users-directory", userDirectoryRoutes);
 app.use("/api/events", eventsApiRoutes);
 app.use("/api/v1/events", eventsApiRoutes);
 app.use("/api/subscribers", subscribersRoutes);
+app.use("/api/git", gitApiRoutes);
+app.use("/api/admin/git", gitApiRoutes);
 app.use("/oauth", ssoRoutes);
 
 // =======================
@@ -244,7 +256,15 @@ async function startServer() {
     const adminCount = await Admin.count();
     if (adminCount === 0) {
       const initialEmail = process.env.ADMIN_EMAIL || "admin@mscprpcem.tech";
-      const initialPassword = process.env.ADMIN_PASSWORD || "Admin@123";
+      let initialPassword = process.env.ADMIN_PASSWORD;
+      if (!initialPassword) {
+        if (process.env.NODE_ENV === 'production') {
+          initialPassword = require('crypto').randomBytes(16).toString('hex') + '!Aa1';
+          console.warn(`⚠️ [SECURITY] Initial admin seeded with auto-generated secure password: ${initialPassword}`);
+        } else {
+          initialPassword = "Admin@123";
+        }
+      }
       const initialName = process.env.ADMIN_NAME || "MSC Admin";
       await Admin.create({
         name: initialName,

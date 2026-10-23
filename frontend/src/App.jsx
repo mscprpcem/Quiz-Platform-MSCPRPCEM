@@ -47,6 +47,9 @@ import AdminUsers from './pages/AdminUsers';
 import EventRegister from './pages/EventRegister';
 import SqlPractice from './pages/SqlPractice';
 import SqlCourseHub from './pages/SqlCourseHub';
+import GitCourseHub from './pages/GitCourseHub';
+import GitPractice from './pages/GitPractice';
+import AdminGit from './pages/AdminGit';
 import SqlIntroPresentation from './pages/SqlIntroPresentation';
 import LeaderboardPreview from './pages/LeaderboardPreview';
 import NotFound from './pages/NotFound';
@@ -157,6 +160,16 @@ function App() {
                 <Route path="/practice/sql" element={<RequireAuth><SqlCourseHub /></RequireAuth>} />
                 <Route path="/practice/sql/lab" element={<RequireAuth><SqlPractice /></RequireAuth>} />
                 <Route path="/practice/sql/:challengeId" element={<RequireAuth><SqlPractice /></RequireAuth>} />
+                
+                {/* Git & GitHub Learning & Interactive Lab Routes (Requires Login) */}
+                <Route path="/courses/git" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
+                <Route path="/courses/git/:tab" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
+                <Route path="/git" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
+                <Route path="/git/learn" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
+                <Route path="/git/:tab" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
+                <Route path="/practice/git" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
+                <Route path="/practice/git/lab" element={<RequireAuth><GitPractice /></RequireAuth>} />
+                <Route path="/practice/git/:challengeId" element={<RequireAuth><GitPractice /></RequireAuth>} />
                 <Route path="/practice" element={<RequireAuth><PracticeQuiz /></RequireAuth>} />
                 <Route path="/practice/:category" element={<RequireAuth><PracticeQuiz /></RequireAuth>} />
                 <Route path="/courses" element={<RequireAuth><Courses /></RequireAuth>} />
@@ -294,6 +307,14 @@ function App() {
                   element={
                     <AdminRoute>
                       <AdminCourses />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/git"
+                  element={
+                    <AdminRoute>
+                      <AdminGit />
                     </AdminRoute>
                   }
                 />
