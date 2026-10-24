@@ -7,7 +7,7 @@ import {
   HelpCircle, Share2, Award, Check, ExternalLink, Zap, Sun, Moon,
   Plus, Edit, Trash2, ShieldCheck, UserCheck, Search, ChevronDown, X
 } from 'lucide-react';
-import { SQL_CHALLENGES, getStoredCustomChallenges, deleteCustomChallenge } from '../data/sqlChallenges';
+import { SQL_CHALLENGES, getStoredCustomChallenges, deleteCustomChallenge, slugifyTitle, getChallengeSlug } from '../data/sqlChallenges';
 import { executeSqlQuery, validateSqlQuery, getTablesPreview } from '../services/sqlEngine';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -53,16 +53,36 @@ export default function SqlPractice() {
     return [...SQL_CHALLENGES, ...customChallenges];
   }, [customChallenges]);
 
-  // Find active challenge or default to first
-  const [selectedChallengeIndex, setSelectedChallengeIndex] = useState(() => {
+  // Find active challenge based on URL slug, legacy id, or default to first
+  const activeChallenge = useMemo(() => {
     if (challengeId) {
-      const idx = allChallenges.findIndex(c => c.id === challengeId);
-      if (idx !== -1) return idx;
+      const found = allChallenges.find(c => 
+        c.slug === challengeId || 
+        c.id === challengeId ||
+        slugifyTitle(c.title) === challengeId
+      );
+      if (found) return found;
     }
-    return 0;
-  });
+    return allChallenges[0] || SQL_CHALLENGES[0];
+  }, [challengeId, allChallenges]);
 
-  const activeChallenge = allChallenges[selectedChallengeIndex] || allChallenges[0];
+  const selectedChallengeIndex = useMemo(() => {
+    const idx = allChallenges.findIndex(c => c.id === activeChallenge?.id);
+    return idx !== -1 ? idx : 0;
+  }, [allChallenges, activeChallenge]);
+
+  const nextChallenge = allChallenges[selectedChallengeIndex + 1] || null;
+  const prevChallenge = allChallenges[selectedChallengeIndex - 1] || null;
+
+  // Auto-redirect /practice/sql/lab or old id URL to proper heading-slug URL
+  useEffect(() => {
+    if (activeChallenge) {
+      const targetSlug = getChallengeSlug(activeChallenge);
+      if (challengeId !== targetSlug) {
+        navigate(`/practice/sql/${targetSlug}`, { replace: true });
+      }
+    }
+  }, [challengeId, activeChallenge, navigate]);
 
   // User query code state
   const [userQuery, setUserQuery] = useState(activeChallenge?.starterSql || '');
@@ -387,14 +407,14 @@ export default function SqlPractice() {
   };
 
   const handleNextChallenge = () => {
-    if (selectedChallengeIndex < allChallenges.length - 1) {
-      setSelectedChallengeIndex(prev => prev + 1);
+    if (nextChallenge) {
+      navigate(`/practice/sql/${getChallengeSlug(nextChallenge)}`);
     }
   };
 
   const handlePrevChallenge = () => {
-    if (selectedChallengeIndex > 0) {
-      setSelectedChallengeIndex(prev => prev - 1);
+    if (prevChallenge) {
+      navigate(`/practice/sql/${getChallengeSlug(prevChallenge)}`);
     }
   };
 
@@ -402,12 +422,8 @@ export default function SqlPractice() {
   const handleCustomChallengeSaved = (savedCh) => {
     const updated = getStoredCustomChallenges();
     setCustomChallenges(updated);
-    // Find index of newly created/updated challenge
-    const newIdx = allChallenges.findIndex(c => c.id === savedCh.id);
-    if (newIdx !== -1) {
-      setSelectedChallengeIndex(newIdx);
-    } else {
-      setSelectedChallengeIndex(allChallenges.length); // will be the last item
+    if (savedCh) {
+      navigate(`/practice/sql/${getChallengeSlug(savedCh)}`);
     }
   };
 
@@ -417,7 +433,10 @@ export default function SqlPractice() {
     if (window.confirm('Are you sure you want to delete this custom SQL challenge?')) {
       const updated = deleteCustomChallenge(id);
       setCustomChallenges(updated);
-      setSelectedChallengeIndex(0);
+      const remaining = [...SQL_CHALLENGES, ...updated];
+      if (remaining.length > 0) {
+        navigate(`/practice/sql/${getChallengeSlug(remaining[0])}`);
+      }
     }
   };
 
@@ -557,25 +576,25 @@ export default function SqlPractice() {
           <div className="flex items-center space-x-0.5">
             <button
               onClick={handlePrevChallenge}
-              disabled={selectedChallengeIndex === 0}
+              disabled={!prevChallenge}
               className={`p-1.5 rounded-lg disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer transition-colors ${
                 isDarkMode 
                   ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' 
                   : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
               }`}
-              title="Previous Question"
+              title={prevChallenge ? `Previous: ${prevChallenge.title}` : 'First Question'}
             >
               <ChevronLeft size={16} />
             </button>
             <button
               onClick={handleNextChallenge}
-              disabled={selectedChallengeIndex === allChallenges.length - 1}
+              disabled={!nextChallenge}
               className={`p-1.5 rounded-lg disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer transition-colors ${
                 isDarkMode 
                   ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' 
                   : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
               }`}
-              title="Next Question"
+              title={nextChallenge ? `Next: ${nextChallenge.title}` : 'Last Question'}
             >
               <ChevronRight size={16} />
             </button>
@@ -1175,7 +1194,7 @@ export default function SqlPractice() {
                     <div className="font-normal text-[11px] leading-relaxed">
                       {validationResult.message}
                     </div>
-                    {validationResult.passed && selectedChallengeIndex < allChallenges.length - 1 && (
+                    {validationResult.passed && nextChallenge && (
                       <button
                         onClick={handleNextChallenge}
                         className="mt-2 inline-flex items-center space-x-1 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs active:scale-95"
@@ -1347,7 +1366,7 @@ export default function SqlPractice() {
               isDarkMode ? 'divide-slate-800 bg-slate-950' : 'divide-slate-100 bg-white'
             }`}>
               {allChallenges.map((ch, idx) => {
-                const isSelected = idx === selectedChallengeIndex;
+                const isSelected = ch.id === activeChallenge?.id;
                 const isSolved = solvedChallenges.includes(ch.id);
                 const diffTheme = getDifficultyTheme(ch.difficulty, isSelected);
 
@@ -1355,7 +1374,7 @@ export default function SqlPractice() {
                   <div
                     key={ch.id}
                     onClick={() => {
-                      setSelectedChallengeIndex(idx);
+                      navigate(`/practice/sql/${getChallengeSlug(ch)}`);
                       setShowDrawer(false);
                     }}
                     className={`px-4 py-3.5 transition-colors cursor-pointer flex items-center justify-between ${

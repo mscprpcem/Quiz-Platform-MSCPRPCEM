@@ -1323,13 +1323,36 @@ The subquery groups by \`department_id\` and extracts the peak salary for each d
   }
 ];
 
-export const SQL_CHALLENGES = [...BASE_CHALLENGES, ...DDL_CHALLENGES, ...DML_CHALLENGES, ...FILTERING_CHALLENGES];
+export function slugifyTitle(title) {
+  if (!title) return '';
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+export function getChallengeSlug(challenge) {
+  if (!challenge) return '';
+  if (challenge.slug) return challenge.slug;
+  return slugifyTitle(challenge.title) || challenge.id;
+}
+
+export const SQL_CHALLENGES = [...BASE_CHALLENGES, ...DDL_CHALLENGES, ...DML_CHALLENGES, ...FILTERING_CHALLENGES].map(c => ({
+  ...c,
+  slug: c.slug || slugifyTitle(c.title) || c.id
+}));
 
 // Helper functions for Admin custom challenge management
 export function getStoredCustomChallenges() {
   try {
     const raw = localStorage.getItem('msc_custom_sql_challenges');
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    return parsed.map(c => ({
+      ...c,
+      slug: c.slug || slugifyTitle(c.title) || c.id
+    }));
   } catch (err) {
     console.error('Error loading custom SQL challenges from localStorage:', err);
     return [];
@@ -1338,13 +1361,17 @@ export function getStoredCustomChallenges() {
 
 export function saveCustomChallenge(newChallenge) {
   const existing = getStoredCustomChallenges();
-  const idx = existing.findIndex(c => c.id === newChallenge.id);
+  const challengeWithSlug = {
+    ...newChallenge,
+    slug: newChallenge.slug || slugifyTitle(newChallenge.title) || newChallenge.id
+  };
+  const idx = existing.findIndex(c => c.id === challengeWithSlug.id);
   let updated;
   if (idx >= 0) {
     updated = [...existing];
-    updated[idx] = newChallenge;
+    updated[idx] = challengeWithSlug;
   } else {
-    updated = [...existing, newChallenge];
+    updated = [...existing, challengeWithSlug];
   }
   localStorage.setItem('msc_custom_sql_challenges', JSON.stringify(updated));
   return updated;
@@ -1356,3 +1383,4 @@ export function deleteCustomChallenge(id) {
   localStorage.setItem('msc_custom_sql_challenges', JSON.stringify(updated));
   return updated;
 }
+
