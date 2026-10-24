@@ -8,7 +8,8 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 | Version | Release Type | Key Highlights | Status |
 | :--- | :--- | :--- | :--- |
-| **v1.8.5** | **Patch (Current)** | Verification Platform Badge Sys ID integration, Live & Scheduled Quiz credentialing, Admin permission controls ("Issue Now" vs "Save for Later"), real-time attendee sync | **Active Production** |
+| **v1.9.0** | **Minor (Current)** | Dedicated Git & GitHub 34-lesson curriculum, 30-Day Roadmap, Cheat Sheet, first-time tutor guide, responsive media queries, clean leaderboard scoring | **Active Production** |
+| **v1.8.5** | Patch | Verification Platform Badge Sys ID integration, Live & Scheduled Quiz credentialing, Admin permission controls ("Issue Now" vs "Save for Later"), real-time attendee sync | Stable |
 | **v1.8.4** | Patch | Standard MSC PRPCEM email template, simplified centered header, dynamic content wireframe, rich laptop/mobile preview, admin dispatch formatting toolbar, official link standardization | Stable |
 | **v1.8.3** | Patch | Enterprise SQL grading engine, DDL entity & constraint verification, DML post-mutation table state diffing, qrcode bundle integrity | Stable |
 | **v1.8.2** | Patch | Viewport-centered portal modals, verification revocation guardrails, event quiz delinking, cascade mail sync, institutional email preview, opaque theme system | Stable |
@@ -27,7 +28,50 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 ## Detailed Changelog
 
-### Version 1.8.5 (Current Release)
+### Version 1.9.0 (Current Release)
+*Theme: Dedicated Git & GitHub Interactive Learning Track, 30-Day Developer Roadmap, Command Cheat Sheet Reference, First-Time Onboarding Tutor Guide, Responsive Media Queries & Clean Leaderboard Engine*
+
+- **Dedicated Git & GitHub Learning Curriculum (`GitLearningView.jsx`)**:
+  - Implemented 34 comprehensive lessons across 5 progressive tiers (Novice Foundations, Branching & History, GitHub Collaboration, Power Tools, and Production Workflows).
+  - Modeled after `SqlLearningView` with full-height distraction-free workspace, linear next/prev navigation, reading progress tracking, and collapsible syllabus tiers.
+  - Removed disruptive knowledge checks and quiz popups to provide a clean, focused reading experience.
+  - Interactive terminal command blocks featuring macOS/Linux window controls, syntax-highlighted tokens (`git`, commands, flags, arguments), one-click clipboard copying, and ASCII commit graph diagrams.
+  - Embedded developer mental models (ELI5), critical production warnings, architectural takeaways, and direct "Try in Lab" shortcuts.
+- **First-Time Student Onboarding Tutor Guide**:
+  - Engineered an interactive 5-step guided walkthrough introducing core workspace features:
+    1. Instant Lesson Search
+    2. Live Reading Progress Tracker
+    3. 5 Curriculum Tiers
+    4. Mark Completed Action
+    5. Virtual Git Terminal Simulator Lab
+  - Tooltip card is dynamically anchored to the side of target elements (search bar, syllabus, header actions) with a directional pointer arrow, avoiding center-screen blocking modals.
+  - Automatically runs exclusively for first-time learners, persisting dismissal in `localStorage` (`msc_git_learn_tour_done`) without cluttering the header with permanent buttons.
+- **Dedicated 30-Day Developer Roadmap (`GitRoadmapView.jsx` at `/courses/git/roadmap`)**:
+  - Dedicated interactive study schedule guiding students through 30 daily goals from basic repo initialization to CI/CD and emergency production hotfixes.
+  - Interactive week-by-week selector pills (All 30 Days, Week 1-4), live roadmap search filter, and individual day completion toggle checkboxes.
+- **Dedicated Git Command Cheat Sheet (`/courses/git/cheatsheet`)**:
+  - Dedicated reference page categorizing essential commands: Setup & Config, Basic Snapshotting, Branching & Merging, Inspection & History, Remote Repositories, Stashing & Recovery, and Advanced Plumbing.
+  - Instant live search filter and one-click copyable command cards with responsive text wrapping.
+- **Light Theme Git Course Hub (`GitCourseHub.jsx` at `/courses/git`)**:
+  - Rebuilt in MSC signature light theme (`#F5FAFF`), removing all loaders, tracking progress bars, dumped cheatsheets, and excessive content.
+  - Clean primary action cards for **Learning** (`/courses/git/learn`) and **Practice Lab** (`/practice/git/lab`), with dedicated secondary link cards for the **30-Day Roadmap** and **Cheat Sheet**.
+- **Comprehensive Responsive Media Queries Across All Git Views**:
+  - **Learning View**: Adaptive breadcrumb truncation on mobile (`max-w-[130px] xs:max-w-[180px] sm:max-w-[260px] md:max-w-xs`), compact mobile completion toggle (`Mark` / `Done`), responsive lab button, mobile slide-over drawer with integrated live search, and full-width navigation footers on small screens.
+  - **Course Hub**: Adaptive hero headers, responsive 1/2/4-column tutor grids, and touch-optimized action buttons.
+  - **Roadmap View**: Compact sticky header on mobile, responsive week filter pills, and title text clamping.
+- **Leaderboard UX & Data Clean-up**:
+  - Removed confusing `(25/page)` debug suffix from the homepage leaderboard button.
+  - Removed `pts` suffix on the tournament standings page (`/leaderboard`), displaying clean numeric scores.
+  - Enforced strict score sorting from highest to lowest (descending) with clean sequential rank badges (🥇, 🥈, 🥉, #4, #5...).
+  - Filtered out test, dummy, and demo accounts (`test`, `dummy`, `demo`, `admin`, `alex rivers`, `sarah connor`) across both frontend (`TournamentStandings.jsx`, `Home.jsx`) and backend (`analytics.js`).
+- **Backend Stability & Environment Optimization**:
+  - Fixed Sequelize `Op` import omission in `backend/src/server.js` preventing `.edu` admin cleanup warnings.
+  - Terminated orphaned Node processes causing port 5000 `EADDRINUSE` (`errno: -4091`) conflicts on startup.
+  - Validated hybrid database architecture: Neon Serverless PostgreSQL in cloud deployment vs. zero-config local SQLite.
+
+---
+
+### Version 1.8.5
 *Theme: Verification Platform Badge Sys ID Integration, Live & Scheduled Quiz Credentialing, Admin Permission Controls & Cryptographic Publishing*
 
 - **Badge Sys ID & Verification Platform Alignment**:

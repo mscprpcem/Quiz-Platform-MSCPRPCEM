@@ -1,6 +1,6 @@
 {
   "name": "msc-live-quiz-backend",
-  "version": "1.8.3",
+  "version": "1.9.0",
   "description": "Backend API and WebSocket server for MSC Quiz Platform",
   "main": "src/server.js",
   "scripts": {

@@ -5,8 +5,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B%20LTS-green.svg)](https://nodejs.org)
 [![React](https://img.shields.io/badge/React-18%2B%20Vite-61dafb.svg)](https://reactjs.org)
 [![Socket.io](https://img.shields.io/badge/Socket.io-4.8%2B-010101.svg)](https://socket.io)
-[![Azure Blob Storage](https://img.shields.io/badge/Storage-Azure%20Blob-0078d4.svg)](https://azure.microsoft.com)
-[![Status](https://img.shields.io/badge/Security%20Audit-100%25%20Verified-success.svg)](report.md)
+[![Status](https://img.shields.io/badge/Security%20Policy-Active-success.svg)](SECURITY.md)
 
 An enterprise-grade, dual-mode real-time testing, event registration, and credentialing ecosystem engineered for the **Microsoft Student Club (MSC PRPCEM)**. Supports high-concurrency synchronized live multiplayer competitions, formal proctored scheduled certifications, public event registration with deadline controls, an email dispatch broadcast hub, and centralized Single Sign-On (SSO / OIDC).
 
