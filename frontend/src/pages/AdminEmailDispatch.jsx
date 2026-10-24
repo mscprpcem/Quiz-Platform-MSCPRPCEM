@@ -60,8 +60,24 @@ export default function AdminEmailDispatch() {
   const [dispatching, setDispatching] = useState(false);
   const [dispatchResult, setDispatchResult] = useState(null);
   const [sendingTest, setSendingTest] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState('mlsc@prpotepatilengg.ac.in');
   const [testResult, setTestResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Live Progressive Dispatch Tracker
+  const [dispatchTracker, setDispatchTracker] = useState({
+    active: false,
+    status: 'idle', // 'idle' | 'running' | 'paused' | 'completed'
+    total: 0,
+    processed: 0,
+    sentCount: 0,
+    failedCount: 0,
+    resultsMap: {},
+    logs: []
+  });
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [recipientStatusTab, setRecipientStatusTab] = useState('all'); // 'all' | 'selected' | 'sent' | 'remaining'
+  const pauseRequestedRef = useRef(false);
 
   // Available dynamic tags from registration & quiz context
   const dynamicTags = [
@@ -304,16 +320,16 @@ export default function AdminEmailDispatch() {
       const replacement = text.substring(0, start) + tag + text.substring(end);
       setMessageBody(replacement);
       setTimeout(() => {
-        textarea.focus();
+        textarea.focus({ preventScroll: true });
         textarea.setSelectionRange(start + tag.length, start + tag.length);
       }, 0);
     } else {
-      setMessageBody(prev => prev + ' ' + tag);
+      setMessageBody(prev => (prev ? `${prev} ${tag}` : tag));
     }
   };
 
   // Text formatting helpers for Bold, Italic, Code, Link, etc.
-  const formatWrap = (prefix, suffix, placeholder = 'text') => {
+  const formatWrap = (prefix, suffix, placeholder = '') => {
     if (!messageBodyRef.current) {
       setMessageBody(prev => prev + `${prefix}${placeholder}${suffix}`);
       return;
@@ -329,7 +345,7 @@ export default function AdminEmailDispatch() {
       const nextVal = text.substring(0, start) + replacement + text.substring(end);
       setMessageBody(nextVal);
       setTimeout(() => {
-        textarea.focus();
+        textarea.focus({ preventScroll: true });
         textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
       }, 0);
     } else {
@@ -337,15 +353,15 @@ export default function AdminEmailDispatch() {
       const nextVal = text.substring(0, start) + replacement + text.substring(end);
       setMessageBody(nextVal);
       setTimeout(() => {
-        textarea.focus();
+        textarea.focus({ preventScroll: true });
         textarea.setSelectionRange(start + prefix.length, start + prefix.length + placeholder.length);
       }, 0);
     }
   };
 
-  const formatPrefix = (linePrefix, placeholder = 'item') => {
+  const formatPrefix = (linePrefix) => {
     if (!messageBodyRef.current) {
-      setMessageBody(prev => prev + `\n${linePrefix}${placeholder}`);
+      setMessageBody(prev => (prev ? `${prev}\n${linePrefix}` : linePrefix));
       return;
     }
     const textarea = messageBodyRef.current;
@@ -353,15 +369,29 @@ export default function AdminEmailDispatch() {
     const end = textarea.selectionEnd || 0;
     const text = textarea.value;
     const selected = text.substring(start, end);
-    const insertContent = selected || placeholder;
+
+    if (selected.length > 0) {
+      const lines = selected.split('\n');
+      const prefixed = lines.map(line => `${linePrefix}${line}`).join('\n');
+      const nextVal = text.substring(0, start) + prefixed + text.substring(end);
+      setMessageBody(nextVal);
+      setTimeout(() => {
+        textarea.focus({ preventScroll: true });
+        textarea.setSelectionRange(start, start + prefixed.length);
+      }, 0);
+      return;
+    }
+
+    // No selection: Insert prefix cleanly at cursor/line start WITHOUT writing any placeholder text
     const needsNewline = start > 0 && text[start - 1] !== '\n';
     const finalPrefix = needsNewline ? `\n${linePrefix}` : linePrefix;
-    const replacement = finalPrefix + insertContent;
-    const nextVal = text.substring(0, start) + replacement + text.substring(end);
+    const nextVal = text.substring(0, start) + finalPrefix + text.substring(end);
     setMessageBody(nextVal);
+    const newCursorPos = start + finalPrefix.length;
+
     setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + finalPrefix.length, start + replacement.length);
+      textarea.focus({ preventScroll: true });
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
     }, 0);
   };
 
@@ -395,7 +425,7 @@ export default function AdminEmailDispatch() {
     const nextVal = text.substring(0, start) + replacement + text.substring(end);
     setMessageBody(nextVal);
     setTimeout(() => {
-      textarea.focus();
+      textarea.focus({ preventScroll: true });
       textarea.setSelectionRange(start, start + replacement.length);
     }, 0);
   };
@@ -562,8 +592,17 @@ export default function AdminEmailDispatch() {
     }
   };
 
-  // Submit email dispatch
-  const handleSendDispatch = async () => {
+  // Live Progressive Email Dispatch Handler
+  const handlePauseDispatch = () => {
+    pauseRequestedRef.current = true;
+    setDispatchTracker(prev => ({
+      ...prev,
+      status: 'paused',
+      logs: [`[${new Date().toLocaleTimeString()}] ⏸️ Pause requested. Completing active batch...`, ...prev.logs]
+    }));
+  };
+
+  const startProgressiveDispatch = async (targetOverride = null) => {
     if (!subject.trim()) {
       setErrorMessage('Please enter an email subject line.');
       return;
@@ -572,57 +611,203 @@ export default function AdminEmailDispatch() {
       setErrorMessage('Please write a message body.');
       return;
     }
-    if (activeCount === 0) {
-      setErrorMessage('No active recipient emails selected to dispatch.');
+
+    const fullActive = currentRecipients.filter(r => !excludedEmails.has(r.email));
+    const targetList = targetOverride || fullActive.filter(r => dispatchTracker.resultsMap[r.email]?.status !== 'sent');
+
+    if (targetList.length === 0) {
+      setErrorMessage('All selected recipients have already received this email broadcast!');
       return;
     }
 
-    try {
-      setDispatching(true);
-      setErrorMessage('');
+    pauseRequestedRef.current = false;
+    setShowConfirmModal(false);
+    setShowProgressModal(true);
+    setDispatching(true);
+    setErrorMessage('');
 
-      const res = await api.post('/api/admin/email-dispatch/send', {
-        audienceType,
-        eventId: audienceType === 'event_registrants' ? selectedEventId : undefined,
-        eventName: audienceType === 'event_registrants' ? (selectedEventInfo?.name || searchParams.get('event')) : undefined,
-        quizId: audienceType === 'quiz_participants' ? selectedQuizId : undefined,
-        participantFilter: (audienceType === 'quiz_participants' || audienceType === 'event_registrants') ? participantFilter : undefined,
-        customEmails: audienceType === 'custom' ? customEmailsText : undefined,
-        excludedEmails: Array.from(excludedEmails),
-        subject,
-        heading: heading || subject,
-        messageBody,
-        ctaText: ctaText || undefined,
-        ctaUrl: ctaUrl || undefined
+    const qTitle = selectedQuizInfo?.title || 'MSC Quiz Assessment';
+    const evName = selectedEventInfo?.name || searchParams.get('event') || selectedQuizInfo?.event_name || 'MSC Tech Event';
+
+    const initialTotal = targetOverride ? targetOverride.length : fullActive.length;
+
+    setDispatchTracker(prev => ({
+      ...prev,
+      active: true,
+      status: 'running',
+      total: Math.max(prev.total, initialTotal),
+      logs: [`[${new Date().toLocaleTimeString()}] 🚀 Initiated broadcast to ${targetList.length} recipient(s)...`, ...prev.logs.slice(0, 50)]
+    }));
+
+    const BATCH_SIZE = 5;
+
+    for (let i = 0; i < targetList.length; i += BATCH_SIZE) {
+      if (pauseRequestedRef.current) {
+        setDispatchTracker(prev => ({
+          ...prev,
+          status: 'paused',
+          logs: [`[${new Date().toLocaleTimeString()}] ⏸️ Dispatch paused. You can resume at any time.`, ...prev.logs]
+        }));
+        setDispatching(false);
+        return;
+      }
+
+      const chunk = targetList.slice(i, i + BATCH_SIZE);
+
+      // Mark this chunk as sending
+      setDispatchTracker(prev => {
+        const nextMap = { ...prev.resultsMap };
+        chunk.forEach(c => {
+          nextMap[c.email] = { status: 'sending', name: c.name };
+        });
+        return { ...prev, resultsMap: nextMap };
       });
 
-      if (res.data.success) {
-        setDispatchResult(res.data);
-        setShowConfirmModal(false);
-      } else {
-        setErrorMessage(res.data.error || 'Failed to dispatch emails.');
-        setShowConfirmModal(false);
+      try {
+        const res = await api.post('/api/admin/email-dispatch/send-batch', {
+          recipients: chunk,
+          subject,
+          heading: heading || subject,
+          messageBody,
+          ctaText: ctaText || undefined,
+          ctaUrl: ctaUrl || undefined,
+          eventName: evName,
+          quizTitle: qTitle
+        });
+
+        const batchResults = res.data.results || [];
+        const newLogs = [];
+
+        setDispatchTracker(prev => {
+          const nextMap = { ...prev.resultsMap };
+          let addedSent = 0;
+          let addedFailed = 0;
+
+          batchResults.forEach(br => {
+            nextMap[br.email] = {
+              status: br.status,
+              error: br.error,
+              name: br.name,
+              timestamp: Date.now()
+            };
+            if (br.status === 'sent') {
+              addedSent++;
+              newLogs.push(`✅ [${new Date().toLocaleTimeString()}] Delivered to ${br.name || br.email} (${br.email})`);
+            } else {
+              addedFailed++;
+              newLogs.push(`❌ [${new Date().toLocaleTimeString()}] Failed for ${br.name || br.email}: ${br.error || 'Delivery failed'}`);
+            }
+          });
+
+          const allProcessed = Object.values(nextMap).filter(v => v.status === 'sent' || v.status === 'failed').length;
+
+          return {
+            ...prev,
+            resultsMap: nextMap,
+            processed: allProcessed,
+            sentCount: prev.sentCount + addedSent,
+            failedCount: prev.failedCount + addedFailed,
+            logs: [...newLogs, ...prev.logs].slice(0, 100)
+          };
+        });
+
+      } catch (err) {
+        console.error('Batch delivery network error:', err);
+        const errMsg = err.response?.data?.error || err.message || 'Network timeout or delivery error';
+
+        setDispatchTracker(prev => {
+          const nextMap = { ...prev.resultsMap };
+          const newLogs = [];
+          chunk.forEach(c => {
+            nextMap[c.email] = {
+              status: 'failed',
+              error: errMsg,
+              name: c.name,
+              timestamp: Date.now()
+            };
+            newLogs.push(`❌ [${new Date().toLocaleTimeString()}] Batch error for ${c.email}: ${errMsg}`);
+          });
+
+          const allProcessed = Object.values(nextMap).filter(v => v.status === 'sent' || v.status === 'failed').length;
+
+          return {
+            ...prev,
+            resultsMap: nextMap,
+            processed: allProcessed,
+            failedCount: prev.failedCount + chunk.length,
+            logs: [...newLogs, ...prev.logs].slice(0, 100)
+          };
+        });
       }
-    } catch (err) {
-      console.error('Dispatch error:', err);
-      setErrorMessage(err.response?.data?.error || 'Failed to dispatch email broadcast.');
-      setShowConfirmModal(false);
-    } finally {
-      setDispatching(false);
     }
+
+    setDispatching(false);
+    setDispatchTracker(prev => {
+      const finalSent = Object.values(prev.resultsMap).filter(v => v.status === 'sent').length;
+      const finalFailed = Object.values(prev.resultsMap).filter(v => v.status === 'failed').length;
+      return {
+        ...prev,
+        status: 'completed',
+        logs: [`[${new Date().toLocaleTimeString()}] 🎉 Broadcast finished: ${finalSent} delivered, ${finalFailed} failed.`, ...prev.logs]
+      };
+    });
   };
 
-  // Send test email to mlsc@prpotepatilengg.ac.in
+  const handleSendDispatch = () => {
+    startProgressiveDispatch();
+  };
+
+  const retryRemainingUnsent = () => {
+    const fullActive = currentRecipients.filter(r => !excludedEmails.has(r.email));
+    const remaining = fullActive.filter(r => dispatchTracker.resultsMap[r.email]?.status !== 'sent');
+    if (remaining.length === 0) {
+      alert('All selected recipients have already received the broadcast!');
+      return;
+    }
+    startProgressiveDispatch(remaining);
+  };
+
+  const selectOnlyRemaining = () => {
+    const sentSet = new Set(
+      Object.entries(dispatchTracker.resultsMap)
+        .filter(([_, v]) => v.status === 'sent')
+        .map(([email]) => email)
+    );
+    setExcludedEmails(sentSet);
+    setRecipientStatusTab('remaining');
+  };
+
+  const copyFailedEmails = () => {
+    const failed = Object.entries(dispatchTracker.resultsMap)
+      .filter(([_, v]) => v.status === 'failed')
+      .map(([email]) => email);
+    if (failed.length === 0) return;
+    navigator.clipboard.writeText(failed.join(', '));
+    alert(`Copied ${failed.length} failed email address(es) to clipboard!`);
+  };
+
+  // Send test email with current composed content
   const handleSendTestEmail = async () => {
     try {
       setSendingTest(true);
       setTestResult(null);
+      const targetTo = (testEmailAddress || 'mlsc@prpotepatilengg.ac.in').trim();
       const res = await api.post('/api/admin/email-dispatch/send-test', {
-        to: 'mlsc@prpotepatilengg.ac.in',
-        name: 'Team MSC PRPCEM'
+        to: targetTo,
+        subject: subject.trim() || '📢 Test Email Dispatch Preview',
+        heading: heading.trim() || subject.trim() || 'MSC PRPCEM Announcement',
+        messageBody: messageBody.trim() || 'This is a live preview test of your current email dispatch.',
+        ctaText: ctaText.trim() || undefined,
+        ctaUrl: ctaUrl.trim() || undefined,
+        eventId: selectedEventId || undefined,
+        eventName: selectedEventInfo?.name || searchParams.get('event') || undefined,
+        quizId: selectedQuizId || undefined
       });
       if (res.data.success) {
-        setTestResult({ success: true, message: res.data.message || 'Test email dispatched to mlsc@prpotepatilengg.ac.in' });
+        setTestResult({
+          success: true,
+          message: res.data.message || `Test email with current template dispatched to ${targetTo}`
+        });
       } else {
         setTestResult({ success: false, message: res.data.error || 'Failed to dispatch test email' });
       }
@@ -657,9 +842,6 @@ export default function AdminEmailDispatch() {
       .replace(/\{score\}/gi, sampleRecipient.score != null ? String(sampleRecipient.score) : '85')
       .replace(/\{status\}/gi, sampleRecipient.status || 'Registered');
   };
-
-  const cleanPreviewBody = (messageBody || '').trim();
-  const hasLeadingGreeting = /^(hello|dear|hi|hey|greetings|welcome)\b/i.test(cleanPreviewBody);
 
   return (
     <div className="space-y-6 animate-fade-in text-left pb-12 font-segoe max-w-7xl mx-auto">
@@ -1035,8 +1217,64 @@ export default function AdminEmailDispatch() {
               </div>
             )}
 
-            {/* Recipient Search & Exclusion Table */}
+            {/* Recipient Search, Filter Tabs & Live Delivery Tracking Table */}
             <div className="space-y-3 pt-3 border-t border-slate-100">
+              {/* Delivery Status Filter Tabs */}
+              <div className="flex items-center justify-between gap-1 p-1 bg-slate-100 rounded-xl text-[10px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => setRecipientStatusTab('all')}
+                  className={`flex-1 py-1 px-1 rounded-lg text-center transition-all cursor-pointer ${
+                    recipientStatusTab === 'all' ? 'bg-white text-slate-900 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  All ({currentRecipients.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecipientStatusTab('selected')}
+                  className={`flex-1 py-1 px-1 rounded-lg text-center transition-all cursor-pointer ${
+                    recipientStatusTab === 'selected' ? 'bg-white text-blue-700 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Selected ({activeCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecipientStatusTab('sent')}
+                  className={`flex-1 py-1 px-1 rounded-lg text-center transition-all cursor-pointer ${
+                    recipientStatusTab === 'sent' ? 'bg-white text-emerald-700 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Sent ({Object.values(dispatchTracker.resultsMap).filter(v => v.status === 'sent').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecipientStatusTab('remaining')}
+                  className={`flex-1 py-1 px-1 rounded-lg text-center transition-all cursor-pointer ${
+                    recipientStatusTab === 'remaining' ? 'bg-white text-amber-700 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Remaining ({currentRecipients.filter(r => dispatchTracker.resultsMap[r.email]?.status !== 'sent').length})
+                </button>
+              </div>
+
+              {/* Quick Select Remaining Notice if partial dispatch exists */}
+              {Object.values(dispatchTracker.resultsMap).some(v => v.status === 'sent') && (
+                <div className="flex items-center justify-between p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] gap-2">
+                  <span className="font-bold text-amber-900 truncate">
+                    {Object.values(dispatchTracker.resultsMap).filter(v => v.status === 'sent').length} sent, {currentRecipients.filter(r => dispatchTracker.resultsMap[r.email]?.status !== 'sent').length} unsent.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={selectOnlyRemaining}
+                    className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-black text-[10px] cursor-pointer whitespace-nowrap shadow-2xs flex-shrink-0"
+                  >
+                    Select Only Remaining
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center justify-between gap-2">
                 <div className="relative flex-1">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1059,63 +1297,94 @@ export default function AdminEmailDispatch() {
 
               {/* Scrollable Recipient Checkboxes List */}
               <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1 border border-slate-100 rounded-2xl p-2 bg-slate-50/50">
-                {currentRecipients.length === 0 ? (
+                {currentRecipients
+                  .filter(r => {
+                    if (recipientStatusTab === 'sent') return dispatchTracker.resultsMap[r.email]?.status === 'sent';
+                    if (recipientStatusTab === 'remaining') return dispatchTracker.resultsMap[r.email]?.status !== 'sent';
+                    if (recipientStatusTab === 'selected') return !excludedEmails.has(r.email);
+                    return true;
+                  })
+                  .length === 0 ? (
                   <div className="text-center py-6 text-xs text-slate-400 font-bold">
                     No recipients matching current filter.
                   </div>
                 ) : (
-                  currentRecipients.map((r) => {
-                    const isChecked = !excludedEmails.has(r.email);
-                    const isCompleted = r.quiz_status === 'completed' || r.status === 'Completed';
-                    const isInProgress = r.quiz_status === 'in_progress' || r.status === 'In Progress';
-                    return (
-                      <div
-                        key={r.email}
-                        onClick={() => toggleExcludeEmail(r.email)}
-                        className={`flex items-center justify-between p-2.5 rounded-xl text-xs transition-all cursor-pointer border ${
-                          isChecked
-                            ? 'bg-white border-slate-200/80 text-slate-800 shadow-2xs'
-                            : 'bg-slate-100/60 border-transparent text-slate-400 line-through opacity-60'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2.5 truncate">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}}
-                            className="rounded text-blue-600 focus:ring-0 cursor-pointer"
-                          />
-                          <div className="truncate">
-                            <div className="font-bold text-slate-800 text-[11px] truncate">
-                              {r.name || r.email.split('@')[0]}
+                  currentRecipients
+                    .filter(r => {
+                      if (recipientStatusTab === 'sent') return dispatchTracker.resultsMap[r.email]?.status === 'sent';
+                      if (recipientStatusTab === 'remaining') return dispatchTracker.resultsMap[r.email]?.status !== 'sent';
+                      if (recipientStatusTab === 'selected') return !excludedEmails.has(r.email);
+                      return true;
+                    })
+                    .map((r) => {
+                      const isChecked = !excludedEmails.has(r.email);
+                      const isCompleted = r.quiz_status === 'completed' || r.status === 'Completed';
+                      const isInProgress = r.quiz_status === 'in_progress' || r.status === 'In Progress';
+                      const trackState = dispatchTracker.resultsMap[r.email];
+
+                      return (
+                        <div
+                          key={r.email}
+                          onClick={() => toggleExcludeEmail(r.email)}
+                          className={`flex items-center justify-between p-2.5 rounded-xl text-xs transition-all cursor-pointer border ${
+                            isChecked
+                              ? 'bg-white border-slate-200/80 text-slate-800 shadow-2xs'
+                              : 'bg-slate-100/60 border-transparent text-slate-400 line-through opacity-60'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2.5 truncate">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {}}
+                              className="rounded text-blue-600 focus:ring-0 cursor-pointer"
+                            />
+                            <div className="truncate">
+                              <div className="font-bold text-slate-800 text-[11px] truncate flex items-center gap-1.5">
+                                <span>{r.name || r.email.split('@')[0]}</span>
+                                {trackState?.status === 'sent' && (
+                                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    ✓ Sent
+                                  </span>
+                                )}
+                                {trackState?.status === 'failed' && (
+                                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-rose-100 text-rose-800 border border-rose-300" title={trackState.error}>
+                                    ✕ Failed
+                                  </span>
+                                )}
+                                {trackState?.status === 'sending' && (
+                                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1">
+                                    <Loader2 size={9} className="animate-spin" /> Sending
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-400 truncate">{r.email}</div>
                             </div>
-                            <div className="text-[10px] text-slate-400 truncate">{r.email}</div>
+                          </div>
+
+                          <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                            {isCompleted ? (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                Completed {r.score != null ? `• ${r.score} pts` : ''}
+                              </span>
+                            ) : isInProgress ? (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-200">
+                                In Progress
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200 font-extrabold">
+                                Registered • Didn't Attend
+                              </span>
+                            )}
+                            {r.college && (
+                              <span className="text-[9px] font-bold text-slate-400 block truncate max-w-[120px]">
+                                {r.college}
+                              </span>
+                            )}
                           </div>
                         </div>
-
-                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
-                          {isCompleted ? (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              Completed {r.score != null ? `• ${r.score} pts` : ''}
-                            </span>
-                          ) : isInProgress ? (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-200">
-                              In Progress
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200 font-extrabold">
-                              Registered • Didn't Attend
-                            </span>
-                          )}
-                          {r.college && (
-                            <span className="text-[9px] font-bold text-slate-400 block truncate max-w-[120px]">
-                              {r.college}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })
                 )}
               </div>
             </div>
@@ -1241,6 +1510,7 @@ export default function AdminEmailDispatch() {
                       <button
                         key={dt.tag}
                         type="button"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => insertTag(dt.tag)}
                         className="px-2.5 py-1 bg-slate-100 hover:bg-purple-100 hover:text-purple-700 text-slate-700 rounded-lg text-[11px] font-black border border-slate-200 transition-all cursor-pointer flex items-center space-x-1"
                         title={dt.desc}
@@ -1288,7 +1558,8 @@ export default function AdminEmailDispatch() {
                   <div className="flex flex-wrap items-center gap-1 p-1.5 bg-slate-100 border border-slate-200 rounded-t-xl border-b-0">
                     <button
                       type="button"
-                      onClick={() => formatWrap('**', '**', 'bold text')}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => formatWrap('**', '**', '')}
                       className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
                       title="Bold (**text**)"
                     >
@@ -1298,7 +1569,8 @@ export default function AdminEmailDispatch() {
 
                     <button
                       type="button"
-                      onClick={() => formatWrap('*', '*', 'italic text')}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => formatWrap('*', '*', '')}
                       className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
                       title="Italic (*text*)"
                     >
@@ -1308,6 +1580,7 @@ export default function AdminEmailDispatch() {
 
                     <button
                       type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={formatLink}
                       className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
                       title="Insert Hyperlink ([Text](url))"
@@ -1320,7 +1593,8 @@ export default function AdminEmailDispatch() {
 
                     <button
                       type="button"
-                      onClick={() => formatPrefix('### ', 'Section Heading')}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => formatPrefix('### ')}
                       className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
                       title="Heading (### Heading)"
                     >
@@ -1330,7 +1604,8 @@ export default function AdminEmailDispatch() {
 
                     <button
                       type="button"
-                      onClick={() => formatPrefix('• ', 'Key Point')}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => formatPrefix('• ')}
                       className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
                       title="Bullet Point (• item)"
                     >
@@ -1340,7 +1615,8 @@ export default function AdminEmailDispatch() {
 
                     <button
                       type="button"
-                      onClick={() => formatPrefix('1. ', 'First step')}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => formatPrefix('1. ')}
                       className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
                       title="Numbered List (1. item)"
                     >
@@ -1352,7 +1628,8 @@ export default function AdminEmailDispatch() {
 
                     <button
                       type="button"
-                      onClick={() => formatWrap('`', '`', 'highlight')}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => formatWrap('`', '`', '')}
                       className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
                       title="Inline Badge / Code (`code`)"
                     >
@@ -1362,7 +1639,8 @@ export default function AdminEmailDispatch() {
 
                     <button
                       type="button"
-                      onClick={() => formatPrefix('> 💡 Note: ', 'Please review the schedule carefully before joining.')}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => formatPrefix('> ')}
                       className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
                       title="Callout Notice Box (> Note: ...)"
                     >
@@ -1372,7 +1650,8 @@ export default function AdminEmailDispatch() {
 
                     <button
                       type="button"
-                      onClick={() => formatPrefix('---\n', '')}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => formatPrefix('---\n')}
                       className="p-1.5 hover:bg-white text-slate-700 hover:text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-none hover:shadow-sm"
                       title="Divider (---)"
                     >
@@ -1431,24 +1710,38 @@ export default function AdminEmailDispatch() {
                   </div>
                 )}
 
-                {/* Dispatch Trigger Buttons */}
-                <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+                {/* Live Test Dispatch Bar */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <div className="flex-1 flex items-center gap-2">
+                    <Mail size={15} className="text-blue-600 flex-shrink-0" />
+                    <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap">Test Recipient:</span>
+                    <input
+                      type="email"
+                      value={testEmailAddress}
+                      onChange={(e) => setTestEmailAddress(e.target.value)}
+                      placeholder="mlsc@prpotepatilengg.ac.in"
+                      className="flex-1 min-w-[180px] px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-blue-500"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={handleSendTestEmail}
                     disabled={sendingTest}
-                    className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
-                    title="Send official standard template test to mlsc@prpotepatilengg.ac.in"
+                    className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer disabled:opacity-50 border border-slate-300 shadow-2xs hover:shadow-xs flex-shrink-0"
+                    title="Send a live test email with your current template, subject, and body"
                   >
-                    {sendingTest ? <Loader2 size={14} className="animate-spin text-blue-600" /> : <Mail size={14} className="text-blue-600" />}
-                    <span>{sendingTest ? 'Sending Test...' : 'Send Test to mlsc@prpotepatilengg.ac.in'}</span>
+                    {sendingTest ? <Loader2 size={13} className="animate-spin text-blue-600" /> : <Send size={13} className="text-blue-600" />}
+                    <span>{sendingTest ? 'Sending Test...' : 'Send Test of Current Email'}</span>
                   </button>
+                </div>
 
+                {/* Final Broadcast Dispatch Button */}
+                <div className="pt-1 flex justify-end">
                   <button
                     type="button"
                     onClick={() => setShowConfirmModal(true)}
                     disabled={activeCount === 0 || !subject.trim() || !messageBody.trim()}
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center space-x-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+                    className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center justify-center space-x-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
                   >
                     <Send size={15} />
                     <span>Review &amp; Dispatch ({activeCount} Emails)</span>
@@ -1590,11 +1883,6 @@ export default function AdminEmailDispatch() {
                           lineHeight: '1.65'
                         }}
                       >
-                        {/* Greeting: Hi {{Name}}, */}
-                        <p className="text-lg font-bold text-slate-900 m-0 leading-tight">
-                          Hi <span className="text-blue-600 font-extrabold">{sampleRecipient.name}</span>,
-                        </p>
-
                         <div
                           className="text-slate-700 leading-relaxed break-words text-[15px]"
                           dangerouslySetInnerHTML={{
@@ -1740,6 +2028,218 @@ export default function AdminEmailDispatch() {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Live Broadcast Progress Tracker Modal */}
+      {showProgressModal && createPortal(
+        <div
+          className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4 z-[10001] animate-fade-in"
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-xl w-full shadow-2xl border border-slate-200 space-y-5 text-left my-auto max-h-[92vh] overflow-y-auto animate-scale-in">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+                  dispatchTracker.status === 'completed'
+                    ? 'bg-emerald-50 text-emerald-600'
+                    : dispatchTracker.status === 'paused'
+                    ? 'bg-amber-50 text-amber-600'
+                    : 'bg-blue-50 text-blue-600'
+                }`}>
+                  {dispatchTracker.status === 'completed' ? (
+                    <CheckCircle2 size={20} />
+                  ) : dispatchTracker.status === 'running' ? (
+                    <Loader2 size={20} className="animate-spin" />
+                  ) : (
+                    <Send size={20} />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Email Broadcast Tracker</h3>
+                  <p className="text-xs text-slate-500">Real-time live delivery telemetry &amp; per-recipient status</p>
+                </div>
+              </div>
+
+              <div>
+                {dispatchTracker.status === 'running' && (
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-black flex items-center gap-1.5 animate-pulse">
+                    <Loader2 size={12} className="animate-spin" /> Dispatching...
+                  </span>
+                )}
+                {dispatchTracker.status === 'paused' && (
+                  <span className="px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full text-xs font-black">
+                    ⏸️ Paused
+                  </span>
+                )}
+                {dispatchTracker.status === 'completed' && (
+                  <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full text-xs font-black">
+                    ✅ Finished
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Visual Animated Progress Bar */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                <span>Progress: {dispatchTracker.processed} of {dispatchTracker.total || activeCount} processed</span>
+                <span className="text-blue-700 font-black">
+                  {dispatchTracker.total > 0
+                    ? Math.min(100, Math.round((dispatchTracker.processed / dispatchTracker.total) * 100))
+                    : 0}%
+                </span>
+              </div>
+              <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 transition-all duration-300 rounded-full"
+                  style={{
+                    width: `${dispatchTracker.total > 0 ? Math.min(100, Math.round((dispatchTracker.processed / dispatchTracker.total) * 100)) : 0}%`
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Telemetry Counter Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-center">
+                <div className="text-[10px] font-black uppercase text-slate-400">Total Targeted</div>
+                <div className="text-base font-black text-slate-900 mt-0.5">{dispatchTracker.total || activeCount}</div>
+              </div>
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
+                <div className="text-[10px] font-black uppercase text-emerald-700">Delivered</div>
+                <div className="text-base font-black text-emerald-800 mt-0.5">{dispatchTracker.sentCount}</div>
+              </div>
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-center">
+                <div className="text-[10px] font-black uppercase text-rose-700">Failed</div>
+                <div className="text-base font-black text-rose-800 mt-0.5">{dispatchTracker.failedCount}</div>
+              </div>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-center">
+                <div className="text-[10px] font-black uppercase text-amber-700">Remaining</div>
+                <div className="text-base font-black text-amber-800 mt-0.5">
+                  {Math.max(0, (dispatchTracker.total || activeCount) - dispatchTracker.sentCount - dispatchTracker.failedCount)}
+                </div>
+              </div>
+            </div>
+
+            {/* Live Activity Telemetry Log Feed */}
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                <span>Live Transmission Feed:</span>
+                <span className="text-[9px] text-slate-400 font-normal">Last {dispatchTracker.logs.length} actions</span>
+              </div>
+              <div className="h-40 overflow-y-auto bg-slate-900 text-slate-200 p-3 rounded-2xl font-mono text-[11px] space-y-1 select-text">
+                {dispatchTracker.logs.length === 0 ? (
+                  <div className="text-slate-500 italic py-4 text-center">Awaiting batch execution telemetry...</div>
+                ) : (
+                  dispatchTracker.logs.map((log, idx) => (
+                    <div
+                      key={idx}
+                      className={`leading-relaxed break-all ${
+                        log.includes('✅')
+                          ? 'text-emerald-300'
+                          : log.includes('❌')
+                          ? 'text-rose-300 font-bold'
+                          : log.includes('⏸️')
+                          ? 'text-amber-300'
+                          : 'text-slate-300'
+                      }`}
+                    >
+                      {log}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                {dispatchTracker.failedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={copyFailedEmails}
+                    className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Copy Failed Emails ({dispatchTracker.failedCount})
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                {dispatchTracker.status === 'running' ? (
+                  <button
+                    type="button"
+                    onClick={handlePauseDispatch}
+                    className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    ⏸️ Pause Dispatch
+                  </button>
+                ) : (
+                  Math.max(0, (dispatchTracker.total || activeCount) - dispatchTracker.sentCount) > 0 && (
+                    <button
+                      type="button"
+                      onClick={retryRemainingUnsent}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Send size={13} />
+                      <span>Send to Remaining ({Math.max(0, (dispatchTracker.total || activeCount) - dispatchTracker.sentCount)})</span>
+                    </button>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowProgressModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  {dispatchTracker.status === 'running' ? 'Minimize Tracker' : 'Close'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Minimized Persistent Floating Tracker Pill */}
+      {dispatchTracker.active && !showProgressModal && (
+        <div className="fixed bottom-6 right-6 z-[9999] bg-slate-900 text-white p-3 sm:px-4 sm:py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-slide-up">
+          <div className="flex items-center gap-2.5">
+            {dispatchTracker.status === 'running' ? (
+              <Loader2 size={16} className="animate-spin text-blue-400 flex-shrink-0" />
+            ) : dispatchTracker.status === 'completed' ? (
+              <CheckCircle2 size={16} className="text-emerald-400 flex-shrink-0" />
+            ) : (
+              <span className="text-amber-400 flex-shrink-0">⏸️</span>
+            )}
+            <div className="text-xs">
+              <div className="font-extrabold flex items-center gap-2">
+                <span>
+                  {dispatchTracker.total > 0
+                    ? Math.min(100, Math.round((dispatchTracker.processed / dispatchTracker.total) * 100))
+                    : 0}%
+                </span>
+                <span className="text-emerald-400">✓ {dispatchTracker.sentCount}</span>
+                {dispatchTracker.failedCount > 0 && (
+                  <span className="text-rose-400">✕ {dispatchTracker.failedCount}</span>
+                )}
+              </div>
+              <div className="text-[10px] text-slate-400">
+                {dispatchTracker.processed} of {dispatchTracker.total || activeCount} processed
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowProgressModal(true)}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm flex-shrink-0"
+          >
+            Open Tracker
+          </button>
+        </div>
       )}
 
     </div>

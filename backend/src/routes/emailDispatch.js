@@ -1131,17 +1131,178 @@ router.post('/send', authMiddleware, async (req, res) => {
 });
 
 /**
+ * POST /api/admin/email-dispatch/send-batch
+ * Dispatches a small chunk of personalized emails with per-recipient success/failure reporting.
+ * Enables live UI progress tracking, zero timeouts, and pause/resume capability.
+ */
+router.post('/send-batch', authMiddleware, async (req, res) => {
+  try {
+    const {
+      recipients = [],
+      subject,
+      heading,
+      messageBody,
+      ctaText,
+      ctaUrl,
+      eventName = 'MSC Tech Event',
+      quizTitle = 'MSC Quiz Assessment',
+      includeGreeting = false
+    } = req.body;
+
+    if (!Array.isArray(recipients) || recipients.length === 0) {
+      return res.status(400).json({ error: 'No recipients provided in batch.' });
+    }
+    if (!subject || !subject.trim()) {
+      return res.status(400).json({ error: 'Subject is required.' });
+    }
+    if (!messageBody || !messageBody.trim()) {
+      return res.status(400).json({ error: 'Message body is required.' });
+    }
+
+    const results = [];
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (const recipient of recipients) {
+      const email = (recipient.email || '').trim().toLowerCase();
+      if (!email || !email.includes('@')) {
+        results.push({ email, name: recipient.name, status: 'failed', error: 'Invalid email address' });
+        failedCount++;
+        continue;
+      }
+
+      const studentData = {
+        name: recipient.name || email.split('@')[0],
+        email,
+        college: recipient.college || 'PRPCEM',
+        quizTitle,
+        eventName,
+        score: recipient.score !== undefined ? recipient.score : null,
+        status: recipient.status || 'Active'
+      };
+
+      try {
+        const personalizedSubject = replacePlaceholders(subject, studentData);
+        const personalizedHeading = replacePlaceholders(heading || subject, studentData);
+        const personalizedMessage = replacePlaceholders(messageBody, studentData);
+        const formattedHtml = parseEmailMarkdownToHtml(personalizedMessage);
+
+        await sendCustomBroadcastEmail({
+          to: email,
+          recipientName: studentData.name,
+          subject: personalizedSubject,
+          heading: personalizedHeading,
+          messageHtml: formattedHtml,
+          ctaText: ctaText ? replacePlaceholders(ctaText, studentData) : undefined,
+          ctaUrl: ctaUrl ? replacePlaceholders(ctaUrl, studentData) : undefined,
+          includeGreeting: Boolean(includeGreeting)
+        });
+
+        results.push({ email, name: studentData.name, status: 'sent' });
+        successCount++;
+      } catch (err) {
+        console.warn(`[EMAIL BATCH] Failed for ${email}:`, err.message);
+        results.push({ email, name: studentData.name, status: 'failed', error: err.message || 'SMTP delivery failed' });
+        failedCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      processed: recipients.length,
+      successCount,
+      failedCount,
+      results
+    });
+  } catch (err) {
+    console.error('Error in send-batch:', err);
+    res.status(500).json({ error: err.message || 'Batch email delivery failed.' });
+  }
+});
+
+/**
  * POST /api/admin/email-dispatch/send-test
- * Sends a live test email to verify official template delivery (default: mlsc@prpotepatilengg.ac.in)
+ * Sends a live test email with the currently composed template, subject, body, and CTA
  */
 router.post('/send-test', authMiddleware, async (req, res) => {
   try {
     const to = (req.body.to || 'mlsc@prpotepatilengg.ac.in').trim();
+    const {
+      subject,
+      heading,
+      messageBody,
+      ctaText,
+      ctaUrl,
+      eventId,
+      eventName: reqEventName,
+      quizId
+    } = req.body;
+
+    // If messageBody or subject is provided, test the currently authored broadcast!
+    if (messageBody || subject) {
+      let quizTitle = 'MSC Quiz Assessment';
+      let eventName = reqEventName || 'MSC Tech Event';
+
+      if (quizId) {
+        try {
+          const q = isValidUUID(quizId)
+            ? await Quiz.findByPk(quizId, { attributes: ['title', 'event_name'] })
+            : await Quiz.findOne({ where: { custom_slug: quizId }, attributes: ['title', 'event_name'] });
+          if (q) {
+            quizTitle = q.title;
+            if (q.event_name) eventName = q.event_name;
+          }
+        } catch (e) {}
+      }
+
+      if (eventId) {
+        try {
+          const ev = isValidUUID(eventId)
+            ? await Event.findByPk(eventId, { attributes: ['name'] })
+            : await Event.findOne({ where: { slug: eventId }, attributes: ['name'] });
+          if (ev && ev.name) eventName = ev.name;
+        } catch (e) {}
+      }
+
+      const studentData = {
+        name: req.body.name || 'Team MSC PRPCEM',
+        email: to,
+        college: 'PRPCEM Amravati',
+        quizTitle,
+        eventName,
+        score: 95,
+        status: 'Active Registered'
+      };
+
+      const targetSubject = subject ? replacePlaceholders(subject, studentData) : '📢 Official MSC PRPCEM Email Dispatch Test';
+      const targetHeading = heading ? replacePlaceholders(heading, studentData) : targetSubject;
+      const rawBody = messageBody || 'This is a live test transmission of your currently composed email broadcast.';
+      const personalizedMessage = replacePlaceholders(rawBody, studentData);
+      const formattedHtml = parseEmailMarkdownToHtml(personalizedMessage);
+
+      const result = await sendCustomBroadcastEmail({
+        to,
+        recipientName: studentData.name,
+        subject: `[TEST] ${targetSubject}`,
+        heading: targetHeading,
+        messageHtml: formattedHtml,
+        ctaText: ctaText ? replacePlaceholders(ctaText, studentData) : undefined,
+        ctaUrl: ctaUrl ? replacePlaceholders(ctaUrl, studentData) : undefined
+      });
+
+      return res.json({
+        success: true,
+        message: `Current email template test dispatched to ${to}`,
+        result
+      });
+    }
+
+    // Fallback: standard system template test
     const name = req.body.name || 'Team MSC PRPCEM';
     const result = await sendTestEmail({ to, name });
     res.json({
       success: true,
-      message: `Test email dispatched to ${to}`,
+      message: `System test email dispatched to ${to}`,
       result
     });
   } catch (err) {

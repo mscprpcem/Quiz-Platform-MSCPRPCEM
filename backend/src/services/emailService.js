@@ -179,7 +179,8 @@ const renderHtmlWrapper = ({
   recipientName = '',
   content = '',
   useCid = true,
-  baseUrl = ''
+  baseUrl = '',
+  includeGreeting = true
 }) => {
   const prefix = baseUrl ? baseUrl.replace(/\/+$/, '') : '';
   const mscLogoSrc = useCid ? 'cid:msc_logo' : `${prefix}/assets/email/msc_logo.png`;
@@ -286,10 +287,12 @@ const renderHtmlWrapper = ({
           <tr>
             <td class="email-body-cell" style="padding: 28px 32px 24px 32px; background-color: #ffffff; color: #334155; font-size: 15px; line-height: 1.65; box-sizing: border-box; word-break: break-word;">
               
+              ${includeGreeting && cleanGreeting ? `
               <!-- Greeting: Hi {{Name}}, -->
               <p style="margin: 0 0 18px 0; font-size: 19px; font-weight: 700; color: #0f172a; line-height: 1.3;">
                 Hi <span style="color: #2563eb; font-weight: 800;">${cleanGreeting}</span>,
               </p>
+              ` : ''}
 
               <!-- Dynamic Content -->
               <div style="font-size: 15px; color: #334155; line-height: 1.65;">
@@ -663,7 +666,7 @@ const sendEventRegistrationEmail = async ({
 /**
  * Send Custom Admin Broadcast / Notification Email
  */
-const sendCustomBroadcastEmail = async ({ to, recipientName, subject, heading, messageHtml, ctaText, ctaUrl }) => {
+const sendCustomBroadcastEmail = async ({ to, recipientName, subject, heading, messageHtml, ctaText, ctaUrl, includeGreeting = false }) => {
   const transport = getTransporter();
   const userName = recipientName || (to ? to.split('@')[0] : 'Learner');
   const fromAddr = getSenderAddress();
@@ -687,23 +690,24 @@ const sendCustomBroadcastEmail = async ({ to, recipientName, subject, heading, m
     `;
   }
 
-  // Remove duplicate greetings if already present in messageHtml
-  let cleanedMessageHtml = messageHtml || '';
-  cleanedMessageHtml = cleanedMessageHtml.replace(/^(<p[^>]*>)?\s*(hello|hi|dear|greetings)\s+[^,<]+[,!:]?\s*(<\/p>)?/i, '');
+  // Preserve custom messageHtml exactly as authored without stripping or forcing greetings
+  const finalMessageHtml = messageHtml || '';
 
   const html = renderHtmlWrapper({
     title: heading || subject || 'MSC PRPCEM Announcement',
     preheader: subject,
     recipientName: userName,
+    includeGreeting: Boolean(includeGreeting),
     content: `
       <div style="font-size: 15px; color: #334155; line-height: 1.7; margin: 12px 0; word-break: break-word;">
-        ${cleanedMessageHtml}
+        ${finalMessageHtml}
       </div>
       ${actionButtonHtml}
     `
   });
 
-  const plainText = `Hi ${userName},\n\n${(messageHtml || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}—\nBest Regards,\nTeam MSC PRPCEM\nMicrosoft Student Club PRPCEM\nP. R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
+  const bodyText = (messageHtml || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+  const plainText = `${includeGreeting && userName ? `Hi ${userName},\n\n` : ''}${bodyText}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}—\nBest Regards,\nTeam MSC PRPCEM\nMicrosoft Student Club PRPCEM\nP. R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
 
   return transport.sendMail({
     from: fromAddr,
