@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Mail, ExternalLink } from 'lucide-react';
+import packageJson from '../../package.json';
 import './Footer.css';
 
 export default function Footer() {
@@ -158,7 +159,7 @@ export default function Footer() {
             </div>
             <span className="hidden md:inline text-zinc-200">|</span>
             <div className="flex items-center gap-x-3">
-              <span>Version 1.8.2</span>
+              <span>Version {packageJson.version || '1.9.0'}</span>
               <span className="text-zinc-200">|</span>
               <span className="text-zinc-500 font-bold">
                 Powered by Azure &amp; <a href="https://neon.com" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 text-zinc-600 transition-colors">Neon Postgres</a>
