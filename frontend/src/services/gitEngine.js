@@ -2,7 +2,7 @@
 // Executes arbitrary Git commands safely in memory with zero backend risk.
 // Designed for MSC PRPCEM Assessment & Learning Platform
 
-// Pseudo-SHA1 generator for deterministic, realistic hashes
+// Pseudo-SHA1 generator for deterministic, realistic short hashes
 function generateShortHash() {
   const chars = '0123456789abcdef';
   let hash = '';
@@ -21,8 +21,10 @@ export class VirtualGitEngine {
   reset(config = {}) {
     this.isRepo = config.isRepo !== undefined ? config.isRepo : true;
     this.currentBranch = config.currentBranch || 'main';
+    this.previousBranch = null;
     this.headDetached = false;
     this.headCommitId = null;
+    this.hasUsedStash = false;
 
     // Working directory files: { [filename]: content }
     this.files = { ...(config.files || {}) };
@@ -37,13 +39,25 @@ export class VirtualGitEngine {
     this.branches = {};
 
     // Remotes: { [remoteName]: { url, branches: { [branchName]: commitId } } }
-    this.remotes = { ...(config.remotes || {}) };
+    this.remotes = {};
+    if (config.remotes) {
+      Object.keys(config.remotes).forEach(rName => {
+        const rData = config.remotes[rName];
+        this.remotes[rName] = {
+          url: rData.url || '',
+          branches: { ...(rData.branches || {}) }
+        };
+      });
+    }
+
+    // Remote commits available to be fetched
+    this.remoteCommits = { ...(config.remoteCommits || {}) };
 
     // Tags: { [tagName]: { commitId, message, annotated } }
     this.tags = { ...(config.tags || {}) };
 
     // Stash stack: Array of { id, message, files, index }
-    this.stash = [];
+    this.stash = [...(config.stash || [])];
 
     // Reflog: Array of { from, to, action, message, timestamp }
     this.reflog = [...(config.reflog || [])];
@@ -57,6 +71,12 @@ export class VirtualGitEngine {
         const bData = config.branches[bName];
         if (bData.commits && Array.isArray(bData.commits)) {
           let parentId = null;
+          if (bData.baseBranch && this.branches[bData.baseBranch]) {
+            parentId = this.branches[bData.baseBranch];
+          } else if (bData.baseCommit !== undefined && this.commits[bData.baseCommit]) {
+            parentId = this.commits[bData.baseCommit].id;
+          }
+
           bData.commits.forEach((c) => {
             const commitId = c.id || generateShortHash();
             const commitObj = {
@@ -101,18 +121,23 @@ export class VirtualGitEngine {
       this.branches[this.currentBranch] = this.headCommitId;
     }
 
-    // Merge lost commits or initial reflog if passed
+    // Merge lost commits if passed
     if (config.lostCommits) {
       this.lostCommits = { ...config.lostCommits };
     } else {
       this.lostCommits = {};
     }
 
-    // Initial files sync with head commit if files empty
-    if (Object.keys(this.files).length === 0 && this.headCommitId) {
+    // Initial files and index sync with head commit
+    if (this.headCommitId) {
       const headCommit = this.getCommitById(this.headCommitId);
       if (headCommit && headCommit.files) {
-        this.files = { ...headCommit.files };
+        if (Object.keys(this.files).length === 0) {
+          this.files = { ...headCommit.files };
+        }
+        if (!config.index) {
+          this.index = { ...headCommit.files };
+        }
       }
     }
   }
@@ -147,10 +172,11 @@ export class VirtualGitEngine {
     return null;
   }
 
-  getCommitHistory() {
-    if (!this.headCommitId) return [];
+  getCommitHistory(startCommitId) {
+    const startId = startCommitId || this.headCommitId;
+    if (!startId) return [];
     const history = [];
-    let current = this.getCommitById(this.headCommitId);
+    let current = this.getCommitById(startId);
     const visited = new Set();
 
     while (current && !visited.has(current.id)) {
@@ -202,14 +228,17 @@ export class VirtualGitEngine {
     return this.files[filepath] !== undefined ? this.files[filepath] : null;
   }
 
+  writeFile(filepath, content) {
+    this.files[filepath] = content;
+  }
+
   isWorkingTreeClean() {
     const headCommit = this.getLatestCommit();
     const headFiles = headCommit ? headCommit.files : {};
 
-    // Check if any tracked or unstaged files differ from head or index
+    // Check if any untracked or modified files exist in working directory
     for (const file of Object.keys(this.files)) {
       if (this.isIgnored(file)) continue;
-      // If file modified compared to staged index or head
       const currentContent = this.files[file];
       const stagedContent = this.index[file];
       const committedContent = headFiles[file];
@@ -223,6 +252,15 @@ export class VirtualGitEngine {
         return false;
       }
     }
+
+    // Check if any files were deleted from working tree
+    for (const file of Object.keys(this.index)) {
+      if (this.files[file] === undefined) return false;
+    }
+    for (const file of Object.keys(headFiles)) {
+      if (this.files[file] === undefined && this.index[file] !== undefined) return false;
+    }
+
     return true;
   }
 
@@ -230,11 +268,14 @@ export class VirtualGitEngine {
     const headCommit = this.getLatestCommit();
     const headFiles = headCommit ? headCommit.files : {};
 
-    // Index is clean if no files staged that differ from HEAD
-    for (const file of Object.keys(this.index)) {
-      const staged = this.index[file];
-      const committed = headFiles[file];
-      if (staged !== committed) return false;
+    // Check if index differs from HEAD (staged modifications, additions, or staged deletions)
+    const indexKeys = Object.keys(this.index);
+    const headKeys = Object.keys(headFiles);
+
+    if (indexKeys.length !== headKeys.length) return false;
+
+    for (const file of indexKeys) {
+      if (this.index[file] !== headFiles[file]) return false;
     }
     return true;
   }
@@ -268,9 +309,10 @@ export class VirtualGitEngine {
 
     const trimmed = rawCommandLine.trim();
 
-    // Check for redirection: command > file or command >> file
-    if (trimmed.includes(' > ') || trimmed.includes(' >> ')) {
-      return this.handleRedirection(trimmed);
+    // Check for redirection: command > file or command >> file (outside of quotes)
+    const redir = this.findRedirectionOperator(trimmed);
+    if (redir) {
+      return this.handleRedirection(trimmed, redir);
     }
 
     // Tokenize preserving quoted strings
@@ -291,18 +333,58 @@ export class VirtualGitEngine {
       case 'echo':
         return this.handleEcho(args);
       case 'mkdir':
-        return { output: '', error: false };
+        return this.handleMkdir(args);
       case 'rm':
         return this.handleShellRm(args);
+      case 'cp':
+        return this.handleCp(args);
+      case 'mv':
+        return this.handleMv(args);
       case 'pwd':
         return { output: '/home/student/project', error: false };
+      case 'whoami':
+        return { output: 'student', error: false };
+      case 'date':
+        return { output: new Date().toUTCString(), error: false };
       case 'clear':
+      case 'cls':
         return { output: '', clear: true, error: false };
+      case 'type':
+        return this.handleCat(args);
+      case 'del':
+      case 'erase':
+        return this.handleShellRm(args);
+      case 'copy':
+        return this.handleCp(args);
+      case 'move':
+        return this.handleMv(args);
+      case 'vim':
+      case 'vi':
+      case 'nano':
+        return { output: '', openVim: true, file: args[0] || 'README.md', error: false };
       case 'help':
         return this.handleHelp();
       default:
-        return { output: `bash: ${cmd}: command not found. Type 'help' for available commands.`, error: true };
+        return { output: `Command not found: ${cmd}. Type 'help' for available commands.`, error: true };
     }
+  }
+
+  findRedirectionOperator(str) {
+    let inDouble = false;
+    let inSingle = false;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str[i];
+      if (ch === '"' && !inSingle) inDouble = !inDouble;
+      else if (ch === "'" && !inDouble) inSingle = !inSingle;
+      else if (!inDouble && !inSingle) {
+        if (ch === '>' && str[i + 1] === '>') {
+          return { index: i, operator: '>>' };
+        } else if (ch === '>') {
+          return { index: i, operator: '>' };
+        }
+      }
+    }
+    return null;
   }
 
   tokenize(str) {
@@ -310,38 +392,49 @@ export class VirtualGitEngine {
     const tokens = [];
     let match;
     while ((match = regex.exec(str)) !== null) {
-      tokens.push(match[1] || match[2] || match[0]);
+      if (match[1] !== undefined) {
+        tokens.push(match[1]);
+      } else if (match[2] !== undefined) {
+        tokens.push(match[2]);
+      } else {
+        tokens.push(match[0]);
+      }
     }
     return tokens;
   }
 
-  handleRedirection(rawStr) {
-    const isAppend = rawStr.includes(' >> ');
-    const parts = isAppend ? rawStr.split(' >> ') : rawStr.split(' > ');
-    const leftCmd = parts[0].trim();
-    const targetFile = parts[1].trim();
+  handleRedirection(rawStr, redir) {
+    const r = redir || this.findRedirectionOperator(rawStr);
+    if (!r) return { output: '', error: false };
+
+    const isAppend = r.operator === '>>';
+    const splitIndex = r.index;
+    const leftCmd = rawStr.slice(0, splitIndex).trim();
+    let targetFile = rawStr.slice(splitIndex + (isAppend ? 2 : 1)).trim();
+
+    // Remove quotes around target filename if any
+    if ((targetFile.startsWith('"') && targetFile.endsWith('"')) || (targetFile.startsWith("'") && targetFile.endsWith("'"))) {
+      targetFile = targetFile.slice(1, -1).trim();
+    }
 
     if (!targetFile) {
       return { output: 'bash: syntax error near unexpected token `newline`', error: true };
     }
 
     let contentToWrite = '';
-    if (leftCmd.startsWith('echo ')) {
-      const rawContent = leftCmd.slice(5).trim();
-      // Remove surrounding quotes if present
+    if (leftCmd.startsWith('echo')) {
+      let rawContent = leftCmd.slice(4).trim();
       if ((rawContent.startsWith('"') && rawContent.endsWith('"')) || (rawContent.startsWith("'") && rawContent.endsWith("'"))) {
-        contentToWrite = rawContent.slice(1, -1);
-      } else {
-        contentToWrite = rawContent;
+        rawContent = rawContent.slice(1, -1);
       }
-      contentToWrite += '\n';
+      contentToWrite = rawContent + '\n';
     } else {
       const res = this.execute(leftCmd);
       if (res.error) return res;
-      contentToWrite = res.output + '\n';
+      contentToWrite = (res.output || '') + '\n';
     }
 
-    if (isAppend && this.files[targetFile]) {
+    if (isAppend && this.files[targetFile] !== undefined) {
       this.files[targetFile] += contentToWrite;
     } else {
       this.files[targetFile] = contentToWrite;
@@ -353,16 +446,35 @@ export class VirtualGitEngine {
   // ══════════════════════════════════════════════════════════
   // GIT COMMAND DISPATCHER
   // ══════════════════════════════════════════════════════════
+  // GIT COMMAND DISPATCHER
+  // ══════════════════════════════════════════════════════════
 
   handleGitCommand(args) {
     if (args.length === 0) {
-      return { output: 'usage: git [--version] [--help] <command> [<args>]', error: false };
+      return this.gitHelp();
     }
 
     const sub = args[0];
     const subArgs = args.slice(1);
 
-    // If not initialized, only 'init' and 'clone' are allowed
+    // Global flags that work anywhere, even if not a git repository
+    if (sub === '--help' || sub === '-h' || sub === 'help') {
+      if (subArgs.length > 0) {
+        return this.gitSubcommandHelp(subArgs[0]);
+      }
+      return this.gitHelp();
+    }
+
+    if (sub === '--version' || sub === '-v' || sub === 'version') {
+      return { output: 'git version 2.44.0 (MSC PRPCEM Virtual Sandbox)', error: false };
+    }
+
+    // Check if subcommand was called with --help or -h (e.g. git commit --help or git add -h)
+    if (subArgs.includes('--help') || subArgs.includes('-h')) {
+      return this.gitSubcommandHelp(sub);
+    }
+
+    // If not initialized, only 'init' and 'clone' (plus help/version) are allowed
     if (!this.isRepo && sub !== 'init' && sub !== 'clone') {
       return { output: 'fatal: not a git repository (or any of the parent directories): .git', error: true };
     }
@@ -414,6 +526,8 @@ export class VirtualGitEngine {
         return this.gitReflog();
       case 'restore':
         return this.gitRestore(subArgs);
+      case 'show':
+        return this.gitShow(subArgs);
       default:
         return { output: `git: '${sub}' is not a git command. See 'git --help'.`, error: true };
     }
@@ -456,6 +570,12 @@ export class VirtualGitEngine {
         stagedChanges.push(`\tmodified:   ${file}`);
       }
     }
+    // Check staged deletions (in HEAD but deleted from index)
+    for (const file of Object.keys(headFiles)) {
+      if (this.index[file] === undefined) {
+        stagedChanges.push(`\tdeleted:    ${file}`);
+      }
+    }
 
     if (stagedChanges.length > 0) {
       out += `Changes to be committed:\n  (use "git restore --staged <file>..." to unstage)\n`;
@@ -465,7 +585,7 @@ export class VirtualGitEngine {
       out += `\n`;
     }
 
-    // Determine unstaged modifications
+    // Determine unstaged modifications and deletions
     const unstagedChanges = [];
     for (const file of Object.keys(this.files)) {
       if (this.isIgnored(file)) continue;
@@ -477,6 +597,23 @@ export class VirtualGitEngine {
         if (current !== staged) unstagedChanges.push(`\tmodified:   ${file}`);
       } else if (committed !== undefined) {
         if (current !== committed) unstagedChanges.push(`\tmodified:   ${file}`);
+      }
+    }
+
+    // Check unstaged deletions (file in index or head, but removed from working directory)
+    for (const file of Object.keys(this.index)) {
+      if (this.files[file] === undefined) {
+        unstagedChanges.push(`\tdeleted:    ${file}`);
+      }
+    }
+    for (const file of Object.keys(headFiles)) {
+      if (this.index[file] !== undefined && this.files[file] === undefined) {
+        // already counted in index check
+      } else if (this.index[file] === undefined && this.files[file] === undefined) {
+        // unstaged deletion of a tracked file
+        if (!unstagedChanges.some(l => l.includes(file)) && !stagedChanges.some(l => l.includes(file))) {
+          unstagedChanges.push(`\tdeleted:    ${file}`);
+        }
       }
     }
 
@@ -518,19 +655,36 @@ export class VirtualGitEngine {
       return { output: 'Nothing specified, nothing added.\nhint: Maybe you wanted to say \'git add .\'?', error: true };
     }
 
-    const filesToAdd = [];
-    args.forEach(arg => {
-      if (arg === '.' || arg === '-A' || arg === '--all') {
-        Object.keys(this.files).forEach(f => {
-          if (!this.isIgnored(f)) filesToAdd.push(f);
-        });
-      } else if (this.files[arg] !== undefined) {
-        filesToAdd.push(arg);
-      }
-    });
+    const headCommit = this.getLatestCommit();
+    const headFiles = headCommit ? headCommit.files : {};
 
-    filesToAdd.forEach(f => {
-      this.index[f] = this.files[f];
+    const isAll = args.includes('.') || args.includes('-A') || args.includes('--all') || args.includes('*');
+
+    if (isAll) {
+      // Stage all untracked and modified files
+      Object.keys(this.files).forEach(f => {
+        if (!this.isIgnored(f)) {
+          this.index[f] = this.files[f];
+        }
+      });
+      // Stage deletions: any file in index or head not in files should be removed from index
+      Object.keys(this.index).forEach(f => {
+        if (this.files[f] === undefined) {
+          delete this.index[f];
+        }
+      });
+      return { output: '', error: false };
+    }
+
+    // Process specific files
+    args.forEach(arg => {
+      if (arg.startsWith('-')) return;
+      if (this.files[arg] !== undefined) {
+        this.index[arg] = this.files[arg];
+      } else if (this.index[arg] !== undefined || headFiles[arg] !== undefined) {
+        // File was deleted from working directory, staging the deletion
+        delete this.index[arg];
+      }
     });
 
     return { output: '', error: false };
@@ -539,7 +693,7 @@ export class VirtualGitEngine {
   // ── 4. git rm ──
   gitRm(args) {
     const isCached = args.includes('--cached');
-    const files = args.filter(a => a !== '--cached' && a !== '-f');
+    const files = args.filter(a => !a.startsWith('-'));
 
     if (files.length === 0) {
       return { output: 'fatal: No pathspec specified', error: true };
@@ -558,31 +712,82 @@ export class VirtualGitEngine {
   // ── 5. git commit ──
   gitCommit(args) {
     let msg = '';
-    const mIdx = args.indexOf('-m');
-    if (mIdx !== -1 && args[mIdx + 1]) {
+    const isAmend = args.includes('--amend');
+    const isAutoStage = args.includes('-a') || args.some(a => a.startsWith('-') && a.includes('a') && a !== '--all');
+
+    // Handle auto-staging tracked modified files with -a or -am
+    if (isAutoStage) {
+      const headCommit = this.getLatestCommit();
+      const headFiles = headCommit ? headCommit.files : {};
+      Object.keys(headFiles).forEach(f => {
+        if (this.files[f] !== undefined) {
+          this.index[f] = this.files[f];
+        } else {
+          delete this.index[f];
+        }
+      });
+    }
+
+    // Extract commit message
+    const mIdx = args.findIndex(a => a === '-m' || a === '--message' || a === '-am');
+    if (mIdx !== -1 && args[mIdx + 1] !== undefined) {
       msg = args[mIdx + 1];
     } else {
-      msg = args.filter(a => !a.startsWith('-')).join(' ');
+      // Check for inline message e.g. -m"msg" or -am"msg"
+      const inlineArg = args.find(a => (a.startsWith('-m') && a !== '-m') || (a.startsWith('-am') && a !== '-am'));
+      if (inlineArg) {
+        msg = inlineArg.replace(/^-a?m/, '');
+      } else {
+        const nonFlags = args.filter(a => !a.startsWith('-'));
+        if (nonFlags.length > 0) {
+          msg = nonFlags.join(' ');
+        }
+      }
+    }
+
+    // If completing a merge without -m, use default merge message
+    if (!msg && this.mergeState) {
+      msg = `Merge branch '${this.mergeState.incomingBranch}' into ${this.currentBranch}`;
+    }
+
+    // If amending without message, reuse previous commit message
+    if (isAmend) {
+      const latest = this.getLatestCommit();
+      if (!latest) {
+        return { output: 'fatal: You have nothing to amend.', error: true };
+      }
+      latest.message = msg || latest.message;
+      latest.files = { ...this.index };
+      return {
+        output: `[${this.currentBranch} ${latest.id}] (amended) ${latest.message}\n ${Object.keys(this.index).length} file(s) changed`,
+        error: false
+      };
     }
 
     if (!msg) {
       return { output: 'Aborting commit due to empty commit message.', error: true };
     }
 
-    // Check if anything staged
+    // Check if anything is staged
     const headCommit = this.getLatestCommit();
     const headFiles = headCommit ? headCommit.files : {};
 
     let hasChanges = false;
-    // Check if index differs from head
     for (const f of Object.keys(this.index)) {
       if (this.index[f] !== headFiles[f]) {
         hasChanges = true;
         break;
       }
     }
+    for (const f of Object.keys(headFiles)) {
+      if (this.index[f] === undefined) {
+        hasChanges = true;
+        break;
+      }
+    }
 
-    if (!hasChanges && Object.keys(this.index).length === 0) {
+    const allowEmpty = args.includes('--allow-empty');
+    if (!hasChanges && !allowEmpty && headCommit) {
       return { output: 'nothing to commit, working tree clean', error: false };
     }
 
@@ -591,7 +796,7 @@ export class VirtualGitEngine {
 
     // If completing a merge
     if (this.mergeState) {
-      if (this.mergeState.incomingCommitId) {
+      if (this.mergeState.incomingCommitId && !parentIds.includes(this.mergeState.incomingCommitId)) {
         parentIds.push(this.mergeState.incomingCommitId);
       }
       this.mergeState = null;
@@ -628,16 +833,29 @@ export class VirtualGitEngine {
 
   // ── 6. git branch ──
   gitBranch(args) {
+    const isAll = args.includes('-a') || args.includes('--all');
+    const isRemotes = args.includes('-r') || args.includes('--remotes');
+
     // List branches
-    if (args.length === 0) {
+    if (args.length === 0 || isAll || isRemotes) {
       let out = '';
-      Object.keys(this.branches).forEach(b => {
-        if (b === this.currentBranch && !this.headDetached) {
-          out += `* ${b}\n`;
-        } else {
-          out += `  ${b}\n`;
-        }
-      });
+      if (!isRemotes) {
+        Object.keys(this.branches).forEach(b => {
+          if (b === this.currentBranch && !this.headDetached) {
+            out += `* ${b}\n`;
+          } else {
+            out += `  ${b}\n`;
+          }
+        });
+      }
+      if (isAll || isRemotes) {
+        Object.keys(this.remotes).forEach(r => {
+          const remoteBranches = this.remotes[r].branches || {};
+          Object.keys(remoteBranches).forEach(rb => {
+            out += `  remotes/${r}/${rb}\n`;
+          });
+        });
+      }
       return { output: out.trimEnd(), error: false };
     }
 
@@ -658,21 +876,45 @@ export class VirtualGitEngine {
     // Rename branch
     if (args.includes('-m')) {
       const mIdx = args.indexOf('-m');
-      const newName = args[mIdx + 1];
-      if (!newName) return { output: 'fatal: new branch name required', error: true };
-      this.branches[newName] = this.branches[this.currentBranch];
-      delete this.branches[this.currentBranch];
-      this.currentBranch = newName;
+      const targetArgs = args.filter(a => !a.startsWith('-'));
+      let oldName = this.currentBranch;
+      let newName = '';
+      if (targetArgs.length >= 2) {
+        oldName = targetArgs[0];
+        newName = targetArgs[1];
+      } else if (targetArgs.length === 1) {
+        newName = targetArgs[0];
+      } else {
+        return { output: 'fatal: new branch name required', error: true };
+      }
+
+      this.branches[newName] = this.branches[oldName];
+      delete this.branches[oldName];
+      if (this.currentBranch === oldName) {
+        this.currentBranch = newName;
+      }
       return { output: '', error: false };
     }
 
-    // Create branch
+    // Create branch from HEAD or start point: git branch <name> [<start-point>]
     const newBranchName = args[0];
+    const startPoint = args[1];
+
     if (this.branches[newBranchName]) {
       return { output: `fatal: a branch named '${newBranchName}' already exists`, error: true };
     }
 
-    this.branches[newBranchName] = this.headCommitId;
+    let targetCommitId = this.headCommitId;
+    if (startPoint) {
+      if (this.branches[startPoint]) {
+        targetCommitId = this.branches[startPoint];
+      } else {
+        const c = this.getCommitById(startPoint);
+        if (c) targetCommitId = c.id;
+      }
+    }
+
+    this.branches[newBranchName] = targetCommitId;
     return { output: '', error: false };
   }
 
@@ -682,19 +924,61 @@ export class VirtualGitEngine {
       return { output: 'error: you need to specify a branch or commit to checkout.', error: true };
     }
 
-    // git checkout -b <name>
+    // git checkout -b <name> [<start-point>]
     if (args[0] === '-b') {
       const bName = args[1];
+      const startPoint = args[2];
       if (!bName) return { output: 'fatal: missing branch name', error: true };
-      this.branches[bName] = this.headCommitId;
+
+      let targetCommitId = this.headCommitId;
+      if (startPoint) {
+        if (this.branches[startPoint]) {
+          targetCommitId = this.branches[startPoint];
+        } else {
+          const c = this.getCommitById(startPoint);
+          if (c) targetCommitId = c.id;
+        }
+      }
+
+      this.previousBranch = this.currentBranch;
+      this.branches[bName] = targetCommitId;
       this.currentBranch = bName;
+      this.headCommitId = targetCommitId;
       this.headDetached = false;
+      this.syncWorkingTreeToCommit(targetCommitId);
       return { output: `Switched to a new branch '${bName}'`, error: false };
+    }
+
+    // Discard changes in working directory: git checkout -- <file> or git checkout <file>
+    const fileArgs = args.filter(a => a !== '--');
+    const headCommit = this.getLatestCommit();
+    const headFiles = headCommit ? headCommit.files : {};
+
+    if (fileArgs.length === 1 && (this.files[fileArgs[0]] !== undefined || this.index[fileArgs[0]] !== undefined || headFiles[fileArgs[0]] !== undefined || fileArgs[0] === '.')) {
+      const target = fileArgs[0];
+      if (target === '.') {
+        Object.keys(this.index).forEach(f => {
+          this.files[f] = this.index[f];
+        });
+        Object.keys(headFiles).forEach(f => {
+          if (this.index[f] === undefined) {
+            this.files[f] = headFiles[f];
+          }
+        });
+        return { output: 'Updated all paths from the index', error: false };
+      } else {
+        const source = this.index[target] !== undefined ? this.index[target] : headFiles[target];
+        if (source !== undefined) {
+          this.files[target] = source;
+          return { output: `Updated 1 path from the index`, error: false };
+        }
+      }
     }
 
     const target = args[0];
     // Switch to existing branch
     if (this.branches[target] !== undefined) {
+      this.previousBranch = this.currentBranch;
       this.currentBranch = target;
       this.headCommitId = this.branches[target];
       this.headDetached = false;
@@ -705,6 +989,7 @@ export class VirtualGitEngine {
     // Detached HEAD checkout by commit ID
     const commit = this.getCommitById(target);
     if (commit) {
+      this.previousBranch = this.currentBranch;
       this.headCommitId = commit.id;
       this.headDetached = true;
       this.syncWorkingTreeToCommit(commit.id);
@@ -723,9 +1008,23 @@ export class VirtualGitEngine {
       return { output: 'fatal: missing branch name', error: true };
     }
 
+    if (args[0] === '-') {
+      if (!this.previousBranch || !this.branches[this.previousBranch]) {
+        return { output: 'fatal: no previous branch found', error: true };
+      }
+      const target = this.previousBranch;
+      this.previousBranch = this.currentBranch;
+      this.currentBranch = target;
+      this.headCommitId = this.branches[target];
+      this.headDetached = false;
+      this.syncWorkingTreeToCommit(this.headCommitId);
+      return { output: `Switched to branch '${target}'`, error: false };
+    }
+
     if (args[0] === '-c' || args[0] === '--create') {
       const bName = args[1];
       if (!bName) return { output: 'fatal: missing branch name', error: true };
+      this.previousBranch = this.currentBranch;
       this.branches[bName] = this.headCommitId;
       this.currentBranch = bName;
       this.headDetached = false;
@@ -734,6 +1033,7 @@ export class VirtualGitEngine {
 
     const target = args[0];
     if (this.branches[target] !== undefined) {
+      this.previousBranch = this.currentBranch;
       this.currentBranch = target;
       this.headCommitId = this.branches[target];
       this.headDetached = false;
@@ -756,7 +1056,25 @@ export class VirtualGitEngine {
     const isOneLine = args.includes('--oneline');
     const isGraph = args.includes('--graph');
 
-    const history = this.getCommitHistory();
+    // Find start commit target if passed (branch name, remote branch, or commit hash)
+    let startCommitId = this.headCommitId;
+    const targetArg = args.find(a => !a.startsWith('-'));
+
+    if (targetArg) {
+      if (this.branches[targetArg]) {
+        startCommitId = this.branches[targetArg];
+      } else if (targetArg.includes('/')) {
+        const [rName, bName] = targetArg.split('/');
+        if (this.remotes[rName]?.branches?.[bName]) {
+          startCommitId = this.remotes[rName].branches[bName];
+        }
+      } else {
+        const c = this.getCommitById(targetArg);
+        if (c) startCommitId = c.id;
+      }
+    }
+
+    const history = this.getCommitHistory(startCommitId);
     if (history.length === 0) {
       return { output: 'fatal: your current branch does not have any commits yet', error: true };
     }
@@ -791,6 +1109,11 @@ export class VirtualGitEngine {
           out += `diff --git a/${f} b/${f}\n--- a/${f}\n+++ b/${f}\n@@ -1 +1 @@\n-${committed.trim()}\n+${staged.trim()}\n`;
         }
       }
+      for (const f of Object.keys(headFiles)) {
+        if (this.index[f] === undefined) {
+          out += `diff --git a/${f} b/${f}\ndeleted file mode 100644\n--- a/${f}\n+++ /dev/null\n`;
+        }
+      }
     } else {
       // Diff Working directory vs Staging (or HEAD)
       for (const f of Object.keys(this.files)) {
@@ -817,7 +1140,7 @@ export class VirtualGitEngine {
       return { output: '', error: false };
     }
 
-    const targetBranch = args[0];
+    const targetBranch = args.find(a => !a.startsWith('-'));
     if (!targetBranch) {
       return { output: 'fatal: No branch specified to merge', error: true };
     }
@@ -830,31 +1153,57 @@ export class VirtualGitEngine {
     const currentCommit = this.getLatestCommit();
     const targetCommit = this.getCommitById(targetCommitId);
 
+    if (currentCommit && currentCommit.id === targetCommitId) {
+      return { output: 'Already up to date.', error: false };
+    }
+
     // Fast-Forward Check
-    // If targetCommit has currentCommit as parent and currentCommit has no other diverged commits
-    if (targetCommit.parentIds && targetCommit.parentIds.includes(currentCommit.id)) {
+    // Check if targetCommit is direct descendant of currentCommit
+    let isFastForward = false;
+    if (targetCommit.parentIds && targetCommit.parentIds.includes(currentCommit?.id)) {
+      isFastForward = true;
+    } else {
+      // Walk ancestry of targetCommit
+      const visited = new Set();
+      const queue = [...(targetCommit.parentIds || [])];
+      while (queue.length > 0) {
+        const pId = queue.shift();
+        if (pId === currentCommit?.id) {
+          isFastForward = true;
+          break;
+        }
+        if (!visited.has(pId)) {
+          visited.add(pId);
+          const pCommit = this.getCommitById(pId);
+          if (pCommit && pCommit.parentIds) {
+            queue.push(...pCommit.parentIds);
+          }
+        }
+      }
+    }
+
+    if (isFastForward) {
       this.branches[this.currentBranch] = targetCommitId;
       this.headCommitId = targetCommitId;
       this.syncWorkingTreeToCommit(targetCommitId);
       return {
-        output: `Updating ${currentCommit.id}..${targetCommitId}\nFast-forward\n ${Object.keys(targetCommit.files).length} files changed`,
+        output: `Updating ${currentCommit ? currentCommit.id : '0000000'}..${targetCommitId}\nFast-forward\n ${Object.keys(targetCommit.files).length} files changed`,
         error: false
       };
     }
 
     // Check for file content conflicts
     let hasConflict = false;
-    const mergedFiles = { ...(currentCommit.files || {}) };
+    const mergedFiles = { ...(currentCommit ? currentCommit.files : {}) };
 
     for (const f of Object.keys(targetCommit.files || {})) {
       if (mergedFiles[f] !== undefined && mergedFiles[f] !== targetCommit.files[f]) {
-        // Conflict! Inject conflict markers
+        // Conflict! Inject standard conflict markers
         hasConflict = true;
         const currentText = mergedFiles[f];
         const incomingText = targetCommit.files[f];
         const conflictedContent = `<<<<<<< HEAD\n${currentText}=======\n${incomingText}>>>>>>> ${targetBranch}\n`;
         this.files[f] = conflictedContent;
-        // Do not stage conflicting file
       } else {
         // Clean merge
         mergedFiles[f] = targetCommit.files[f];
@@ -880,7 +1229,7 @@ export class VirtualGitEngine {
     const mergeCommit = {
       id: mergeCommitId,
       message: `Merge branch '${targetBranch}' into ${this.currentBranch}`,
-      parentIds: [currentCommit.id, targetCommit.id],
+      parentIds: currentCommit ? [currentCommit.id, targetCommit.id] : [targetCommit.id],
       files: mergedFiles,
       author: 'Student Developer <student@mscprpcem.tech>',
       timestamp: new Date().toISOString()
@@ -903,7 +1252,7 @@ export class VirtualGitEngine {
       return { output: '', error: false };
     }
 
-    const targetBranch = args[0];
+    const targetBranch = args.find(a => !a.startsWith('-'));
     if (!targetBranch || !this.branches[targetBranch]) {
       return { output: `fatal: invalid upstream '${targetBranch}'`, error: true };
     }
@@ -973,6 +1322,7 @@ export class VirtualGitEngine {
     }
 
     // Default: stash changes
+    this.hasUsedStash = true;
     const msg = args.slice(1).join(' ') || `WIP on ${this.currentBranch}: ${this.headCommitId}`;
     this.stash.unshift({
       id: generateShortHash(),
@@ -988,6 +1338,37 @@ export class VirtualGitEngine {
 
   // ── 14. git reset ──
   gitReset(args) {
+    const headCommit = this.getLatestCommit();
+    const headFiles = headCommit ? headCommit.files : {};
+
+    // Check if unstage specific file: git reset <file> or git reset HEAD <file>
+    const nonFlags = args.filter(a => !a.startsWith('-'));
+    let fileToUnstage = null;
+
+    if (nonFlags.length === 1 && (this.index[nonFlags[0]] !== undefined || headFiles[nonFlags[0]] !== undefined || this.files[nonFlags[0]] !== undefined)) {
+      // If it's a file, not a revision
+      if (!this.getCommitById(nonFlags[0]) && !this.branches[nonFlags[0]]) {
+        fileToUnstage = nonFlags[0];
+      }
+    } else if (nonFlags.length === 2 && nonFlags[0] === 'HEAD') {
+      fileToUnstage = nonFlags[1];
+    }
+
+    if (fileToUnstage) {
+      if (headFiles[fileToUnstage] !== undefined) {
+        this.index[fileToUnstage] = headFiles[fileToUnstage];
+      } else {
+        delete this.index[fileToUnstage];
+      }
+      return { output: `Unstaged changes after reset:\nM\t${fileToUnstage}`, error: false };
+    }
+
+    // Default `git reset` with no arguments: unstage all files
+    if (args.length === 0) {
+      this.index = { ...headFiles };
+      return { output: 'Unstaged all changes.', error: false };
+    }
+
     let mode = '--mixed';
     let target = 'HEAD~1';
 
@@ -999,16 +1380,26 @@ export class VirtualGitEngine {
       }
     });
 
-    const currentCommit = this.getLatestCommit();
-    if (!currentCommit) {
+    if (!headCommit) {
       return { output: 'fatal: ambiguous argument: unknown revision', error: true };
     }
 
     let targetCommit = null;
-    if (target === 'HEAD~1') {
-      if (currentCommit.parentIds && currentCommit.parentIds.length > 0) {
-        targetCommit = this.getCommitById(currentCommit.parentIds[0]);
+    if (target === 'HEAD' || target === 'HEAD~0') {
+      targetCommit = headCommit;
+    } else if (target === 'HEAD~1' || target === 'HEAD^') {
+      if (headCommit.parentIds && headCommit.parentIds.length > 0) {
+        targetCommit = this.getCommitById(headCommit.parentIds[0]);
       }
+    } else if (target === 'HEAD~2') {
+      if (headCommit.parentIds && headCommit.parentIds.length > 0) {
+        const p1 = this.getCommitById(headCommit.parentIds[0]);
+        if (p1 && p1.parentIds && p1.parentIds.length > 0) {
+          targetCommit = this.getCommitById(p1.parentIds[0]);
+        }
+      }
+    } else if (this.branches[target]) {
+      targetCommit = this.getCommitById(this.branches[target]);
     } else {
       targetCommit = this.getCommitById(target);
     }
@@ -1024,7 +1415,7 @@ export class VirtualGitEngine {
     }
 
     this.reflog.push({
-      from: currentCommit.id,
+      from: headCommit.id,
       to: targetCommit.id,
       action: `reset: moving to ${target}`,
       message: `reset to ${targetCommit.id}`,
@@ -1039,7 +1430,7 @@ export class VirtualGitEngine {
       this.index = { ...(targetCommit.files || {}) };
       return { output: `Unstaged changes after reset:\nM\t${Object.keys(this.files).join('\nM\t')}`, error: false };
     } else if (mode === '--hard') {
-      // Erase working tree and index!
+      // Erase working tree and index
       this.files = { ...(targetCommit.files || {}) };
       this.index = { ...(targetCommit.files || {}) };
       return { output: `HEAD is now at ${targetCommit.id} ${targetCommit.message}`, error: false };
@@ -1050,8 +1441,9 @@ export class VirtualGitEngine {
 
   // ── 15. git revert ──
   gitRevert(args) {
-    const target = args[0];
+    let target = args[0];
     if (!target) return { output: 'fatal: commit to revert required', error: true };
+    if (target === 'HEAD') target = this.headCommitId;
 
     const commitToRevert = this.getCommitById(target);
     if (!commitToRevert) return { output: `fatal: bad revision '${target}'`, error: true };
@@ -1059,7 +1451,6 @@ export class VirtualGitEngine {
     const currentCommit = this.getLatestCommit();
     const revertCommitId = generateShortHash();
 
-    // Revert files: if file modified in commitToRevert, restore parent's version
     const parentCommit = commitToRevert.parentIds && commitToRevert.parentIds.length > 0
       ? this.getCommitById(commitToRevert.parentIds[0])
       : null;
@@ -1128,7 +1519,37 @@ export class VirtualGitEngine {
     };
   }
 
-  // ── 17. git remote ──
+  // ── 17. git show ──
+  gitShow(args) {
+    const target = args[0] || 'HEAD';
+
+    // Check if tag
+    if (this.tags[target]) {
+      const tag = this.tags[target];
+      const commit = this.getCommitById(tag.commitId);
+      let out = `tag ${target}\n`;
+      if (tag.annotated) {
+        out += `Tagger: Student Developer <student@mscprpcem.tech>\nDate:   ${new Date().toISOString()}\n\n    ${tag.message}\n\n`;
+      }
+      if (commit) {
+        out += `commit ${commit.id}\nAuthor: ${commit.author}\nDate:   ${commit.timestamp}\n\n    ${commit.message}\n`;
+      }
+      return { output: out.trimEnd(), error: false };
+    }
+
+    const commitId = target === 'HEAD' ? this.headCommitId : target;
+    const commit = this.getCommitById(commitId);
+    if (!commit) return { output: `fatal: ambiguous argument '${target}': unknown revision`, error: true };
+
+    let out = `commit ${commit.id}\nAuthor: ${commit.author}\nDate:   ${commit.timestamp}\n\n    ${commit.message}\n\n`;
+    out += `Files in commit:\n`;
+    Object.keys(commit.files || {}).forEach(f => {
+      out += `  + ${f}\n`;
+    });
+    return { output: out.trimEnd(), error: false };
+  }
+
+  // ── 18. git remote ──
   gitRemote(args) {
     if (args.length === 0) {
       return { output: Object.keys(this.remotes).join('\n'), error: false };
@@ -1156,10 +1577,19 @@ export class VirtualGitEngine {
       return { output: '', error: false };
     }
 
+    if (args[0] === 'rename') {
+      const oldName = args[1];
+      const newName = args[2];
+      if (!oldName || !newName || !this.remotes[oldName]) return { output: 'fatal: remote not found', error: true };
+      this.remotes[newName] = this.remotes[oldName];
+      delete this.remotes[oldName];
+      return { output: '', error: false };
+    }
+
     return { output: 'usage: git remote [-v] | add <name> <url> | remove <name>', error: true };
   }
 
-  // ── 18. git push ──
+  // ── 19. git push ──
   gitPush(args) {
     const remote = args.find(a => !a.startsWith('-') && this.remotes[a]) || 'origin';
     const branch = args.find(a => !a.startsWith('-') && a !== remote) || this.currentBranch;
@@ -1184,11 +1614,25 @@ export class VirtualGitEngine {
     };
   }
 
-  // ── 19. git fetch ──
+  // ── 20. git fetch ──
   gitFetch(args) {
-    const remote = args[0] || 'origin';
+    const remote = args.find(a => !a.startsWith('-') && this.remotes[a]) || 'origin';
     if (!this.remotes[remote]) {
       return { output: `fatal: '${remote}' does not appear to be a git repository`, error: true };
+    }
+
+    // Register remote commits into local commit database if provided
+    if (this.remoteCommits) {
+      Object.keys(this.remoteCommits).forEach(cId => {
+        const rc = this.remoteCommits[cId];
+        if (!this.commits.find(c => c.id === cId)) {
+          this.commits.push(rc);
+        }
+        if (!this.remotes[remote].branches) {
+          this.remotes[remote].branches = {};
+        }
+        this.remotes[remote].branches['main'] = cId;
+      });
     }
 
     return {
@@ -1197,23 +1641,34 @@ export class VirtualGitEngine {
     };
   }
 
-  // ── 20. git pull ──
+  // ── 21. git pull ──
   gitPull(args) {
     const remote = args.find(a => !a.startsWith('-') && this.remotes[a]) || 'origin';
     if (!this.remotes[remote]) {
       return { output: `fatal: '${remote}' does not appear to be a git repository`, error: true };
     }
 
+    this.gitFetch(args);
     return {
       output: `Already up to date.`,
       error: false
     };
   }
 
-  // ── 21. git tag ──
+  // ── 22. git tag ──
   gitTag(args) {
     if (args.length === 0) {
       return { output: Object.keys(this.tags).join('\n'), error: false };
+    }
+
+    if (args.includes('-d')) {
+      const dIdx = args.indexOf('-d');
+      const tagToDelete = args[dIdx + 1];
+      if (!tagToDelete || !this.tags[tagToDelete]) {
+        return { output: `error: tag '${tagToDelete}' not found.`, error: true };
+      }
+      delete this.tags[tagToDelete];
+      return { output: `Deleted tag '${tagToDelete}'.`, error: false };
     }
 
     const isAnnotated = args.includes('-a');
@@ -1235,7 +1690,7 @@ export class VirtualGitEngine {
     return { output: '', error: false };
   }
 
-  // ── 22. git reflog ──
+  // ── 23. git reflog ──
   gitReflog() {
     let out = '';
     this.reflog.slice().reverse().forEach((r, idx) => {
@@ -1244,13 +1699,16 @@ export class VirtualGitEngine {
     return { output: out.trimEnd() || 'HEAD@{0}: commit: initial repository state', error: false };
   }
 
-  // ── 23. git restore ──
+  // ── 24. git restore ──
   gitRestore(args) {
     const isStaged = args.includes('--staged');
-    const files = args.filter(a => !a.startsWith('-'));
+    const fileArgs = args.filter(a => !a.startsWith('-'));
 
     const headCommit = this.getLatestCommit();
     const headFiles = headCommit ? headCommit.files : {};
+
+    const isAll = fileArgs.includes('.');
+    const files = isAll ? (isStaged ? Object.keys(this.index) : Object.keys(this.files)) : fileArgs;
 
     if (isStaged) {
       files.forEach(f => {
@@ -1277,9 +1735,25 @@ export class VirtualGitEngine {
   // BASIC SHELL COMMANDS
   // ══════════════════════════════════════════════════════════
 
-  handleLs() {
-    const filenames = Object.keys(this.files);
+  handleLs(args = []) {
+    const isAll = args.includes('-a') || args.includes('-la') || args.includes('-al');
+    const isLong = args.includes('-l') || args.includes('-la') || args.includes('-al');
+
+    let filenames = Object.keys(this.files);
+    if (!isAll) {
+      filenames = filenames.filter(f => !f.startsWith('.'));
+    }
+
     if (filenames.length === 0) return { output: '', error: false };
+
+    if (isLong) {
+      const lines = filenames.map(f => {
+        const size = (this.files[f] || '').length;
+        return `-rw-r--r-- 1 student student ${size.toString().padStart(5, ' ')} Oct 24 10:00 ${f}`;
+      });
+      return { output: lines.join('\n'), error: false };
+    }
+
     return { output: filenames.join('  '), error: false };
   }
 
@@ -1293,11 +1767,12 @@ export class VirtualGitEngine {
   }
 
   handleTouch(args) {
-    const file = args[0];
-    if (!file) return { output: 'touch: missing file operand', error: true };
-    if (this.files[file] === undefined) {
-      this.files[file] = '';
-    }
+    if (args.length === 0) return { output: 'touch: missing file operand', error: true };
+    args.forEach(f => {
+      if (!f.startsWith('-') && this.files[f] === undefined) {
+        this.files[f] = '';
+      }
+    });
     return { output: '', error: false };
   }
 
@@ -1306,11 +1781,114 @@ export class VirtualGitEngine {
     return { output: text, error: false };
   }
 
-  handleShellRm(args) {
-    const file = args.find(a => !a.startsWith('-'));
-    if (!file) return { output: 'rm: missing operand', error: true };
-    delete this.files[file];
+  handleMkdir(args) {
     return { output: '', error: false };
+  }
+
+  handleCp(args) {
+    const nonFlags = args.filter(a => !a.startsWith('-'));
+    if (nonFlags.length < 2) return { output: 'cp: missing destination file operand', error: true };
+    const [src, dest] = nonFlags;
+    if (this.files[src] === undefined) return { output: `cp: cannot stat '${src}': No such file or directory`, error: true };
+    this.files[dest] = this.files[src];
+    return { output: '', error: false };
+  }
+
+  handleMv(args) {
+    const nonFlags = args.filter(a => !a.startsWith('-'));
+    if (nonFlags.length < 2) return { output: 'mv: missing destination file operand', error: true };
+    const [src, dest] = nonFlags;
+    if (this.files[src] === undefined) return { output: `mv: cannot stat '${src}': No such file or directory`, error: true };
+    this.files[dest] = this.files[src];
+    delete this.files[src];
+    return { output: '', error: false };
+  }
+
+  handleShellRm(args) {
+    const files = args.filter(a => !a.startsWith('-'));
+    if (files.length === 0) return { output: 'rm: missing operand', error: true };
+    files.forEach(f => {
+      delete this.files[f];
+    });
+    return { output: '', error: false };
+  }
+
+  gitHelp() {
+    const text = `usage: git [-v | --version] [-h | --help] <command> [<args>]
+
+These are common Git commands supported in this Virtual Sandbox:
+
+start a working area
+   init        Create an empty Git repository or reinitialize an existing one
+
+work on the current change
+   add         Add file contents to the staging index
+   restore     Restore working tree or staged files
+   rm          Remove files from the working tree and from the index
+
+examine the history and state
+   diff        Show changes between commits, commit and working tree, etc
+   log         Show commit logs (--oneline, --graph, <branch>)
+   show        Show commit details, tags, and file snapshots
+   status      Show the working tree status
+
+grow, mark and tweak your common history
+   branch      List, create, or delete branches (-a, -d, -m)
+   commit      Record changes to repository (-m, -am, --amend)
+   merge       Join two development histories together (--abort)
+   rebase      Reapply commits on top of another base tip
+   reset       Reset current HEAD or unstage files (--soft, --mixed, --hard)
+   switch      Switch branches (-c to create)
+   checkout    Switch branches or restore files (-b)
+   tag         Create, list, or delete tags (-a -m)
+
+collaborate
+   fetch       Download objects and refs from remote repository
+   pull        Fetch from and integrate with remote branch
+   push        Update remote refs along with associated objects (-u)
+   remote      Manage set of tracked repositories (add, -v, rm)
+
+advanced recovery & stashing
+   stash       Stash dirty working directory changes (pop, apply, list)
+   revert      Revert existing commit safely without rewriting history
+   cherry-pick Apply changes from an isolated commit
+   reflog      Inspect HEAD movements and recover lost commits
+
+See 'git <command> --help' or 'git help <command>' for specific command usage.`;
+    return { output: text, error: false };
+  }
+
+  gitSubcommandHelp(sub) {
+    const guides = {
+      init: `usage: git init [-q | --quiet] [--bare] [-b <branch-name>]\n\nCreate an empty Git repository or reinitialize an existing one.`,
+      status: `usage: git status [-s | --short] [-b | --branch]\n\nShow the working tree status, staged changes, unstaged modifications, and untracked files.`,
+      add: `usage: git add [--verbose | -v] [--all | -A] [--] [<pathspec>...]\n\nAdd file contents from working directory to the index (staging area).`,
+      commit: `usage: git commit [-a | --all] [-m <msg> | --message=<msg>] [--amend] [--allow-empty]\n\nRecord staged changes as a new atomic snapshot in repository history.`,
+      branch: `usage: git branch [-a | --all] [-d | -D <branch>] [-m <old> <new>] [<new-branch> [<start-point>]]\n\nList, create, rename, or delete branches.`,
+      checkout: `usage: git checkout [-b <new-branch>] [<branch> | <commit>] [-- <pathspec>...]\n\nSwitch branches, restore working tree files, or checkout a specific commit.`,
+      switch: `usage: git switch [-c | --create <new-branch>] <branch>\n\nSwitch to a specified branch or create and switch to a new branch.`,
+      log: `usage: git log [--oneline] [--graph] [-n <number>] [<revision-range>]\n\nShow commit history logs and revision details.`,
+      diff: `usage: git diff [--staged | --cached] [<commit>..<commit>] [--] [<path>...]\n\nShow changes between commits, commit and working tree, or staged index.`,
+      merge: `usage: git merge [--abort] <commit>...\n\nJoin two or more development histories together (supports Fast-Forward and 3-way merge).`,
+      rebase: `usage: git rebase [--abort | --continue] <upstream> [<branch>]\n\nReapply commits on top of another base tip for linear history.`,
+      stash: `usage: git stash [save [<message>]] [pop] [apply] [list] [show] [clear]\n\nStash the changes in a dirty working directory away.`,
+      reset: `usage: git reset [--soft | --mixed | --hard] [<commit>] | git reset [<commit>] <pathspec>...\n\nReset current HEAD to the specified state or unstage files.`,
+      revert: `usage: git revert <commit>...\n\nRevert an existing commit by creating a new inverse commit preserving history.`,
+      'cherry-pick': `usage: git cherry-pick <commit>...\n\nApply the changes introduced by an existing commit onto current HEAD.`,
+      remote: `usage: git remote [-v | --verbose] | add <name> <url> | remove <name> | rename <old> <new>\n\nManage set of tracked remote repositories.`,
+      push: `usage: git push [-u | --set-upstream] [<repository> [<refspec>...]]\n\nUpdate remote refs along with associated objects.`,
+      pull: `usage: git pull [<repository> [<refspec>...]]\n\nFetch from and integrate with another repository or a local branch.`,
+      fetch: `usage: git fetch [<repository> [<refspec>...]]\n\nDownload objects and refs from another repository without merging.`,
+      tag: `usage: git tag [-a] [-m <msg>] [-d <tagname>] [<tagname> [<commit>]]\n\nCreate, list, or delete a tag object signed or annotated.`,
+      reflog: `usage: git reflog [show] [<ref>]\n\nManage reflog information recording HEAD updates and movements.`,
+      restore: `usage: git restore [--staged] [--worktree] [--] <pathspec>...\n\nRestore specified paths in working tree or staging index.`,
+      show: `usage: git show [<options>] [<object>...]\n\nShow various types of objects (commits, tags, trees).`
+    };
+
+    if (guides[sub]) {
+      return { output: guides[sub], error: false };
+    }
+    return { output: `No manual entry for git-${sub}. Type 'git --help' for common commands.`, error: false };
   }
 
   handleHelp() {
@@ -1318,13 +1896,16 @@ export class VirtualGitEngine {
 Microsoft Student Club Virtual Git Shell
 ----------------------------------------
 Supported Git Commands:
-  git init, status, add, rm, commit -m "<msg>"
-  git branch, checkout, switch, log, diff
-  git merge, rebase, stash, reset, revert, cherry-pick
-  git remote, push, fetch, pull, tag, reflog, restore
+  git init, status, add, rm, commit -m "<msg>" [-a] [--amend]
+  git branch [-a] [-d] [-m], checkout [-b], switch [-c]
+  git log [--oneline] [--graph] [<branch>], diff [--staged]
+  git merge [--abort], rebase, stash [pop|apply|list|clear]
+  git reset [--soft|--mixed|--hard] [<file>], revert, cherry-pick
+  git remote [add|rm|-v], push [-u], fetch, pull, tag [-a], reflog, restore, show
+  git --help, git <command> --help, git --version
 
 Supported Shell Utilities:
-  ls, cat, touch, echo "text" > file, rm, pwd, clear, help
+  ls [-la], cat, touch, echo "text" > file, rm [-rf], cp, mv, pwd, whoami, date, clear, help
 `;
     return { output: text.trim(), error: false };
   }

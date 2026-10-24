@@ -147,9 +147,11 @@ export default function AdminSqlModal({ isOpen, onClose, onChallengeSaved, editi
                   isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-800'
                 }`}
               >
+                <option value="Basic">Basic</option>
                 <option value="Easy">Easy</option>
                 <option value="Medium">Medium</option>
                 <option value="Hard">Hard</option>
+                <option value="Extreme">Extreme</option>
               </select>
             </div>
           </div>

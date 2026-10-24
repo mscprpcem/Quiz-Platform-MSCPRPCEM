@@ -5,7 +5,7 @@ import {
   RotateCcw, Sparkles, ChevronRight, ChevronLeft, ArrowRight, ArrowLeft,
   BookOpen, Code2, Trophy, ListOrdered, Table, Layers, Clock, Eye,
   HelpCircle, Share2, Award, Check, ExternalLink, Zap, Sun, Moon,
-  Plus, Edit, Trash2, ShieldCheck, UserCheck, Search
+  Plus, Edit, Trash2, ShieldCheck, UserCheck, Search, ChevronDown, X
 } from 'lucide-react';
 import { SQL_CHALLENGES, getStoredCustomChallenges, deleteCustomChallenge } from '../data/sqlChallenges';
 import { executeSqlQuery, validateSqlQuery, getTablesPreview } from '../services/sqlEngine';
@@ -13,6 +13,8 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import AdminSqlModal from '../components/AdminSqlModal';
 import ProblemStatementView from '../components/ProblemStatementView';
+import { getDifficultyTheme } from '../utils/difficulty';
+import LabSettingsDropdown, { getSavedSettings } from '../components/LabSettingsDropdown';
 
 export default function SqlPractice() {
   const navigate = useNavigate();
@@ -66,6 +68,14 @@ export default function SqlPractice() {
   const [userQuery, setUserQuery] = useState(activeChallenge?.starterSql || '');
   const [activeTab, setActiveTab] = useState('problem'); // 'problem' | 'schema' | 'solution'
   const [activeConsoleTab, setActiveConsoleTab] = useState('output'); // 'output' | 'expected'
+  const [labSettings, setLabSettings] = useState(() => getSavedSettings());
+
+  // Automatically switch away from solution tab if disabled in settings
+  useEffect(() => {
+    if (!labSettings.showCheatSheet && activeTab === 'solution') {
+      setActiveTab('problem');
+    }
+  }, [labSettings, activeTab]);
 
   // Solved challenges stored in localStorage
   const [solvedChallenges, setSolvedChallenges] = useState(() => {
@@ -124,6 +134,128 @@ export default function SqlPractice() {
 
   // Drawer / Problem list state
   const [showDrawer, setShowDrawer] = useState(false);
+
+  // Responsive Desktop detection
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Mobile View Switcher: 'problem' | 'editor'
+  const [mobileView, setMobileView] = useState('problem');
+
+  // Splitter: Left pane width percentage (default 42%, min 20%, max 75%)
+  const workspaceRef = useRef(null);
+  const rightPaneRef = useRef(null);
+  const [leftWidthPercent, setLeftWidthPercent] = useState(() => {
+    try {
+      const saved = localStorage.getItem('msc_sql_splitter_width');
+      return saved ? parseFloat(saved) : 42;
+    } catch {
+      return 42;
+    }
+  });
+  const [isDraggingHorizontal, setIsDraggingHorizontal] = useState(false);
+
+  // Splitter: Editor height percentage (default 52%, min 20%, max 80%)
+  const [editorHeightPercent, setEditorHeightPercent] = useState(() => {
+    try {
+      const saved = localStorage.getItem('msc_sql_editor_height_percent');
+      return saved ? parseFloat(saved) : 52;
+    } catch {
+      return 52;
+    }
+  });
+  const [isDraggingVertical, setIsDraggingVertical] = useState(false);
+
+  const latestLeftWidthRef = useRef(leftWidthPercent);
+  latestLeftWidthRef.current = leftWidthPercent;
+
+  const latestEditorHeightRef = useRef(editorHeightPercent);
+  latestEditorHeightRef.current = editorHeightPercent;
+
+  // Dragging logic for Horizontal Splitter (Left vs Right Pane Width)
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDraggingHorizontal || !workspaceRef.current) return;
+      const rect = workspaceRef.current.getBoundingClientRect();
+      const rawPercent = ((e.clientX - rect.left) / rect.width) * 100;
+      const clamped = Math.max(20, Math.min(80, rawPercent));
+      latestLeftWidthRef.current = clamped;
+      setLeftWidthPercent(clamped);
+    };
+
+    const handleMouseUp = () => {
+      if (isDraggingHorizontal) {
+        setIsDraggingHorizontal(false);
+        try {
+          localStorage.setItem('msc_sql_splitter_width', latestLeftWidthRef.current.toString());
+        } catch (_) {}
+      }
+    };
+
+    if (isDraggingHorizontal) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDraggingHorizontal]);
+
+  // Dragging logic for Vertical Splitter (Editor vs Console Height)
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDraggingVertical || !rightPaneRef.current) return;
+      const rect = rightPaneRef.current.getBoundingClientRect();
+      const rawPercent = ((e.clientY - rect.top) / rect.height) * 100;
+      const clamped = Math.max(20, Math.min(80, rawPercent));
+      latestEditorHeightRef.current = clamped;
+      setEditorHeightPercent(clamped);
+    };
+
+    const handleMouseUp = () => {
+      if (isDraggingVertical) {
+        setIsDraggingVertical(false);
+        try {
+          localStorage.setItem('msc_sql_editor_height_percent', latestEditorHeightRef.current.toString());
+        } catch (_) {}
+      }
+    };
+
+    if (isDraggingVertical) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDraggingVertical]);
 
   const isCurrentSolved = solvedChallenges.includes(activeChallenge?.id);
 
@@ -288,85 +420,74 @@ export default function SqlPractice() {
   };
 
   return (
-    <div className={`min-h-[calc(100vh-4rem)] flex flex-col font-segoe select-text transition-colors duration-200 ${
+    <div className={`h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] flex flex-col font-segoe select-text overflow-hidden transition-colors duration-200 ${
       isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-[#F8FAFC] text-slate-900'
     }`}>
       
       {/* Top Utility Header Bar */}
-      <header className={`h-14 border-b px-4 sm:px-6 flex items-center justify-between z-20 shrink-0 backdrop-blur-md transition-colors ${
+      <header className={`h-12 border-b px-4 sm:px-6 flex items-center justify-between z-20 shrink-0 backdrop-blur-md transition-colors ${
         isDarkMode 
           ? 'bg-slate-950/90 border-slate-800 text-slate-100' 
-          : 'bg-white/95 border-slate-200 text-slate-800 shadow-2xs'
+          : 'bg-white/95 border-slate-200 text-slate-800'
       }`}>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 overflow-hidden">
           <button
             onClick={() => navigate('/courses')}
-            className={`flex items-center space-x-1 text-xs font-bold transition-colors cursor-pointer ${
-              isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800'
+            className={`p-1 rounded-lg transition-colors cursor-pointer ${
+              isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
             }`}
+            title="Back to Courses"
           >
             <ChevronLeft size={16} />
-            <span className="hidden sm:inline">Courses</span>
           </button>
 
           <div className={`h-4 w-px ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
 
-          {/* Problem Selector Drawer Trigger */}
+          {/* Problem Selector (Clean Unboxed Title) */}
           <button
             onClick={() => setShowDrawer(true)}
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95 border ${
+            className={`flex items-center space-x-1.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer truncate max-w-[160px] sm:max-w-md py-1 ${
               isDarkMode 
-                ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700 text-slate-200' 
-                : 'bg-slate-100 hover:bg-slate-200/80 border-slate-200 text-slate-800'
+                ? 'text-slate-200 hover:text-blue-400' 
+                : 'text-slate-900 hover:text-blue-600'
             }`}
+            title="Browse all SQL questions"
           >
-            <ListOrdered size={14} className="text-blue-600" />
-            <span className="font-extrabold truncate max-w-[140px] sm:max-w-[220px]">
+            <span className="truncate">
               {selectedChallengeIndex + 1}. {activeChallenge?.title}
             </span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-              isDarkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-700'
-            }`}>
-              {selectedChallengeIndex + 1}/{allChallenges.length}
-            </span>
+            <ChevronDown size={13} className="text-slate-400 shrink-0" />
           </button>
 
-          {/* Solved Status Pill */}
-          {isCurrentSolved ? (
-            <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 text-[11px] font-bold">
-              <CheckCircle2 size={12} className="text-emerald-600" />
-              <span className="hidden md:inline">Solved</span>
-            </span>
-          ) : (
-            <span className={`hidden md:inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-medium ${
-              isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500'
-            }`}>
-              Unsolved
+          {/* Difficulty (Clean Unboxed without dot) */}
+          {(() => {
+            const diffTheme = getDifficultyTheme(activeChallenge?.difficulty);
+            return (
+              <div className="hidden md:flex items-center text-xs font-semibold shrink-0">
+                <span className={diffTheme.text}>{diffTheme.label}</span>
+              </div>
+            );
+          })()}
+
+          {/* Solved Status (Clean Unboxed) */}
+          {isCurrentSolved && (
+            <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1 shrink-0">
+              <CheckCircle2 size={13} className="text-emerald-600" />
+              <span className="hidden sm:inline">Solved</span>
             </span>
           )}
 
-          {/* Difficulty Badge */}
-          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border ${
-            activeChallenge?.difficulty === 'Easy'
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-              : activeChallenge?.difficulty === 'Medium'
-              ? 'bg-amber-50 text-amber-700 border-amber-300'
-              : 'bg-rose-50 text-rose-700 border-rose-300'
-          }`}>
-            {activeChallenge?.difficulty}
-          </span>
-
-          {/* Custom Admin Added Badge */}
+          {/* Custom Admin Added Badge (Clean Unboxed) */}
           {activeChallenge?.isAdminCustom && (
-            <span className="hidden lg:inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
-              <ShieldCheck size={11} />
-              <span>Admin Added</span>
+            <span className="hidden lg:inline-flex items-center gap-1 text-xs font-medium text-purple-600">
+              <ShieldCheck size={12} />
+              <span>Admin</span>
             </span>
           )}
         </div>
 
         {/* Right Header Navigation & Actions */}
-        <div className="flex items-center space-x-2 sm:space-x-3">
+        <div className="flex items-center space-x-3">
           
           {/* Admin "+ Add Question" Button - strictly for Admins */}
           {isAdmin && (
@@ -375,63 +496,70 @@ export default function SqlPractice() {
                 setEditingChallenge(null);
                 setShowAdminModal(true);
               }}
-              className="flex items-center space-x-1.5 text-xs font-extrabold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl transition-all cursor-pointer shadow-2xs active:scale-95"
+              className="flex items-center space-x-1 text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50/60 px-2 py-1 rounded-lg transition-colors cursor-pointer"
               title="Admin: Create Custom SQL Question & Answer"
             >
-              <Plus size={14} className="text-blue-600" />
+              <Plus size={13} />
               <span className="hidden sm:inline">Add Question</span>
             </button>
           )}
 
-          {/* Solved Stats Counter */}
-          <div className={`hidden lg:flex items-center space-x-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border ${
-            isDarkMode 
-              ? 'bg-slate-800/60 border-slate-700 text-slate-300' 
-              : 'bg-slate-100 border-slate-200 text-slate-700'
+          {/* Solved Stats Counter (Clean Unboxed Typography) */}
+          <div className={`hidden lg:flex items-center space-x-1.5 text-xs font-medium ${
+            isDarkMode ? 'text-slate-400' : 'text-slate-500'
           }`}>
-            <Trophy size={14} className="text-amber-500" />
+            <Trophy size={13} className="text-amber-500" />
             <span>Progress:</span>
-            <span className="text-blue-600 font-mono font-black">{solvedChallenges.length}</span>
+            <span className={`font-mono font-bold ${isDarkMode ? 'text-blue-400' : 'text-slate-900'}`}>{solvedChallenges.length}</span>
             <span className="text-slate-400">/</span>
             <span className="font-mono">{allChallenges.length}</span>
           </div>
 
-          {/* Mode Switcher to DBMS Theory Quiz */}
+          {/* Mode Switcher to DBMS Theory Quiz (Unboxed ghost button) */}
           <button
             onClick={() => navigate('/practice/dbms')}
-            className={`flex items-center space-x-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+            className={`hidden sm:flex items-center space-x-1 text-xs font-medium px-2 py-1 rounded-lg transition-colors cursor-pointer ${
               isDarkMode 
-                ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300' 
-                : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                ? 'text-slate-300 hover:text-white hover:bg-slate-800' 
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
             title="Switch to 10-Minute DBMS Theory MCQ Exam"
           >
-            <BookOpen size={13} className="text-indigo-600" />
-            <span className="hidden sm:inline">Theory Quiz</span>
+            <BookOpen size={13} className="text-indigo-500" />
+            <span>Theory Quiz</span>
           </button>
 
-          {/* Light / Dark Theme Switcher */}
+          {/* Light / Dark Theme Switcher (Ghost button) */}
           <button
             onClick={toggleTheme}
-            className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
               isDarkMode 
-                ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-amber-300' 
-                : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                ? 'text-amber-400 hover:bg-slate-800' 
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
             }`}
             title={isDarkMode ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
           >
             {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
           </button>
 
-          {/* Prev / Next Buttons */}
-          <div className="flex items-center space-x-1">
+          {/* Lab Settings (Hide hints, tags, explanations, etc.) */}
+          <LabSettingsDropdown
+            settings={labSettings}
+            onSettingsChange={setLabSettings}
+            isDarkMode={isDarkMode}
+          />
+
+          <div className={`h-4 w-px ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
+
+          {/* Prev / Next Buttons (Ghost buttons) */}
+          <div className="flex items-center space-x-0.5">
             <button
               onClick={handlePrevChallenge}
               disabled={selectedChallengeIndex === 0}
-              className={`p-1.5 rounded-xl border disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer ${
+              className={`p-1.5 rounded-lg disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer transition-colors ${
                 isDarkMode 
-                  ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300' 
-                  : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                  ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' 
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
               }`}
               title="Previous Question"
             >
@@ -440,10 +568,10 @@ export default function SqlPractice() {
             <button
               onClick={handleNextChallenge}
               disabled={selectedChallengeIndex === allChallenges.length - 1}
-              className={`p-1.5 rounded-xl border disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer ${
+              className={`p-1.5 rounded-lg disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer transition-colors ${
                 isDarkMode 
-                  ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300' 
-                  : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                  ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' 
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
               }`}
               title="Next Question"
             >
@@ -453,16 +581,54 @@ export default function SqlPractice() {
         </div>
       </header>
 
-      {/* Main Workspace Layout (Two-Pane Split) */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+      {/* Mobile View Switcher (Only visible on screens < 1024px) */}
+      <div className="lg:hidden flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 px-3 py-1.5 shrink-0 select-none">
+        <div className="flex items-center space-x-1 bg-white dark:bg-slate-950 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold w-full">
+          <button
+            onClick={() => setMobileView('problem')}
+            className={`flex-1 py-1.5 px-3 rounded-md transition-all flex items-center justify-center gap-1.5 ${
+              mobileView === 'problem'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+            }`}
+          >
+            <BookOpen size={13} />
+            <span>Problem & Schema</span>
+          </button>
+          <button
+            onClick={() => setMobileView('editor')}
+            className={`flex-1 py-1.5 px-3 rounded-md transition-all flex items-center justify-center gap-1.5 ${
+              mobileView === 'editor'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+            }`}
+          >
+            <Code2 size={13} />
+            <span>SQL Editor & Console</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Workspace Layout (Two-Pane Split with Draggable Divider) */}
+      <div 
+        ref={workspaceRef} 
+        className={`flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden relative w-full h-full ${
+          isDraggingHorizontal || isDraggingVertical ? 'select-none' : ''
+        }`}
+      >
         
         {/* Left Pane: Problem Context, Schema Explorer, Hints, Explanation */}
-        <div className={`w-full lg:w-[46%] xl:w-[42%] flex flex-col border-r overflow-hidden shrink-0 transition-colors ${
-          isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
-        }`}>
+        <div 
+          style={{ width: isDesktop ? `${leftWidthPercent}%` : '100%' }}
+          className={`${
+            !isDesktop && mobileView !== 'problem' ? 'hidden' : 'flex'
+          } w-full flex-col border-r overflow-hidden shrink-0 transition-colors h-full rounded-none ${
+            isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
+          }`}
+        >
           
           {/* Left Panel Tabs */}
-          <div className={`flex items-center border-b px-4 pt-2 gap-2 text-xs font-extrabold ${
+          <div className={`flex items-center border-b px-4 pt-2 gap-2 text-xs font-extrabold shrink-0 ${
             isDarkMode ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-slate-50/70'
           }`}>
             <button
@@ -489,27 +655,29 @@ export default function SqlPractice() {
               <span>Database Schema ({schemaPreviews.length})</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab('solution')}
-              className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center space-x-1.5 ${
-                activeTab === 'solution'
-                  ? 'border-blue-600 text-blue-600'
-                  : isDarkMode ? 'border-transparent text-slate-400 hover:text-slate-200' : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Lightbulb size={13} />
-              <span>Explanation</span>
-            </button>
+            {labSettings.showCheatSheet && (
+              <button
+                onClick={() => setActiveTab('solution')}
+                className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  activeTab === 'solution'
+                    ? 'border-blue-600 text-blue-600'
+                    : isDarkMode ? 'border-transparent text-slate-400 hover:text-slate-200' : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Lightbulb size={13} />
+                <span>Explanation</span>
+              </button>
+            )}
           </div>
 
           {/* Left Panel Content Body */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-6 text-sm">
+          <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-6 text-sm">
             
             {/* Tab: Problem Description */}
             {activeTab === 'problem' && (
               <div className="space-y-6">
                 {/* Rich Structured Problem Statement Component */}
-                <ProblemStatementView challenge={activeChallenge} isDarkMode={isDarkMode} />
+                <ProblemStatementView challenge={activeChallenge} isDarkMode={isDarkMode} showTags={labSettings.showTags} />
 
                 {/* Interactive Schema Quick Preview */}
                 <div className="space-y-2.5">
@@ -552,7 +720,7 @@ export default function SqlPractice() {
                 </div>
 
                 {/* Progressive Hints Accordion */}
-                {activeChallenge?.hints && activeChallenge.hints.length > 0 && (
+                {labSettings.showHints && activeChallenge?.hints && activeChallenge.hints.length > 0 && (
                   <div className="space-y-3 pt-2">
                     <h3 className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
                       isDarkMode ? 'text-slate-400' : 'text-slate-600'
@@ -741,125 +909,188 @@ export default function SqlPractice() {
                 )}
               </div>
             )}
+
+            {/* Mobile Open Editor Quick Action */}
+            {!isDesktop && (
+              <div className="pt-2 pb-6">
+                <button
+                  onClick={() => setMobileView('editor')}
+                  className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                >
+                  <Code2 size={14} />
+                  <span>Open SQL Editor & Run Query →</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* ── DESKTOP DRAGGABLE VERTICAL DIVIDER (Resizes Left vs Right Width) ── */}
+        <div
+          onMouseDown={() => setIsDraggingHorizontal(true)}
+          className={`hidden lg:flex w-1.5 hover:w-2 bg-slate-200 dark:bg-slate-800 hover:bg-blue-600 dark:hover:bg-blue-600 active:bg-blue-600 cursor-col-resize select-none transition-all relative items-center justify-center shrink-0 z-20 group ${
+            isDraggingHorizontal ? 'bg-blue-600 w-2' : ''
+          }`}
+          title="Drag left or right to adjust pane widths"
+        >
+          <div className="w-0.5 h-8 rounded-full bg-slate-400 dark:bg-slate-600 group-hover:bg-white transition-colors" />
+        </div>
+
         {/* Right Pane: Code Editor + Execution Console */}
-        <div className={`w-full lg:w-[54%] xl:w-[58%] flex flex-col overflow-hidden transition-colors ${
-          isDarkMode ? 'bg-slate-950' : 'bg-white'
-        }`}>
-          
-          {/* Editor Header Bar */}
-          <div className={`h-10 border-b px-4 flex items-center justify-between shrink-0 ${
-            isDarkMode ? 'border-slate-800 bg-slate-900/80 text-slate-300' : 'border-slate-200 bg-slate-100/90 text-slate-700'
-          }`}>
-            <div className="flex items-center space-x-2 text-xs font-bold font-mono">
-              <Code2 size={14} className="text-blue-600" />
-              <span>query.sql</span>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleFormatSql}
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-colors cursor-pointer ${
-                  isDarkMode 
-                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' 
-                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-2xs'
-                }`}
-                title="Capitalize SQL Keywords"
-              >
-                Format SQL
-              </button>
-
-              <button
-                onClick={handleResetQuery}
-                className={`p-1 rounded-lg transition-colors cursor-pointer ${
-                  isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'
-                }`}
-                title="Reset to starter query"
-              >
-                <RotateCcw size={13} />
-              </button>
-            </div>
-          </div>
-
-          {/* Code Editor Area with Line Numbers */}
-          <div className={`flex-1 min-h-[180px] sm:min-h-[220px] max-h-[45vh] lg:max-h-none flex relative overflow-hidden ${
+        <div 
+          ref={rightPaneRef}
+          style={{ width: isDesktop ? `${100 - leftWidthPercent}%` : '100%' }}
+          className={`${
+            !isDesktop && mobileView !== 'editor' ? 'hidden' : 'flex'
+          } flex-1 flex-col overflow-hidden min-w-0 h-full rounded-none transition-colors ${
             isDarkMode ? 'bg-slate-950' : 'bg-white'
-          }`}>
-            {/* Gutter */}
-            <div className={`select-none py-4 px-2.5 text-right font-mono text-xs border-r shrink-0 leading-relaxed overflow-hidden ${
-              isDarkMode ? 'bg-slate-900/40 text-slate-600 border-slate-800' : 'bg-slate-50/80 text-slate-400 border-slate-200'
+          }`}
+        >
+          
+          {/* Top: Editor Section (Header + Textarea + Action Bar) */}
+          <div 
+            style={{ 
+              height: isDesktop ? `${editorHeightPercent}%` : undefined 
+            }}
+            className={`flex flex-col min-h-0 overflow-hidden shrink-0 ${
+              !isDesktop ? 'h-1/2 min-h-[260px]' : ''
+            }`}
+          >
+            {/* Editor Header Bar */}
+            <div className={`h-10 border-b px-4 flex items-center justify-between shrink-0 ${
+              isDarkMode ? 'border-slate-800 bg-slate-900/80 text-slate-300' : 'border-slate-200 bg-slate-100/90 text-slate-700'
             }`}>
-              {(userQuery || '').split('\n').map((_, i) => (
-                <div key={i}>{i + 1}</div>
-              ))}
+              <div className="flex items-center space-x-2 text-xs font-bold font-mono">
+                {!isDesktop && (
+                  <button
+                    onClick={() => setMobileView('problem')}
+                    className="text-[11px] font-bold text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 flex items-center gap-1 mr-1"
+                  >
+                    ← Problem
+                  </button>
+                )}
+                <Code2 size={14} className="text-blue-600" />
+                <span>query.sql</span>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleFormatSql}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-colors cursor-pointer ${
+                    isDarkMode 
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' 
+                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-2xs'
+                  }`}
+                  title="Capitalize SQL Keywords"
+                >
+                  Format SQL
+                </button>
+
+                <button
+                  onClick={handleResetQuery}
+                  className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                    isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'
+                  }`}
+                  title="Reset to starter query"
+                >
+                  <RotateCcw size={13} />
+                </button>
+              </div>
             </div>
 
-            {/* Textarea */}
-            <textarea
-              value={userQuery}
-              onChange={(e) => setUserQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              spellCheck="false"
-              placeholder="-- Write your SQL query here..."
-              className={`flex-1 w-full font-mono text-xs sm:text-sm p-4 resize-none focus:outline-none border-none leading-relaxed ${
-                isDarkMode 
-                  ? 'bg-slate-950 text-slate-100 placeholder:text-slate-600 selection:bg-blue-900' 
-                  : 'bg-white text-slate-900 placeholder:text-slate-400 selection:bg-blue-100'
-              }`}
-            />
-            <div className={`absolute bottom-2 right-3 text-[10px] font-mono pointer-events-none hidden sm:block ${
-              isDarkMode ? 'text-slate-500' : 'text-slate-400'
+            {/* Code Editor Area with Line Numbers */}
+            <div className={`flex-1 min-h-0 flex relative overflow-hidden ${
+              isDarkMode ? 'bg-slate-950' : 'bg-white'
             }`}>
-              Press <kbd className={`px-1 py-0.5 rounded border ${
-                isDarkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200'
-              }`}>Ctrl + Enter</kbd> to Run
+              {/* Gutter */}
+              <div className={`select-none py-4 px-2.5 text-right font-mono text-xs border-r shrink-0 leading-relaxed overflow-hidden ${
+                isDarkMode ? 'bg-slate-900/40 text-slate-600 border-slate-800' : 'bg-slate-50/80 text-slate-400 border-slate-200'
+              }`}>
+                {(userQuery || '').split('\n').map((_, i) => (
+                  <div key={i}>{i + 1}</div>
+                ))}
+              </div>
+
+              {/* Textarea */}
+              <textarea
+                value={userQuery}
+                onChange={(e) => setUserQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                spellCheck="false"
+                placeholder="-- Write your SQL query here..."
+                className={`flex-1 w-full font-mono text-xs sm:text-sm p-4 resize-none focus:outline-none border-none leading-relaxed ${
+                  isDarkMode 
+                    ? 'bg-slate-950 text-slate-100 placeholder:text-slate-600 selection:bg-blue-900' 
+                    : 'bg-white text-slate-900 placeholder:text-slate-400 selection:bg-blue-100'
+                }`}
+              />
+              <div className={`absolute bottom-2 right-3 text-[10px] font-mono pointer-events-none hidden sm:block ${
+                isDarkMode ? 'text-slate-500' : 'text-slate-400'
+              }`}>
+                Press <kbd className={`px-1 py-0.5 rounded border ${
+                  isDarkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200'
+                }`}>Ctrl + Enter</kbd> to Run
+              </div>
+            </div>
+
+            {/* Action Bar (Run & Submit) */}
+            <div className={`h-12 border-t px-4 flex items-center justify-between shrink-0 ${
+              isDarkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-200 bg-slate-50/90'
+            }`}>
+              <div className={`text-[11px] font-semibold flex items-center gap-1.5 ${
+                isDarkMode ? 'text-slate-400' : 'text-slate-600'
+              }`}>
+                <Code2 size={13} className="text-blue-600" />
+                <span>Interactive SQL Console</span>
+              </div>
+
+              <div className="flex items-center space-x-2.5">
+                {/* Run Query Button */}
+                <button
+                  onClick={handleRunQuery}
+                  disabled={running || evaluating}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl shadow-2xs transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50 active:scale-95 border ${
+                    isDarkMode 
+                      ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200' 
+                      : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-800'
+                  }`}
+                >
+                  <Play size={12} className={running ? 'animate-spin' : 'text-blue-600'} />
+                  <span>{running ? 'Executing...' : 'Run Query'}</span>
+                </button>
+
+                {/* Submit Solution Button */}
+                <button
+                  onClick={handleValidateSolution}
+                  disabled={running || evaluating}
+                  className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <CheckCircle2 size={13} className={evaluating ? 'animate-spin' : ''} />
+                  <span>{evaluating ? 'Validating...' : 'Submit Solution'}</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Action Bar (Run & Submit) */}
-          <div className={`h-12 border-t border-b px-4 flex items-center justify-between shrink-0 ${
-            isDarkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-200 bg-slate-50/90'
-          }`}>
-            <div className={`text-[11px] font-semibold flex items-center gap-1.5 ${
-              isDarkMode ? 'text-slate-400' : 'text-slate-600'
-            }`}>
-              <Code2 size={13} className="text-blue-600" />
-              <span>Interactive SQL Console</span>
-            </div>
-
-            <div className="flex items-center space-x-2.5">
-              {/* Run Query Button */}
-              <button
-                onClick={handleRunQuery}
-                disabled={running || evaluating}
-                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl shadow-2xs transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50 active:scale-95 border ${
-                  isDarkMode 
-                    ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200' 
-                    : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-800'
-                }`}
-              >
-                <Play size={12} className={running ? 'animate-spin' : 'text-blue-600'} />
-                <span>{running ? 'Executing...' : 'Run Query'}</span>
-              </button>
-
-              {/* Submit Solution Button */}
-              <button
-                onClick={handleValidateSolution}
-                disabled={running || evaluating}
-                className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
-              >
-                <CheckCircle2 size={13} className={evaluating ? 'animate-spin' : ''} />
-                <span>{evaluating ? 'Validating...' : 'Submit Solution'}</span>
-              </button>
-            </div>
+          {/* ── DRAGGABLE HORIZONTAL DIVIDER (Resizes Console vs Editor) ── */}
+          <div
+            onMouseDown={() => setIsDraggingVertical(true)}
+            className={`w-full h-1.5 hover:h-2 bg-slate-200 dark:bg-slate-800 hover:bg-blue-600 dark:hover:bg-blue-600 active:bg-blue-600 cursor-row-resize select-none transition-all flex items-center justify-center shrink-0 z-10 group ${
+              isDraggingVertical ? 'bg-blue-600 h-2' : ''
+            }`}
+            title="Drag up or down to adjust console and editor height"
+          >
+            <div className="h-0.5 w-8 rounded-full bg-slate-400 dark:bg-slate-600 group-hover:bg-white transition-colors" />
           </div>
 
           {/* Bottom Execution Console & Results */}
-          <div className={`h-64 sm:h-72 lg:h-80 flex flex-col border-t overflow-hidden shrink-0 ${
-            isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
+          <div 
+            className={`flex-1 min-h-0 flex flex-col border-t overflow-hidden ${
+              !isDesktop ? 'h-1/2 min-h-[240px]' : ''
+            } ${
+              isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white border-slate-200'
+            }`}
+          >
             
             {/* Console Tabs & Execution Metrics */}
             <div className={`h-9 border-b px-4 flex items-center justify-between text-xs shrink-0 ${
@@ -899,7 +1130,7 @@ export default function SqlPractice() {
             </div>
 
             {/* Console Body */}
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 min-h-0 overflow-auto p-4">
               
               {/* Validation Banner if submitted */}
               {validationResult && (
@@ -1054,211 +1285,104 @@ export default function SqlPractice() {
           <div className={`relative w-full max-w-md border-r flex flex-col h-full shadow-2xl z-10 animate-slide-in ${
             isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-800'
           }`}>
-            <div className={`p-4 border-b flex items-center justify-between ${
-              isDarkMode ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-slate-50'
+            {/* Drawer Header */}
+            <div className={`p-4 border-b flex items-center justify-between shrink-0 ${
+              isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-100' : 'border-slate-200 bg-white text-slate-900'
             }`}>
-              <div className="flex items-center space-x-2 font-black text-sm">
+              <div className="flex items-center space-x-2 font-bold text-sm">
                 <ListOrdered size={16} className="text-blue-600" />
-                <span>Interview SQL Challenge Track</span>
+                <span>SQL Questions</span>
+                <span className="text-xs text-slate-400 font-mono">({allChallenges.length})</span>
               </div>
               <button
                 onClick={() => setShowDrawer(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                }`}
+                title="Close"
               >
-                &times;
+                <X size={18} />
               </button>
             </div>
 
-            {/* Overall Progress in Drawer */}
-            <div className={`p-4 border-b space-y-3 ${
-              isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50/60 border-slate-200'
+            {/* Problem List (Clean, No Curves) */}
+            <div className={`flex-1 overflow-y-auto divide-y ${
+              isDarkMode ? 'divide-slate-800 bg-slate-950' : 'divide-slate-100 bg-white'
             }`}>
-              <div className="flex justify-between text-xs font-bold text-slate-600">
-                <span>Total Solved:</span>
-                <span className="text-blue-600 font-mono">
-                  {solvedChallenges.length} / {allChallenges.length} ({Math.round((solvedChallenges.length / allChallenges.length) * 100)}%)
-                </span>
-              </div>
-              <div className={`w-full h-2 rounded-full overflow-hidden ${
-                isDarkMode ? 'bg-slate-800' : 'bg-slate-200'
-              }`}>
-                <div
-                  className="bg-gradient-to-r from-blue-600 to-emerald-600 h-full transition-all duration-500"
-                  style={{ width: `${(solvedChallenges.length / allChallenges.length) * 100}%` }}
-                />
-              </div>
+              {allChallenges.map((ch, idx) => {
+                const isSelected = idx === selectedChallengeIndex;
+                const isSolved = solvedChallenges.includes(ch.id);
+                const diffTheme = getDifficultyTheme(ch.difficulty, isSelected);
 
-              {/* Search Bar */}
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={drawerSearch}
-                  onChange={(e) => setDrawerSearch(e.target.value)}
-                  placeholder="Search 66+ questions (e.g. JOIN, ALTER, students)..."
-                  className={`w-full pl-8 pr-3 py-1.5 rounded-xl border text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
-                    isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800 placeholder:text-slate-400'
-                  }`}
-                />
-                {drawerSearch && (
-                  <button
-                    onClick={() => setDrawerSearch('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
-                  >
-                    &times;
-                  </button>
-                )}
-              </div>
-
-              {/* Track Filter Pills */}
-              <div className="flex gap-1.5 overflow-x-auto pb-1 text-[11px] font-bold">
-                <button
-                  onClick={() => setDrawerTrack('all')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                    drawerTrack === 'all'
-                      ? 'bg-blue-600 text-white shadow-2xs'
-                      : isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-200/80 text-slate-600 hover:bg-slate-300'
-                  }`}
-                >
-                  All ({allChallenges.length})
-                </button>
-                <button
-                  onClick={() => setDrawerTrack('filtering')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                    drawerTrack === 'filtering'
-                      ? 'bg-blue-600 text-white shadow-2xs'
-                      : isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-200/80 text-slate-600 hover:bg-slate-300'
-                  }`}
-                >
-                  Filtering ({filteringCount})
-                </button>
-                <button
-                  onClick={() => setDrawerTrack('ddl')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                    drawerTrack === 'ddl'
-                      ? 'bg-blue-600 text-white shadow-2xs'
-                      : isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-200/80 text-slate-600 hover:bg-slate-300'
-                  }`}
-                >
-                  DDL ({ddlCount})
-                </button>
-                <button
-                  onClick={() => setDrawerTrack('dml')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                    drawerTrack === 'dml'
-                      ? 'bg-blue-600 text-white shadow-2xs'
-                      : isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-200/80 text-slate-600 hover:bg-slate-300'
-                  }`}
-                >
-                  DML ({dmlCount})
-                </button>
-                <button
-                  onClick={() => setDrawerTrack('solved')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                    drawerTrack === 'solved'
-                      ? 'bg-emerald-600 text-white shadow-2xs'
-                      : isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-200/80 text-slate-600 hover:bg-slate-300'
-                  }`}
-                >
-                  Solved ({solvedChallenges.length})
-                </button>
-              </div>
-
-              {/* Admin Button inside drawer - strictly for Admins */}
-              {isAdmin && (
-                <div className="pt-1">
-                  <button
+                return (
+                  <div
+                    key={ch.id}
                     onClick={() => {
-                      setEditingChallenge(null);
-                      setShowAdminModal(true);
+                      setSelectedChallengeIndex(idx);
                       setShowDrawer(false);
                     }}
-                    className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    className={`px-4 py-3.5 transition-colors cursor-pointer flex items-center justify-between ${
+                      isSelected
+                        ? 'bg-slate-900 text-white'
+                        : isDarkMode 
+                          ? 'hover:bg-slate-900 text-slate-300' 
+                          : 'hover:bg-slate-50 text-slate-800'
+                    }`}
                   >
-                    <Plus size={14} />
-                    <span>Admin: Add New Challenge</span>
-                  </button>
-                </div>
-              )}
-            </div>
+                    <div className="flex items-center space-x-2 truncate flex-1 pr-2">
+                      {/* Tick mark before completed questions; extra spacing placeholder for non-completed */}
+                      {isSolved ? (
+                        <Check
+                          size={14}
+                          strokeWidth={2.5}
+                          className={`shrink-0 ${isSelected ? 'text-emerald-400' : 'text-emerald-600'}`}
+                        />
+                      ) : (
+                        <span className="w-3.5 shrink-0" />
+                      )}
 
-            {/* Problem List by Category */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-              {filteredChallenges.length === 0 ? (
-                <div className="py-12 text-center text-xs text-slate-400 space-y-1">
-                  <div>No questions match your filter.</div>
-                  <button
-                    onClick={() => { setDrawerSearch(''); setDrawerTrack('all'); }}
-                    className="text-blue-600 font-bold hover:underline cursor-pointer"
-                  >
-                    Reset Filters
-                  </button>
-                </div>
-              ) : (
-                filteredChallenges.map((ch) => {
-                  const globalIdx = allChallenges.findIndex(c => c.id === ch.id);
-                  const isSelected = globalIdx === selectedChallengeIndex;
-                  const isSolved = solvedChallenges.includes(ch.id);
-
-                  return (
-                    <div
-                      key={ch.id}
-                      onClick={() => {
-                        setSelectedChallengeIndex(globalIdx >= 0 ? globalIdx : 0);
-                        setShowDrawer(false);
-                      }}
-                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      <span className={`text-xs font-mono font-bold w-5 shrink-0 ${
                         isSelected
-                          ? isDarkMode ? 'bg-blue-600/15 border-blue-500 text-white' : 'bg-blue-50/90 border-blue-500 text-blue-950 shadow-2xs font-bold'
-                          : isDarkMode ? 'bg-slate-900/60 hover:bg-slate-900 border-slate-800 text-slate-300' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-                      }`}
-                    >
-                      <div className="space-y-1 flex-1 pr-2">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs font-mono font-bold text-slate-400">
-                            {globalIdx + 1}.
-                          </span>
-                          <span className="text-xs font-extrabold line-clamp-1">
-                            {ch.title}
-                          </span>
-                          {ch.isAdminCustom && (
-                            <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded font-bold">
-                              Custom
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-slate-500 line-clamp-1">
-                          {ch.moduleTitle}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2 shrink-0">
-                        <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded border ${
-                          ch.difficulty === 'Easy'
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : ch.difficulty === 'Medium'
-                            ? 'bg-amber-50 text-amber-700 border-amber-200'
-                            : 'bg-rose-50 text-rose-700 border-rose-200'
+                          ? 'text-slate-400'
+                          : isDarkMode ? 'text-slate-500' : 'text-slate-400'
+                      }`}>
+                        {idx + 1}.
+                      </span>
+                      <div className="truncate">
+                        <span className={`text-xs block truncate ${
+                          isSelected 
+                            ? 'font-bold text-white' 
+                            : 'font-medium'
                         }`}>
-                          {ch.difficulty}
+                          {ch.title}
                         </span>
-                        {isSolved && (
-                          <CheckCircle2 size={15} className="text-emerald-600" />
-                        )}
-                        {isAdmin && ch.isAdminCustom && (
-                          <button
-                            onClick={(e) => handleDeleteCustomChallenge(ch.id, e)}
-                            className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors cursor-pointer"
-                            title="Delete Custom Challenge"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
                       </div>
+                      {ch.isAdminCustom && (
+                        <span className={`text-[10px] font-medium shrink-0 ${
+                          isSelected ? 'text-purple-300' : 'text-purple-600'
+                        }`}>
+                          Admin
+                        </span>
+                      )}
                     </div>
-                  );
-                })
-              )}
+
+                    <div className="flex items-center shrink-0">
+                      <span className={`text-[11px] font-semibold ${diffTheme.text}`}>
+                        {diffTheme.label}
+                      </span>
+                      {isAdmin && ch.isAdminCustom && (
+                        <button
+                          onClick={(e) => handleDeleteCustomChallenge(ch.id, e)}
+                          className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors cursor-pointer ml-1"
+                          title="Delete Custom Challenge"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

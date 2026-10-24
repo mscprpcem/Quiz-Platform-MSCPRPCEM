@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GitBranch, GitCommit, Layers, FileText, CheckCircle2, AlertCircle, Clock, ShieldCheck, Tag, ArrowRight } from 'lucide-react';
+import { GitBranch, GitCommit, Layers, FileText, CheckCircle2, AlertCircle, Clock, ShieldCheck, Tag, ArrowRight, X } from 'lucide-react';
 
 export default function GitVisualizer({ engine, className = '' }) {
   const [selectedCommit, setSelectedCommit] = useState(null);
@@ -7,7 +7,7 @@ export default function GitVisualizer({ engine, className = '' }) {
 
   if (!engine) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-400 font-mono text-xs">
+      <div className="bg-slate-50 p-6 text-center text-slate-500 font-mono text-xs w-full">
         Initializing repository visualizer...
       </div>
     );
@@ -45,23 +45,25 @@ export default function GitVisualizer({ engine, className = '' }) {
   });
 
   return (
-    <div className={`bg-slate-900 border border-slate-800 rounded-2xl shadow-xl flex flex-col overflow-hidden text-slate-200 font-sans ${className}`}>
-      {/* Visualizer Header */}
-      <div className="bg-slate-950 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+    <div className={`bg-white flex flex-col overflow-hidden text-slate-800 font-sans w-full h-full rounded-none border-0 ${className}`}>
+      {/* Visualizer Header Bar (Clean Light Theme, Same as SQL Editor) */}
+      <div className="h-10 bg-slate-100/90 px-4 border-b border-slate-200 flex items-center justify-between shrink-0 select-none">
         <div className="flex items-center space-x-2">
-          <GitBranch size={15} className="text-blue-400" />
-          <span className="text-xs font-bold text-slate-100">Repository State Visualizer</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono font-bold">
-            HEAD ➔ {currentBranch}
+          <GitBranch size={14} className="text-blue-600 shrink-0" />
+          <span className="text-xs font-bold text-slate-700 tracking-tight">Repository State</span>
+          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono font-bold">
+            HEAD -&gt; {currentBranch}
           </span>
         </div>
 
         {/* View Switcher */}
-        <div className="flex items-center space-x-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[11px] font-bold">
+        <div className="flex items-center space-x-1 bg-white p-0.5 rounded-lg border border-slate-200 text-xs font-bold shadow-2xs">
           <button
             onClick={() => setActiveView('graph')}
-            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
-              activeView === 'graph' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeView === 'graph' 
+                ? 'bg-blue-600 text-white shadow-xs' 
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <GitCommit size={12} />
@@ -69,8 +71,10 @@ export default function GitVisualizer({ engine, className = '' }) {
           </button>
           <button
             onClick={() => setActiveView('staging')}
-            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
-              activeView === 'staging' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeView === 'staging' 
+                ? 'bg-blue-600 text-white shadow-xs' 
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <Layers size={12} />
@@ -80,102 +84,126 @@ export default function GitVisualizer({ engine, className = '' }) {
       </div>
 
       {/* Main Body */}
-      <div className="p-4 flex-1 overflow-x-auto min-h-[200px] max-h-[360px] overflow-y-auto">
+      <div className="p-4 flex-1 overflow-x-auto overflow-y-auto bg-white min-h-0 select-text">
         {!isInitialized ? (
-          <div className="h-full min-h-[160px] flex flex-col items-center justify-center text-center space-y-2 text-slate-400">
-            <AlertCircle size={28} className="text-amber-400" />
-            <p className="text-xs font-bold text-slate-300">Repository Not Initialized</p>
-            <p className="text-[11px] text-slate-500 max-w-sm">
-              Run <code className="px-1.5 py-0.5 bg-slate-800 text-emerald-400 rounded">git init</code> in the terminal to initialize Git tracking.
-            </p>
+          <div className="py-6 flex items-center justify-center text-center space-x-3 text-slate-500">
+            <AlertCircle size={22} className="text-amber-500 shrink-0" />
+            <div className="text-left">
+              <span className="text-xs font-bold text-slate-800 block">Repository Not Initialized</span>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Initialize the repository in the terminal (git init) to begin tracking history.
+              </p>
+            </div>
           </div>
         ) : activeView === 'graph' ? (
           /* Graph View */
           <div className="space-y-4">
             {commits.length === 0 ? (
-              <div className="min-h-[150px] flex flex-col items-center justify-center text-center space-y-2 text-slate-400">
-                <GitCommit size={26} className="text-blue-400 animate-pulse" />
-                <p className="text-xs font-bold text-slate-300">No Commits Yet</p>
-                <p className="text-[11px] text-slate-500 max-w-sm">
-                  Stage your files with <code className="px-1.5 py-0.5 bg-slate-800 text-emerald-400 rounded">git add</code> and record your first commit with <code className="px-1.5 py-0.5 bg-slate-800 text-emerald-400 rounded">git commit -m "..."</code>.
-                </p>
+              <div className="py-6 flex items-center justify-center text-center space-x-3 text-slate-500">
+                <GitCommit size={22} className="text-blue-500 shrink-0 animate-pulse" />
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-800 block">No Commits Recorded</span>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Stage modified files and create an initial commit snapshot.
+                  </p>
+                </div>
               </div>
             ) : (
-              <div className="relative pt-2 pb-4">
-                {/* Visual Linear Node Track */}
-                <div className="flex items-center space-x-6 min-w-max px-2">
+              <div className="relative pt-1 pb-1">
+                {/* Visual Linear Node Track (Continuous connected commit graph rail) */}
+                <div className="flex items-center min-w-max px-3 py-2">
                   {commits.map((c, idx) => {
                     const isHead = c.id === headCommitId;
                     const assignedBranches = commitBranchMap[c.id] || [];
                     const assignedTags = commitTagMap[c.id] || [];
                     const isSelected = selectedCommit?.id === c.id;
+                    const hasBadges = isHead || assignedBranches.length > 0 || assignedTags.length > 0;
 
                     return (
-                      <div key={c.id || idx} className="flex items-center">
-                        {/* Commit Node Card */}
-                        <div
-                          onClick={() => setSelectedCommit(c)}
-                          className={`flex flex-col items-center group cursor-pointer transition-transform duration-200 hover:scale-105 ${
-                            isSelected ? 'scale-105' : ''
-                          }`}
-                        >
-                          {/* Badges Container (Branches, Tags & HEAD) */}
-                          <div className="flex flex-col items-center space-y-1 mb-2">
-                            {isHead && (
-                              <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[9px] font-mono font-black flex items-center gap-1 shadow-xs animate-bounce">
-                                HEAD
-                              </span>
-                            )}
-                            {assignedBranches.map(b => (
-                              <span
-                                key={b}
-                                className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold flex items-center gap-1 border shadow-xs ${
-                                  b === currentBranch
-                                    ? 'bg-blue-600/30 text-blue-300 border-blue-500/50'
-                                    : 'bg-emerald-600/30 text-emerald-300 border-emerald-500/50'
-                                }`}
-                              >
-                                <GitBranch size={9} />
-                                {b}
-                              </span>
-                            ))}
-                            {assignedTags.map(t => (
-                              <span
-                                key={t}
-                                className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-mono font-bold flex items-center gap-1 shadow-xs"
-                              >
-                                <Tag size={8} />
-                                {t}
-                              </span>
-                            ))}
-                          </div>
+                      <div
+                        key={c.id || idx}
+                        onClick={() => setSelectedCommit(c)}
+                        className="w-24 flex flex-col items-center group cursor-pointer relative select-none"
+                      >
+                        {/* Row 1: Badges Area (Compact h-7, perfectly centered above circle) */}
+                        <div className="h-7 w-full flex items-center justify-center relative z-20">
+                          {hasBadges && (
+                            <div className="flex items-center gap-1 max-w-full px-0.5">
+                              {isHead && (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9px] font-mono font-bold leading-none shadow-2xs">
+                                  HEAD
+                                </span>
+                              )}
+                              {assignedBranches.map(b => (
+                                <span
+                                  key={b}
+                                  className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold leading-none flex items-center gap-0.5 border shadow-2xs ${
+                                    b === currentBranch
+                                      ? 'bg-blue-50 text-blue-700 border-blue-300'
+                                      : 'bg-slate-100 text-slate-700 border-slate-300'
+                                  }`}
+                                >
+                                  <GitBranch size={8} />
+                                  {b}
+                                </span>
+                              ))}
+                              {assignedTags.map(t => (
+                                <span
+                                  key={t}
+                                  className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-300 text-[9px] font-mono font-bold leading-none flex items-center gap-0.5 shadow-2xs"
+                                >
+                                  <Tag size={7} />
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
 
-                          {/* Node Circle */}
+                        {/* Row 2: Node Circle & Seamless Continuous Connecting Line */}
+                        <div className="h-8 w-full flex items-center justify-center relative">
+                          {/* Incoming Line from Left (starts at left edge of cell, runs to center) */}
+                          {idx > 0 && (
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1/2 h-[2px] bg-blue-400">
+                              {/* Arrowhead pointing into left edge of circle (circle radius is 14px) */}
+                              <div className="absolute right-[14px] top-1/2 -translate-y-1/2 w-1.5 h-1.5 border-t-2 border-r-2 border-blue-500 rotate-45 transform" />
+                            </div>
+                          )}
+
+                          {/* Outgoing Line to Right (starts at center, runs to right edge of cell) */}
+                          {idx < commits.length - 1 && (
+                            <div className="absolute left-1/2 top-1/2 -translate-y-1/2 w-1/2 h-[2px] bg-blue-400" />
+                          )}
+
+                          {/* Commit Node Circle (Solid center node sitting on top of the line) */}
                           <div
-                            className={`w-9 h-9 rounded-full flex items-center justify-center font-mono font-bold text-[11px] shadow-lg transition-all ${
+                            className={`w-7 h-7 rounded-full flex items-center justify-center relative z-10 transition-all duration-150 ${
                               isHead
-                                ? 'bg-gradient-to-tr from-blue-600 to-cyan-500 text-white ring-4 ring-cyan-500/20 ring-offset-2 ring-offset-slate-900'
-                                : 'bg-slate-800 text-slate-200 border-2 border-slate-700 hover:border-blue-400'
+                                ? 'bg-blue-600 text-white ring-4 ring-blue-100 shadow-sm border-2 border-white'
+                                : isSelected
+                                ? 'bg-blue-50 text-blue-700 border-2 border-blue-600 ring-2 ring-blue-300 shadow-xs'
+                                : 'bg-white border-2 border-slate-400 group-hover:border-blue-500 group-hover:scale-110 shadow-xs'
                             }`}
                           >
-                            <GitCommit size={15} />
-                          </div>
-
-                          {/* Commit Hash and Message */}
-                          <div className="mt-2 text-center max-w-[110px]">
-                            <span className="text-[10px] font-mono font-bold text-amber-400 block">{c.id}</span>
-                            <span className="text-[10px] text-slate-400 truncate block font-medium" title={c.message}>
-                              {c.message}
-                            </span>
+                            {isHead ? (
+                              <div className="w-2 h-2 rounded-full bg-white" />
+                            ) : isSelected ? (
+                              <div className="w-2 h-2 rounded-full bg-blue-600" />
+                            ) : (
+                              <div className="w-2 h-2 rounded-full bg-slate-400 group-hover:bg-blue-500 transition-colors" />
+                            )}
                           </div>
                         </div>
 
-                        {/* Connector Arrow to Next Commit */}
-                        {idx < commits.length - 1 && (
-                          <div className="w-8 h-0.5 bg-slate-700 mx-1 relative flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 border-t-2 border-r-2 border-slate-500 rotate-45 transform ml-1" />
-                          </div>
-                        )}
+                        {/* Row 3: Commit Hash & Commit Message */}
+                        <div className="mt-1 text-center w-full px-1">
+                          <span className="text-[10px] font-mono font-bold text-slate-800 block truncate group-hover:text-blue-600 transition-colors">
+                            {c.id}
+                          </span>
+                          <span className="text-[9px] text-slate-500 truncate block font-medium leading-tight mt-0.5" title={c.message}>
+                            {c.message}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
@@ -183,35 +211,36 @@ export default function GitVisualizer({ engine, className = '' }) {
 
                 {/* Selected Commit Detail Inspector */}
                 {selectedCommit && (
-                  <div className="mt-4 p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2 animate-fade-in text-xs">
-                    <div className="flex justify-between items-start border-b border-slate-800 pb-2">
+                  <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs shadow-xs">
+                    <div className="flex justify-between items-start border-b border-slate-200 pb-2">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-amber-400">commit {selectedCommit.id}</span>
+                          <span className="font-mono font-bold text-blue-700">commit {selectedCommit.id}</span>
                           {selectedCommit.parentIds?.length > 1 && (
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 font-mono">
                               Merge Commit ({selectedCommit.parentIds.join(', ')})
                             </span>
                           )}
                         </div>
-                        <p className="text-slate-100 font-bold mt-0.5">{selectedCommit.message}</p>
+                        <p className="text-slate-900 font-bold mt-1 text-xs sm:text-sm">{selectedCommit.message}</p>
                       </div>
                       <button
                         onClick={() => setSelectedCommit(null)}
-                        className="text-slate-500 hover:text-slate-300 text-xs px-1.5 py-0.5 rounded cursor-pointer"
+                        className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-200 cursor-pointer transition-colors"
+                        title="Close Inspector"
                       >
-                        ✕
+                        <X size={14} />
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+                    <div className="grid grid-cols-2 gap-3 text-[11px] text-slate-600">
                       <div>
-                        <span className="text-slate-500 block text-[10px]">Author</span>
-                        <span className="text-slate-300 font-mono">{selectedCommit.author}</span>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Author</span>
+                        <span className="text-slate-800 font-mono">{selectedCommit.author}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[10px]">Date</span>
-                        <span className="text-slate-300 font-mono">{new Date(selectedCommit.timestamp).toLocaleTimeString()}</span>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Timestamp</span>
+                        <span className="text-slate-800 font-mono">{new Date(selectedCommit.timestamp).toLocaleTimeString()}</span>
                       </div>
                     </div>
 
@@ -220,8 +249,8 @@ export default function GitVisualizer({ engine, className = '' }) {
                       <span className="text-slate-500 block text-[10px] mb-1 font-bold uppercase tracking-wider">Snapshot Files</span>
                       <div className="flex flex-wrap gap-1.5">
                         {Object.keys(selectedCommit.files || {}).map(f => (
-                          <span key={f} className="px-2 py-0.5 bg-slate-900 border border-slate-800 text-slate-300 rounded text-[10px] font-mono flex items-center gap-1">
-                            <FileText size={10} className="text-blue-400" />
+                          <span key={f} className="px-2.5 py-0.5 bg-white border border-slate-200 text-slate-700 rounded-md text-[10px] font-mono flex items-center gap-1.5 font-bold shadow-2xs">
+                            <FileText size={10} className="text-blue-600" />
                             {f}
                           </span>
                         ))}
@@ -236,40 +265,40 @@ export default function GitVisualizer({ engine, className = '' }) {
           /* 3 Trees Inspector View */
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Column 1: Working Tree */}
-            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                <span className="text-[11px] font-extrabold text-slate-300 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                <span className="text-xs font-bold text-rose-700 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
                   Working Directory
                 </span>
                 <span className="text-[10px] font-mono text-slate-500">{Object.keys(files).length} files</span>
               </div>
-              <div className="space-y-1 max-h-[180px] overflow-y-auto">
+              <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
                 {Object.keys(files).length === 0 ? (
-                  <p className="text-[11px] text-slate-500 italic">Empty directory</p>
+                  <p className="text-[11px] text-slate-400 italic">Empty directory</p>
                 ) : (
                   Object.keys(files).map(f => {
                     const isIgnored = engine.isIgnored(f);
                     const isStaged = index[f] !== undefined;
                     const isCommitted = headFiles[f] !== undefined;
                     let tagText = 'Untracked';
-                    let tagColor = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+                    let tagColor = 'bg-rose-50 text-rose-700 border-rose-200';
 
                     if (isIgnored) {
                       tagText = 'Ignored';
-                      tagColor = 'bg-slate-800 text-slate-400 border-slate-700';
+                      tagColor = 'bg-slate-100 text-slate-600 border-slate-200';
                     } else if (isStaged) {
                       tagText = 'Staged';
-                      tagColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                      tagColor = 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold';
                     } else if (isCommitted) {
                       tagText = 'Tracked';
-                      tagColor = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+                      tagColor = 'bg-blue-50 text-blue-700 border-blue-200 font-bold';
                     }
 
                     return (
-                      <div key={f} className="flex items-center justify-between p-1.5 rounded-lg bg-slate-900/60 text-[11px] font-mono">
-                        <span className="truncate max-w-[110px]" title={f}>{f}</span>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${tagColor}`}>{tagText}</span>
+                      <div key={f} className="flex items-center justify-between p-1.5 rounded-lg bg-white text-xs font-mono border border-slate-200 shadow-2xs">
+                        <span className="truncate max-w-[120px] text-slate-800" title={f}>{f}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded border ${tagColor}`}>{tagText}</span>
                       </div>
                     );
                   })
@@ -278,22 +307,22 @@ export default function GitVisualizer({ engine, className = '' }) {
             </div>
 
             {/* Column 2: Staging Area (Index) */}
-            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                <span className="text-[11px] font-extrabold text-slate-300 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                <span className="text-xs font-bold text-amber-800 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
                   Staging Area (Index)
                 </span>
                 <span className="text-[10px] font-mono text-slate-500">{Object.keys(index).length} staged</span>
               </div>
-              <div className="space-y-1 max-h-[180px] overflow-y-auto">
+              <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
                 {Object.keys(index).length === 0 ? (
-                  <p className="text-[11px] text-slate-500 italic">No files staged (run git add)</p>
+                  <p className="text-[11px] text-slate-400 italic">No files staged (run git add)</p>
                 ) : (
                   Object.keys(index).map(f => (
-                    <div key={f} className="flex items-center justify-between p-1.5 rounded-lg bg-emerald-950/30 border border-emerald-500/20 text-[11px] font-mono">
-                      <span className="truncate max-w-[110px] text-emerald-300" title={f}>{f}</span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Ready</span>
+                    <div key={f} className="flex items-center justify-between p-1.5 rounded-lg bg-white border border-slate-200 text-xs font-mono shadow-2xs">
+                      <span className="truncate max-w-[120px] text-amber-900 font-bold" title={f}>{f}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-bold">Ready</span>
                     </div>
                   ))
                 )}
@@ -301,22 +330,22 @@ export default function GitVisualizer({ engine, className = '' }) {
             </div>
 
             {/* Column 3: HEAD Commit Snapshot */}
-            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                <span className="text-[11px] font-extrabold text-slate-300 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                <span className="text-xs font-bold text-blue-700 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-blue-600" />
                   HEAD Commit
                 </span>
-                <span className="text-[10px] font-mono text-cyan-400 font-bold">{headCommitId || 'None'}</span>
+                <span className="text-[10px] font-mono text-blue-700 font-bold">{headCommitId || 'None'}</span>
               </div>
-              <div className="space-y-1 max-h-[180px] overflow-y-auto">
+              <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
                 {Object.keys(headFiles).length === 0 ? (
-                  <p className="text-[11px] text-slate-500 italic">No committed files yet</p>
+                  <p className="text-[11px] text-slate-400 italic">No committed files yet</p>
                 ) : (
                   Object.keys(headFiles).map(f => (
-                    <div key={f} className="flex items-center justify-between p-1.5 rounded-lg bg-blue-950/30 border border-blue-500/20 text-[11px] font-mono">
-                      <span className="truncate max-w-[110px] text-blue-300" title={f}>{f}</span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">Committed</span>
+                    <div key={f} className="flex items-center justify-between p-1.5 rounded-lg bg-white border border-slate-200 text-xs font-mono shadow-2xs">
+                      <span className="truncate max-w-[120px] text-blue-900 font-bold" title={f}>{f}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-bold">Committed</span>
                     </div>
                   ))
                 )}
