@@ -164,9 +164,14 @@ function App() {
                 
                 {/* Git & GitHub Learning & Interactive Lab Routes (Requires Login) */}
                 <Route path="/courses/git" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
+                <Route path="/courses/git/learn" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
+                <Route path="/courses/git/roadmap" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
+                <Route path="/courses/git/cheatsheet" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
                 <Route path="/courses/git/:tab" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
                 <Route path="/git" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
                 <Route path="/git/learn" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
+                <Route path="/git/roadmap" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
+                <Route path="/git/cheatsheet" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
                 <Route path="/git/:tab" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
                 <Route path="/practice/git" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
                 <Route path="/practice/git/lab" element={<RequireAuth><GitPractice /></RequireAuth>} />
