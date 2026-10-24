@@ -9,6 +9,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const { sequelize, Admin, Quiz, Question } = require('./models');
+const { Op } = require('sequelize');
 const { initializeSocket } = require('./services/socket');
 const { runAutoMigrations } = require('./services/schemaMigration');
 
