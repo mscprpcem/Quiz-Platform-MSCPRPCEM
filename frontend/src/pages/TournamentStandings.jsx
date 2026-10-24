@@ -26,15 +26,61 @@ export default function TournamentStandings() {
     }
   };
 
+  // Filter out test users, sort strictly from highest to lowest score, and re-assign clean ranks
+  const cleanLeaderboard = useMemo(() => {
+    if (!Array.isArray(leaderboardData)) return [];
+
+    const isTestUser = (student) => {
+      if (!student) return true;
+      const name = (student.name || '').toLowerCase().trim();
+      const email = (student.email || '').toLowerCase().trim();
+      if (!name && !email) return true;
+      const testTerms = [
+        'test', 'tester', 'dummy', 'sample', 'demo', 'admin',
+        'trial', 'fake', 'temp', 'asdf', 'qwerty', 'alex rivers', 'sarah connor'
+      ];
+      if (testTerms.some(term => name.includes(term) || email.includes(term))) {
+        return true;
+      }
+      if (/^user\s*\d+$/i.test(name)) return true;
+      return false;
+    };
+
+    // 1. Exclude test users
+    const validStudents = leaderboardData.filter(student => !isTestUser(student));
+
+    // 2. Sort strictly from highest to lowest score (descending)
+    validStudents.sort((a, b) => {
+      const scoreA = Number(a.totalScore !== undefined ? a.totalScore : (a.score !== undefined ? a.score : 0));
+      const scoreB = Number(b.totalScore !== undefined ? b.totalScore : (b.score !== undefined ? b.score : 0));
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
+      const timeA = Number(a.totalTimeTakenSeconds !== undefined ? a.totalTimeTakenSeconds : (a.totalTimeSeconds || 0));
+      const timeB = Number(b.totalTimeTakenSeconds !== undefined ? b.totalTimeTakenSeconds : (b.totalTimeSeconds || 0));
+      if (timeA && timeB && timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return 0;
+    });
+
+    // 3. Assign clean consecutive ranks 1, 2, 3...
+    return validStudents.map((student, idx) => ({
+      ...student,
+      cleanRank: idx + 1,
+      cleanScore: Number(student.totalScore !== undefined ? student.totalScore : (student.score !== undefined ? student.score : 0))
+    }));
+  }, [leaderboardData]);
+
   // Pagination calculations: 25 students per page
-  const totalItems = leaderboardData.length;
+  const totalItems = cleanLeaderboard.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
   const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
 
   const paginatedLeaderboard = useMemo(() => {
     const startIndex = (validCurrentPage - 1) * PAGE_SIZE;
-    return leaderboardData.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [leaderboardData, validCurrentPage]);
+    return cleanLeaderboard.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [cleanLeaderboard, validCurrentPage]);
 
   // Pagination page numbers with ellipsis
   const paginationItems = useMemo(() => {
@@ -69,7 +115,7 @@ export default function TournamentStandings() {
               <RefreshCw size={16} className="animate-spin text-purple-600" />
               Loading leaderboard...
             </div>
-          ) : leaderboardData.length === 0 ? (
+          ) : cleanLeaderboard.length === 0 ? (
             <div className="py-16 text-center text-xs text-slate-500 font-medium">
               No students found.
             </div>
@@ -85,10 +131,9 @@ export default function TournamentStandings() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {paginatedLeaderboard.map((student) => {
-                    const isTop1 = student.rank === 1;
-                    const isTop2 = student.rank === 2;
-                    const isTop3 = student.rank === 3;
-                    const score = student.totalScore !== undefined ? student.totalScore : (student.score || 0);
+                    const isTop1 = student.cleanRank === 1;
+                    const isTop2 = student.cleanRank === 2;
+                    const isTop3 = student.cleanRank === 3;
 
                     return (
                       <tr
@@ -112,7 +157,7 @@ export default function TournamentStandings() {
                             </span>
                           ) : (
                             <span className="text-slate-500 font-bold text-xs">
-                              #{student.rank}
+                              #{student.cleanRank}
                             </span>
                           )}
                         </td>
@@ -122,7 +167,7 @@ export default function TournamentStandings() {
                         </td>
 
                         <td className="py-3.5 px-4 text-right font-black text-purple-700 text-sm whitespace-nowrap">
-                          {score} pts
+                          {student.cleanScore}
                         </td>
                       </tr>
                     );

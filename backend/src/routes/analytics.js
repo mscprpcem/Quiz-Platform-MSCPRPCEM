@@ -154,25 +154,38 @@ router.get('/public/leaderboard', async (req, res) => {
       }
     }
 
-    const aggregatedList = Array.from(userAggregates.values()).map(u => {
-      const accuracy = u.totalQuestions > 0 ? Math.round((u.correctCount / u.totalQuestions) * 100) : 100;
-      const { xp } = calculateNormalizedScoreAndXP({ score: u.score, maxScore: Math.max(100, u.score) });
-      return {
-        id: u.id,
-        sso_user_id: u.sso_user_id,
-        name: u.name,
-        college: u.college,
-        score: u.score,
-        correctCount: u.correctCount,
-        totalQuestions: u.totalQuestions,
-        quizzesCompleted: u.quizzesCompleted,
-        totalTimeSeconds: u.totalTimeSeconds,
-        is_authenticated: u.is_authenticated,
-        accuracy,
-        xp,
-        avgResponseTime: u.quizzesCompleted > 0 ? Math.round(u.totalTimeSeconds / u.quizzesCompleted) : 0
-      };
-    });
+    const isTestUser = (u) => {
+      const name = (u.name || '').toLowerCase().trim();
+      const email = (u.email || '').toLowerCase().trim();
+      if (!name && !email) return true;
+      const testTerms = [
+        'test', 'tester', 'dummy', 'sample', 'demo', 'admin',
+        'trial', 'fake', 'temp', 'asdf', 'qwerty', 'alex rivers', 'sarah connor'
+      ];
+      return testTerms.some(term => name.includes(term) || email.includes(term));
+    };
+
+    const aggregatedList = Array.from(userAggregates.values())
+      .filter(u => !isTestUser(u))
+      .map(u => {
+        const accuracy = u.totalQuestions > 0 ? Math.round((u.correctCount / u.totalQuestions) * 100) : 100;
+        const { xp } = calculateNormalizedScoreAndXP({ score: u.score, maxScore: Math.max(100, u.score) });
+        return {
+          id: u.id,
+          sso_user_id: u.sso_user_id,
+          name: u.name,
+          college: u.college,
+          score: u.score,
+          correctCount: u.correctCount,
+          totalQuestions: u.totalQuestions,
+          quizzesCompleted: u.quizzesCompleted,
+          totalTimeSeconds: u.totalTimeSeconds,
+          is_authenticated: u.is_authenticated,
+          accuracy,
+          xp,
+          avgResponseTime: u.quizzesCompleted > 0 ? Math.round(u.totalTimeSeconds / u.quizzesCompleted) : 0
+        };
+      });
 
     let leaderboard = rankLeaderboard(aggregatedList, { filterAuthenticatedOnly: true }).slice(0, 10);
 
@@ -1105,14 +1118,21 @@ const handleCumulativeLeaderboard = async (req, res) => {
       }
     }
 
-    // 6. Tournament Ranking Algorithm
-    // Tie-breaker order:
-    //  1. totalScore DESC
-    //  2. totalTimeTakenSeconds ASC (faster cumulative time wins)
-    //  3. totalCorrectAnswers DESC
-    //  4. quizzesAttendedCount DESC
-    //  5. latestSubmissionAt ASC
-    const rankedList = Array.from(studentAggregates.values()).sort((a, b) => {
+    // 6. Tournament Ranking Algorithm (Filter test users & sort descending by score)
+    const isTestCandidate = (student) => {
+      const name = (student.name || '').toLowerCase().trim();
+      const email = (student.email || '').toLowerCase().trim();
+      if (!name && !email) return true;
+      const testTerms = [
+        'test', 'tester', 'dummy', 'sample', 'demo', 'admin',
+        'trial', 'fake', 'temp', 'asdf', 'qwerty', 'alex rivers', 'sarah connor'
+      ];
+      return testTerms.some(term => name.includes(term) || email.includes(term));
+    };
+
+    const eligibleStudents = Array.from(studentAggregates.values()).filter(s => !isTestCandidate(s));
+
+    const rankedList = eligibleStudents.sort((a, b) => {
       if (b.totalScore !== a.totalScore) {
         return b.totalScore - a.totalScore;
       }

@@ -64,14 +64,23 @@ export default function Home() {
   ];
 
   const displayLeaderboard = (() => {
-    const base = (!leaderboard || leaderboard.length === 0) ? DEFAULT_LEADERBOARD : leaderboard;
+    const isTest = (p) => {
+      const n = (p?.name || '').toLowerCase().trim();
+      const e = (p?.email || '').toLowerCase().trim();
+      if (!n && !e) return true;
+      const terms = ['test', 'tester', 'dummy', 'sample', 'demo', 'admin', 'trial', 'fake', 'temp', 'asdf', 'qwerty', 'alex rivers', 'sarah connor'];
+      return terms.some(t => n.includes(t) || e.includes(t));
+    };
+
+    const validFromApi = (leaderboard || []).filter(p => !isTest(p));
+    const base = validFromApi.length === 0 ? DEFAULT_LEADERBOARD : validFromApi;
     const merged = [...base];
     if (merged.length < 5) {
       for (let i = merged.length; i < 5; i++) {
         merged.push(DEFAULT_LEADERBOARD[i]);
       }
     }
-    return merged.map(p => {
+    const mapped = merged.map(p => {
       let s = Math.round(Number(p.score) || 0);
       // Normalize legacy inflated scores (e.g. 10000) to 1 count per question for beginner level
       if (s >= 50 && p.correctCount && p.correctCount <= 30) {
@@ -79,6 +88,8 @@ export default function Home() {
       }
       return { ...p, score: s };
     });
+
+    return mapped.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
   })();
 
   // Section 10 States (FAQ Accordion Multi-Open Map)
@@ -672,7 +683,7 @@ export default function Home() {
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black transition-all shadow-xs w-fit cursor-pointer active:scale-98"
               >
                 <Trophy size={14} />
-                <span>View Full Leaderboard (25/page)</span>
+                <span>View Full Leaderboard</span>
               </button>
               <button
                 type="button"
