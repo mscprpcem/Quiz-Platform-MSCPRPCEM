@@ -296,6 +296,7 @@ export default function SqlPractice() {
     if (running || evaluating || !activeChallenge) return;
     setRunning(true);
     setActiveConsoleTab('output');
+    if (!isDesktop) setMobileView('console');
     try {
       const result = await executeSqlQuery(activeChallenge.setupSql, userQuery);
       setQueryResult(result);
@@ -319,6 +320,7 @@ export default function SqlPractice() {
     if (running || evaluating || !activeChallenge) return;
     setEvaluating(true);
     setActiveConsoleTab('output');
+    if (!isDesktop) setMobileView('console');
     try {
       const valRes = await validateSqlQuery(
         activeChallenge.setupSql,
@@ -420,20 +422,20 @@ export default function SqlPractice() {
   };
 
   return (
-    <div className={`h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] flex flex-col font-segoe select-text overflow-hidden transition-colors duration-200 ${
+    <div className={`h-[calc(100dvh-4rem)] sm:h-[calc(100vh-4rem)] max-h-[calc(100dvh-4rem)] sm:max-h-[calc(100vh-4rem)] flex flex-col font-segoe select-text overflow-hidden transition-colors duration-200 ${
       isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-[#F8FAFC] text-slate-900'
     }`}>
       
       {/* Top Utility Header Bar */}
-      <header className={`h-12 border-b px-4 sm:px-6 flex items-center justify-between z-20 shrink-0 backdrop-blur-md transition-colors ${
+      <header className={`h-11 sm:h-12 border-b px-2.5 sm:px-4 md:px-6 flex items-center justify-between z-20 shrink-0 backdrop-blur-md transition-colors ${
         isDarkMode 
           ? 'bg-slate-950/90 border-slate-800 text-slate-100' 
           : 'bg-white/95 border-slate-200 text-slate-800'
       }`}>
-        <div className="flex items-center space-x-3 overflow-hidden">
+        <div className="flex items-center space-x-1.5 sm:space-x-3 overflow-hidden min-w-0">
           <button
             onClick={() => navigate('/courses')}
-            className={`p-1 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1 rounded-lg transition-colors cursor-pointer shrink-0 ${
               isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
             }`}
             title="Back to Courses"
@@ -441,12 +443,12 @@ export default function SqlPractice() {
             <ChevronLeft size={16} />
           </button>
 
-          <div className={`h-4 w-px ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
+          <div className={`h-4 w-px shrink-0 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
 
           {/* Problem Selector (Clean Unboxed Title) */}
           <button
             onClick={() => setShowDrawer(true)}
-            className={`flex items-center space-x-1.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer truncate max-w-[160px] sm:max-w-md py-1 ${
+            className={`flex items-center space-x-1.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer truncate max-w-[125px] xs:max-w-[170px] sm:max-w-xs md:max-w-md py-1 ${
               isDarkMode 
                 ? 'text-slate-200 hover:text-blue-400' 
                 : 'text-slate-900 hover:text-blue-600'
@@ -479,7 +481,7 @@ export default function SqlPractice() {
 
           {/* Custom Admin Added Badge (Clean Unboxed) */}
           {activeChallenge?.isAdminCustom && (
-            <span className="hidden lg:inline-flex items-center gap-1 text-xs font-medium text-purple-600">
+            <span className="hidden lg:inline-flex items-center gap-1 text-xs font-medium text-purple-600 shrink-0">
               <ShieldCheck size={12} />
               <span>Admin</span>
             </span>
@@ -487,7 +489,7 @@ export default function SqlPractice() {
         </div>
 
         {/* Right Header Navigation & Actions */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
           
           {/* Admin "+ Add Question" Button - strictly for Admins */}
           {isAdmin && (
@@ -582,29 +584,45 @@ export default function SqlPractice() {
       </header>
 
       {/* Mobile View Switcher (Only visible on screens < 1024px) */}
-      <div className="lg:hidden flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 px-3 py-1.5 shrink-0 select-none">
+      <div className="lg:hidden flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 px-2 py-1.5 shrink-0 select-none">
         <div className="flex items-center space-x-1 bg-white dark:bg-slate-950 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold w-full">
           <button
             onClick={() => setMobileView('problem')}
-            className={`flex-1 py-1.5 px-3 rounded-md transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 h-8 px-2 rounded-md transition-all inline-flex items-center justify-center gap-1.5 leading-none whitespace-nowrap ${
               mobileView === 'problem'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
             }`}
           >
             <BookOpen size={13} />
-            <span>Problem & Schema</span>
+            <span>Problem</span>
           </button>
           <button
             onClick={() => setMobileView('editor')}
-            className={`flex-1 py-1.5 px-3 rounded-md transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 h-8 px-2 rounded-md transition-all inline-flex items-center justify-center gap-1.5 leading-none whitespace-nowrap ${
               mobileView === 'editor'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
             }`}
           >
             <Code2 size={13} />
-            <span>SQL Editor & Console</span>
+            <span>SQL Editor</span>
+          </button>
+          <button
+            onClick={() => setMobileView('console')}
+            className={`flex-1 h-8 px-2 rounded-md transition-all inline-flex items-center justify-center gap-1.5 leading-none whitespace-nowrap relative ${
+              mobileView === 'console'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+            }`}
+          >
+            <Table size={13} />
+            <span>Console</span>
+            {validationResult ? (
+              <span className={`w-2 h-2 rounded-full ${validationResult.passed ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+            ) : queryResult ? (
+              <span className="w-2 h-2 rounded-full bg-blue-400" />
+            ) : null}
           </button>
         </div>
       </div>
@@ -941,7 +959,7 @@ export default function SqlPractice() {
           ref={rightPaneRef}
           style={{ width: isDesktop ? `${100 - leftWidthPercent}%` : '100%' }}
           className={`${
-            !isDesktop && mobileView !== 'editor' ? 'hidden' : 'flex'
+            !isDesktop && mobileView === 'problem' ? 'hidden' : 'flex'
           } flex-1 flex-col overflow-hidden min-w-0 h-full rounded-none transition-colors ${
             isDarkMode ? 'bg-slate-950' : 'bg-white'
           }`}
@@ -952,8 +970,10 @@ export default function SqlPractice() {
             style={{ 
               height: isDesktop ? `${editorHeightPercent}%` : undefined 
             }}
-            className={`flex flex-col min-h-0 overflow-hidden shrink-0 ${
-              !isDesktop ? 'h-1/2 min-h-[260px]' : ''
+            className={`${
+              !isDesktop && mobileView !== 'editor' ? 'hidden' : 'flex'
+            } flex-col min-h-0 overflow-hidden shrink-0 ${
+              isDesktop ? '' : 'flex-1 w-full h-full'
             }`}
           >
             {/* Editor Header Bar */}
@@ -961,22 +981,14 @@ export default function SqlPractice() {
               isDarkMode ? 'border-slate-800 bg-slate-900/80 text-slate-300' : 'border-slate-200 bg-slate-100/90 text-slate-700'
             }`}>
               <div className="flex items-center space-x-2 text-xs font-bold font-mono">
-                {!isDesktop && (
-                  <button
-                    onClick={() => setMobileView('problem')}
-                    className="text-[11px] font-bold text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 flex items-center gap-1 mr-1"
-                  >
-                    ← Problem
-                  </button>
-                )}
                 <Code2 size={14} className="text-blue-600" />
                 <span>query.sql</span>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 shrink-0">
                 <button
                   onClick={handleFormatSql}
-                  className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-colors cursor-pointer ${
+                  className={`h-7 px-2.5 text-[11px] font-bold rounded-lg border transition-colors cursor-pointer inline-flex items-center justify-center leading-none whitespace-nowrap ${
                     isDarkMode 
                       ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' 
                       : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-2xs'
@@ -988,7 +1000,7 @@ export default function SqlPractice() {
 
                 <button
                   onClick={handleResetQuery}
-                  className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                  className={`h-7 w-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer shrink-0 ${
                     isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'
                   }`}
                   title="Reset to starter query"
@@ -1034,48 +1046,60 @@ export default function SqlPractice() {
             </div>
 
             {/* Action Bar (Run & Submit) */}
-            <div className={`h-12 border-t px-4 flex items-center justify-between shrink-0 ${
+            <div className={`h-12 border-t px-3 sm:px-4 flex items-center justify-between shrink-0 ${
               isDarkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-200 bg-slate-50/90'
             }`}>
               <div className={`text-[11px] font-semibold flex items-center gap-1.5 ${
                 isDarkMode ? 'text-slate-400' : 'text-slate-600'
               }`}>
-                <Code2 size={13} className="text-blue-600" />
-                <span>Interactive SQL Console</span>
+                {!isDesktop ? (
+                  <button
+                    onClick={() => setMobileView('console')}
+                    className="h-7 text-[11px] font-bold text-blue-600 dark:text-blue-400 inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950 px-2.5 rounded-lg border border-blue-200 dark:border-blue-900 leading-none shrink-0 whitespace-nowrap"
+                  >
+                    <Table size={12} />
+                    <span>Console {queryResult?.rowCount !== undefined ? `(${queryResult.rowCount}r)` : ''}</span>
+                  </button>
+                ) : (
+                  <>
+                    <Code2 size={13} className="text-blue-600" />
+                    <span>Interactive SQL Console</span>
+                  </>
+                )}
               </div>
 
-              <div className="flex items-center space-x-2.5">
+              <div className="flex items-center space-x-2 shrink-0">
                 {/* Run Query Button */}
                 <button
                   onClick={handleRunQuery}
                   disabled={running || evaluating}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl shadow-2xs transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50 active:scale-95 border ${
+                  className={`h-8 px-3 text-xs font-bold rounded-xl shadow-2xs transition-all inline-flex items-center space-x-1.5 cursor-pointer disabled:opacity-50 active:scale-95 border leading-none shrink-0 whitespace-nowrap ${
                     isDarkMode 
                       ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200' 
                       : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-800'
                   }`}
                 >
                   <Play size={12} className={running ? 'animate-spin' : 'text-blue-600'} />
-                  <span>{running ? 'Executing...' : 'Run Query'}</span>
+                  <span>{running ? 'Running...' : 'Run Query'}</span>
                 </button>
 
                 {/* Submit Solution Button */}
                 <button
                   onClick={handleValidateSolution}
                   disabled={running || evaluating}
-                  className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                  className="h-8 px-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all inline-flex items-center space-x-1.5 cursor-pointer disabled:opacity-50 leading-none shrink-0 whitespace-nowrap"
                 >
                   <CheckCircle2 size={13} className={evaluating ? 'animate-spin' : ''} />
-                  <span>{evaluating ? 'Validating...' : 'Submit Solution'}</span>
+                  <span>{evaluating ? 'Validating...' : 'Submit'}</span>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* ── DRAGGABLE HORIZONTAL DIVIDER (Resizes Console vs Editor) ── */}
+          {/* ── DRAGGABLE HORIZONTAL DIVIDER (Desktop only) ── */}
           <div
             onMouseDown={() => setIsDraggingVertical(true)}
-            className={`w-full h-1.5 hover:h-2 bg-slate-200 dark:bg-slate-800 hover:bg-blue-600 dark:hover:bg-blue-600 active:bg-blue-600 cursor-row-resize select-none transition-all flex items-center justify-center shrink-0 z-10 group ${
+            className={`hidden lg:flex w-full h-1.5 hover:h-2 bg-slate-200 dark:bg-slate-800 hover:bg-blue-600 dark:hover:bg-blue-600 active:bg-blue-600 cursor-row-resize select-none transition-all items-center justify-center shrink-0 z-10 group ${
               isDraggingVertical ? 'bg-blue-600 h-2' : ''
             }`}
             title="Drag up or down to adjust console and editor height"
@@ -1085,9 +1109,9 @@ export default function SqlPractice() {
 
           {/* Bottom Execution Console & Results */}
           <div 
-            className={`flex-1 min-h-0 flex flex-col border-t overflow-hidden ${
-              !isDesktop ? 'h-1/2 min-h-[240px]' : ''
-            } ${
+            className={`${
+              !isDesktop && mobileView !== 'console' ? 'hidden' : 'flex'
+            } flex-1 min-h-0 flex-col border-t lg:border-t-0 overflow-hidden w-full h-full ${
               isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white border-slate-200'
             }`}
           >
@@ -1265,6 +1289,19 @@ export default function SqlPractice() {
                       Click "Submit Solution" to compute and compare with canonical expected output.
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Mobile Quick Action to return to Editor */}
+              {!isDesktop && (
+                <div className="pt-4 pb-2">
+                  <button
+                    onClick={() => setMobileView('editor')}
+                    className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                  >
+                    <Code2 size={13} />
+                    <span>Back to SQL Editor →</span>
+                  </button>
                 </div>
               )}
             </div>

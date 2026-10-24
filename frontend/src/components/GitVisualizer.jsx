@@ -47,38 +47,38 @@ export default function GitVisualizer({ engine, className = '' }) {
   return (
     <div className={`bg-white flex flex-col overflow-hidden text-slate-800 font-sans w-full h-full rounded-none border-0 ${className}`}>
       {/* Visualizer Header Bar (Clean Light Theme, Same as SQL Editor) */}
-      <div className="h-10 bg-slate-100/90 px-4 border-b border-slate-200 flex items-center justify-between shrink-0 select-none">
-        <div className="flex items-center space-x-2">
-          <GitBranch size={14} className="text-blue-600 shrink-0" />
-          <span className="text-xs font-bold text-slate-700 tracking-tight">Repository State</span>
-          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono font-bold">
+      <div className="h-10 sm:h-11 bg-slate-100/90 px-2.5 sm:px-4 border-b border-slate-200 flex items-center justify-between shrink-0 select-none gap-1.5">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 overflow-hidden min-w-0">
+          <GitBranch size={13} className="text-blue-600 shrink-0" />
+          <span className="text-xs font-bold text-slate-700 tracking-tight hidden xs:inline">Repository</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono font-bold truncate max-w-[90px] xs:max-w-[130px] sm:max-w-[180px]">
             HEAD -&gt; {currentBranch}
           </span>
         </div>
 
         {/* View Switcher */}
-        <div className="flex items-center space-x-1 bg-white p-0.5 rounded-lg border border-slate-200 text-xs font-bold shadow-2xs">
+        <div className="flex items-center space-x-1 bg-white p-0.5 rounded-lg border border-slate-200 text-xs font-bold shadow-2xs shrink-0">
           <button
             onClick={() => setActiveView('graph')}
-            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`h-6 sm:h-7 px-2 sm:px-2.5 rounded-md transition-all cursor-pointer inline-flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-bold leading-none shrink-0 whitespace-nowrap ${
               activeView === 'graph' 
                 ? 'bg-blue-600 text-white shadow-xs' 
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <GitCommit size={12} />
-            <span>Commit Graph</span>
+            <span><span className="hidden sm:inline">Commit </span>Graph</span>
           </button>
           <button
             onClick={() => setActiveView('staging')}
-            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`h-6 sm:h-7 px-2 sm:px-2.5 rounded-md transition-all cursor-pointer inline-flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-bold leading-none shrink-0 whitespace-nowrap ${
               activeView === 'staging' 
                 ? 'bg-blue-600 text-white shadow-xs' 
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             <Layers size={12} />
-            <span>3 Trees Inspector</span>
+            <span><span className="hidden sm:inline">3 Trees </span>Inspector</span>
           </button>
         </div>
       </div>

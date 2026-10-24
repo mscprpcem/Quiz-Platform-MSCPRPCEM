@@ -359,27 +359,27 @@ export default function GitTerminal({
       className={`bg-[#0c1017] text-slate-100 font-mono text-xs flex flex-col overflow-hidden w-full h-full rounded-none border-0 ${className}`}
     >
       {/* ── Terminal Header Bar (Light Frame Header Matching SQL Editor) ── */}
-      <div className="h-10 bg-slate-100/90 px-4 border-b border-slate-200 flex items-center justify-between select-none shrink-0 gap-2">
+      <div className="h-10 sm:h-11 bg-slate-100/90 px-2 sm:px-4 border-b border-slate-200 flex items-center justify-between select-none shrink-0 gap-1 sm:gap-2">
         
         {/* Left: Indicator dot + Current directory */}
-        <div className="flex items-center space-x-2 overflow-hidden">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-          <span className="text-xs font-mono font-bold text-slate-700 truncate">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 overflow-hidden min-w-0">
+          <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 shrink-0" />
+          <span className="text-[11px] sm:text-xs font-mono font-bold text-slate-700 truncate max-w-[75px] xs:max-w-[120px] sm:max-w-none">
             {terminalMode === 'cmd' ? 'C:\\playground' : '~/playground'}
           </span>
         </div>
 
         {/* Right: Environment Mode Switcher (Shell / CMD / Vim) + Actions */}
-        <div className="flex items-center space-x-2 shrink-0">
+        <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
           
           {/* Segmented Mode Switcher */}
-          <div className="bg-white p-0.5 rounded-lg border border-slate-200 flex items-center gap-1 shadow-2xs">
+          <div className="bg-white p-0.5 rounded-lg border border-slate-200 flex items-center gap-0.5 shadow-2xs shrink-0">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleSwitchMode('shell');
               }}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+              className={`h-6 sm:h-7 px-1.5 sm:px-2.5 rounded-md text-[10px] sm:text-[11px] font-bold leading-none transition-all cursor-pointer inline-flex items-center justify-center gap-1 shrink-0 whitespace-nowrap ${
                 terminalMode === 'shell'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -395,7 +395,7 @@ export default function GitTerminal({
                 e.stopPropagation();
                 handleSwitchMode('cmd');
               }}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+              className={`h-6 sm:h-7 px-1.5 sm:px-2.5 rounded-md text-[10px] sm:text-[11px] font-bold leading-none transition-all cursor-pointer inline-flex items-center justify-center gap-1 shrink-0 whitespace-nowrap ${
                 terminalMode === 'cmd'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -411,7 +411,7 @@ export default function GitTerminal({
                 e.stopPropagation();
                 handleSwitchMode('vim');
               }}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+              className={`h-6 sm:h-7 px-1.5 sm:px-2.5 rounded-md text-[10px] sm:text-[11px] font-bold leading-none transition-all cursor-pointer inline-flex items-center justify-center gap-1 shrink-0 whitespace-nowrap ${
                 terminalMode === 'vim'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -425,23 +425,23 @@ export default function GitTerminal({
 
           {/* Quick Help & Clear Action Icons */}
           {terminalMode !== 'vim' && (
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-0.5 sm:space-x-1 shrink-0">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   executeCommand('git --help');
                 }}
-                className="p-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors cursor-pointer"
+                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors cursor-pointer shrink-0"
                 title="Git Help"
               >
-                <HelpCircle size={14} />
+                <HelpCircle size={13} />
               </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleClear();
                 }}
-                className="p-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors cursor-pointer"
+                className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors cursor-pointer shrink-0"
                 title="Clear Output"
               >
                 <Trash2 size={13} />
@@ -646,10 +646,10 @@ export default function GitTerminal({
             </div>
 
             {/* Vim Action Buttons (:w, :wq, :q) */}
-            <div className="flex items-center space-x-1.5 shrink-0">
+            <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
               <button
                 onClick={() => handleVimSave(true)}
-                className="px-2.5 py-1 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                className="h-6 sm:h-7 px-2 sm:px-2.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold leading-none transition-all inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
                 title="Save buffer (:w)"
               >
                 <Save size={10} />
@@ -658,7 +658,7 @@ export default function GitTerminal({
 
               <button
                 onClick={handleVimSaveAndExit}
-                className="px-2.5 py-1 rounded-lg bg-blue-950/60 hover:bg-blue-900/80 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                className="h-6 sm:h-7 px-2 sm:px-2.5 rounded-lg bg-blue-950/60 hover:bg-blue-900/80 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold leading-none transition-all inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
                 title="Save buffer and return to terminal (:wq)"
               >
                 <CheckCircle2 size={10} />
@@ -667,7 +667,7 @@ export default function GitTerminal({
 
               <button
                 onClick={handleVimExit}
-                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                className="h-6 sm:h-7 px-2 sm:px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[10px] font-bold leading-none transition-all inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
                 title="Close buffer without saving (:q)"
               >
                 <X size={10} />

@@ -532,13 +532,13 @@ export default function GitPractice() {
   }, [cheatSheetGroups, cheatSheetSearch]);
 
   return (
-    <div className="h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] flex flex-col bg-white text-slate-800 font-sans overflow-hidden">
+    <div className="h-[calc(100dvh-4rem)] sm:h-[calc(100vh-4rem)] max-h-[calc(100dvh-4rem)] sm:max-h-[calc(100vh-4rem)] flex flex-col bg-white text-slate-800 font-sans overflow-hidden">
       
       {/* ── Top Header Navigation Bar (Clean Unboxed Typography) ── */}
-      <header className="h-12 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between shrink-0 z-30">
+      <header className="h-11 sm:h-12 bg-white/95 backdrop-blur-md border-b border-slate-200 px-2.5 sm:px-4 md:px-6 flex items-center justify-between shrink-0 z-30">
         
         {/* Left: Back Link, Challenge Title (Unboxed), Difficulty & Solved */}
-        <div className="flex items-center space-x-3 overflow-hidden">
+        <div className="flex items-center space-x-1.5 sm:space-x-3 overflow-hidden">
           <Link
             to="/courses/git"
             className="text-slate-500 hover:text-slate-900 transition-colors p-1 rounded-lg hover:bg-slate-100 shrink-0"
@@ -552,7 +552,7 @@ export default function GitPractice() {
           {/* Challenge Selector (Clean Unboxed Title) */}
           <button
             onClick={() => setShowDrawer(true)}
-            className="flex items-center space-x-1.5 text-xs sm:text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors cursor-pointer truncate max-w-[200px] sm:max-w-md py-1"
+            className="flex items-center space-x-1.5 text-xs sm:text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors cursor-pointer truncate max-w-[125px] xs:max-w-[170px] sm:max-w-xs md:max-w-md py-1"
             title="Browse all Git practice labs"
           >
             <span className="truncate">
@@ -581,7 +581,7 @@ export default function GitPractice() {
         </div>
 
         {/* Right: Progress Counter (Unboxed) & Navigation */}
-        <div className="flex items-center space-x-3 shrink-0">
+        <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
           
           {/* Solved Progress Counter (Clean Unboxed Typography) */}
           <div className="hidden lg:flex items-center space-x-1.5 text-xs text-slate-500 font-medium">
@@ -624,29 +624,40 @@ export default function GitPractice() {
       </header>
 
       {/* Mobile View Switcher (Only visible on screens < 1024px) */}
-      <div className="lg:hidden flex items-center justify-between border-b border-slate-200 bg-slate-100 px-3 py-1.5 shrink-0 select-none">
+      <div className="lg:hidden flex items-center justify-between border-b border-slate-200 bg-slate-100 px-2 py-1.5 shrink-0 select-none">
         <div className="flex items-center space-x-1 bg-white p-0.5 rounded-lg border border-slate-200 text-xs font-bold w-full">
           <button
             onClick={() => setMobileView('brief')}
-            className={`flex-1 py-1.5 px-3 rounded-md transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 h-8 px-2 rounded-md transition-all inline-flex items-center justify-center gap-1.5 leading-none whitespace-nowrap ${
               mobileView === 'brief'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <BookOpen size={13} />
-            <span>Lab Brief & Objectives</span>
+            <span>Brief</span>
           </button>
           <button
             onClick={() => setMobileView('terminal')}
-            className={`flex-1 py-1.5 px-3 rounded-md transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 h-8 px-2 rounded-md transition-all inline-flex items-center justify-center gap-1.5 leading-none whitespace-nowrap ${
               mobileView === 'terminal'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Terminal size={13} />
-            <span>Terminal & Graph</span>
+            <span>Terminal</span>
+          </button>
+          <button
+            onClick={() => setMobileView('graph')}
+            className={`flex-1 h-8 px-2 rounded-md transition-all inline-flex items-center justify-center gap-1.5 leading-none whitespace-nowrap ${
+              mobileView === 'graph'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <GitBranch size={13} />
+            <span>Graph</span>
           </button>
         </div>
       </div>
@@ -947,44 +958,47 @@ export default function GitPractice() {
         >
           
           {/* Top Sandbox Controls Bar */}
-          <div className="h-10 bg-slate-100/90 border-b border-slate-200 px-4 flex items-center justify-between shrink-0 text-slate-700">
-            <div className="flex items-center space-x-2">
-              {!isDesktop && (
-                <button
-                  onClick={() => setMobileView('brief')}
-                  className="text-[11px] font-bold text-blue-600 px-2 py-0.5 rounded bg-blue-50 border border-blue-200 flex items-center gap-1 mr-1"
-                >
-                  ← Brief
-                </button>
-              )}
-              <span className="text-xs font-bold font-mono text-slate-800 flex items-center gap-1.5">
+          <div className="h-10 bg-slate-100/90 border-b border-slate-200 px-3 sm:px-4 flex items-center justify-between shrink-0 text-slate-700">
+            <div className="flex items-center space-x-2 overflow-hidden">
+              <span className="text-xs font-bold font-mono text-slate-800 flex items-center gap-1.5 shrink-0">
                 <Terminal size={13} className="text-blue-600" />
-                <span>Sandbox Workspace</span>
+                <span className="hidden sm:inline">Sandbox Workspace</span>
+                <span className="sm:hidden">Terminal</span>
               </span>
               <span className="text-slate-300">|</span>
-              <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+              <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full truncate max-w-[130px]">
                 HEAD -&gt; {engine ? engine.getHeadBranch() : 'main'}
               </span>
             </div>
 
-            {/* Toggle visualizer button */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setShowVisualizer(!showVisualizer)}
-                className="text-[11px] font-bold text-slate-700 hover:text-slate-900 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
-                title={showVisualizer ? 'Hide state visualizer' : 'Show state visualizer'}
-              >
-                {showVisualizer ? <EyeOff size={11} /> : <Eye size={11} />}
-                <span className="hidden sm:inline">{showVisualizer ? 'Hide Visualizer' : 'Show Visualizer'}</span>
-              </button>
+            {/* Right side controls */}
+            <div className="flex items-center space-x-2 shrink-0">
+              {!isDesktop ? (
+                <button
+                  onClick={() => setMobileView('graph')}
+                  className="text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md transition-all flex items-center gap-1 shadow-2xs"
+                >
+                  <GitBranch size={11} className="text-blue-600" />
+                  <span>Graph</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowVisualizer(!showVisualizer)}
+                  className="text-[11px] font-bold text-slate-700 hover:text-slate-900 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                  title={showVisualizer ? 'Hide state visualizer' : 'Show state visualizer'}
+                >
+                  {showVisualizer ? <EyeOff size={11} /> : <Eye size={11} />}
+                  <span className="hidden sm:inline">{showVisualizer ? 'Hide Visualizer' : 'Show Visualizer'}</span>
+                </button>
+              )}
             </div>
           </div>
 
           {/* Sandbox Split View Body (Edge-to-edge full space, zero curves) */}
           <div className="flex-1 flex flex-col overflow-hidden w-full h-full p-0 gap-0 bg-white">
             
-            {/* Visualizer Area (Flush top pane with dynamic height) */}
-            {showVisualizer && (
+            {/* Visualizer Area (Desktop only - flush top pane with dynamic height) */}
+            {isDesktop && showVisualizer && (
               <div 
                 style={{ height: `${visualizerHeightPx}px` }}
                 className="shrink-0 w-full overflow-hidden border-b border-slate-200"
@@ -993,8 +1007,8 @@ export default function GitPractice() {
               </div>
             )}
 
-            {/* Draggable Horizontal Divider (Resizes Visualizer vs Terminal) */}
-            {showVisualizer && (
+            {/* Draggable Horizontal Divider (Desktop only) */}
+            {isDesktop && showVisualizer && (
               <div
                 onMouseDown={() => setIsDraggingVertical(true)}
                 className={`w-full h-1.5 hover:h-2 bg-slate-200 hover:bg-blue-600 active:bg-blue-600 cursor-row-resize select-none transition-all flex items-center justify-center shrink-0 z-10 ${
@@ -1018,9 +1032,9 @@ export default function GitPractice() {
             </div>
 
             {/* ── Action Bar at Bottom of Terminal ── */}
-            <div className="h-12 border-t border-slate-200 bg-slate-50/90 px-4 flex items-center justify-between shrink-0">
+            <div className="h-12 border-t border-slate-200 bg-slate-50/90 px-3 sm:px-4 flex items-center justify-between shrink-0">
               {/* Left: Staged count & Keyboard shortcuts */}
-              <div className="flex items-center space-x-3 text-xs">
+              <div className="flex items-center space-x-2 text-xs">
                 {engine && Object.keys(engine.index || {}).length > 0 && (
                   <span className="text-emerald-600 font-mono font-bold text-xs flex items-center gap-1">
                     + {Object.keys(engine.index).length} staged
@@ -1033,10 +1047,10 @@ export default function GitPractice() {
               </div>
 
               {/* Right: Reset & Verify and Submit Button */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
                 <button
                   onClick={handleResetSandbox}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  className="h-8 px-2.5 sm:px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs leading-none shrink-0 whitespace-nowrap"
                   title="Reset sandbox to initial state"
                 >
                   <RefreshCw size={12} className="text-slate-500" />
@@ -1046,7 +1060,7 @@ export default function GitPractice() {
                 <button
                   onClick={handleVerifySolution}
                   disabled={isVerifying}
-                  className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                  className="h-8 px-3 sm:px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all inline-flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50 leading-none shrink-0 whitespace-nowrap"
                   title="Submit and verify solution"
                 >
                   {isVerifying ? (
@@ -1060,6 +1074,43 @@ export default function GitPractice() {
             </div>
           </div>
         </div>
+
+        {/* ══════════════════════════════════════════════════════
+            MOBILE-ONLY FULL SCREEN GIT GRAPH / VISUALIZER PANE
+            ══════════════════════════════════════════════════════ */}
+        {!isDesktop && (
+          <div 
+            className={`${
+              mobileView === 'graph' ? 'flex' : 'hidden'
+            } flex-1 flex-col bg-white overflow-hidden min-w-0 w-full h-full`}
+          >
+            <div className="h-10 bg-slate-100/90 border-b border-slate-200 px-3 flex items-center justify-between shrink-0 text-slate-700">
+              <span className="text-xs font-bold font-mono text-slate-800 flex items-center gap-1.5">
+                <GitBranch size={13} className="text-blue-600" />
+                <span>Git Visualizer Graph</span>
+              </span>
+              <button
+                onClick={() => setMobileView('terminal')}
+                className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg"
+              >
+                <span>Terminal</span>
+                <ArrowRight size={12} />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 w-full overflow-y-auto">
+              <GitVisualizer engine={engine} key={`vis-mob-${engineVersion}`} />
+            </div>
+            <div className="p-3 border-t border-slate-200 bg-slate-50 shrink-0">
+              <button
+                onClick={() => setMobileView('terminal')}
+                className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                <Terminal size={13} />
+                <span>Open Terminal to Run Commands →</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Global Transparent Drag Overlay during dragging */}

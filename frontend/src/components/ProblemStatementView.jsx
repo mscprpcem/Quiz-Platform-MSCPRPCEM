@@ -215,7 +215,7 @@ export default function ProblemStatementView({ challenge, isDarkMode = false, sh
             </span>
           )}
         </div>
-        <h2 className={`text-xl font-black mt-2 tracking-tight ${isDarkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+        <h2 className={`text-lg sm:text-xl font-black mt-1.5 sm:mt-2 tracking-tight ${isDarkMode ? 'text-slate-100' : 'text-slate-900'}`}>
           {challenge.title}
         </h2>
       </div>
@@ -234,7 +234,7 @@ export default function ProblemStatementView({ challenge, isDarkMode = false, sh
       )}
 
       {/* Problem Statement Card (LeetCode Styled) */}
-      <div className={`border rounded-2xl p-5 space-y-4 shadow-2xs ${
+      <div className={`border rounded-2xl p-3.5 sm:p-5 space-y-3 sm:space-y-4 shadow-2xs ${
         isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
       }`}>
         <div className="flex items-center space-x-2 border-b pb-3 border-slate-100">
