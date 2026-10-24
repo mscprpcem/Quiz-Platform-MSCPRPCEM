@@ -371,7 +371,19 @@ router.get('/leaderboard', async (req, res) => {
         totalQuizPoints += (q.score || 0) * 10;
       });
 
-      const totalScore = (challenges.length * 50) + (lessons.length * 5) + totalQuizPoints;
+      let challengePoints = 0;
+      challenges.forEach(cId => {
+        // Tiered difficulty: Basic/Easy = 1, Intermediate/Medium = 2, Advanced/Hard = 3
+        if (['git-remotes-add-origin', 'git-interactive-rebase-squash', 'git-reflog-recover-lost-commit', 'git-bisect-hunt-bug', 'git-submodule-integrate'].includes(cId)) {
+          challengePoints += 3;
+        } else if (['git-create-switch-branch', 'git-fast-forward-merge', 'git-3way-recursive-merge', 'git-branch-merge-conflict', 'git-rebase-feature-linear', 'git-stash-pop-workflow', 'git-cherry-pick-commit', 'git-revert-published-commit'].includes(cId)) {
+          challengePoints += 2;
+        } else {
+          challengePoints += 1;
+        }
+      });
+
+      const totalScore = challengePoints + lessons.length + totalQuizPoints;
 
       // Mask email for student privacy
       const email = r.user_email || 'student@prpcem.ac.in';

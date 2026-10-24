@@ -52,6 +52,7 @@ import GitPractice from './pages/GitPractice';
 import AdminGit from './pages/AdminGit';
 import SqlIntroPresentation from './pages/SqlIntroPresentation';
 import LeaderboardPreview from './pages/LeaderboardPreview';
+import TournamentStandings from './pages/TournamentStandings';
 import NotFound from './pages/NotFound';
 import RequireAuth from './components/RequireAuth';
 
@@ -141,9 +142,9 @@ function App() {
                 <Route path="/live-quiz" element={<LiveQuiz />} />
                 <Route path="/live/:participantId" element={<LiveQuiz />} />
                 <Route path="/results" element={<Results />} />
-                <Route path="/leaderboard" element={<Navigate to="/" replace />} />
-                <Route path="/tournament-standings" element={<Navigate to="/" replace />} />
-                <Route path="/standings" element={<Navigate to="/" replace />} />
+                <Route path="/leaderboard" element={<TournamentStandings />} />
+                <Route path="/tournament-standings" element={<TournamentStandings />} />
+                <Route path="/standings" element={<TournamentStandings />} />
                 <Route path="/leaderboard-preview" element={<LeaderboardPreview />} />
                 {/* SQL Intro Interactive Presentation Routes (Public & Student) */}
                 <Route path="/sql/intro" element={<SqlIntroPresentation />} />

@@ -37,8 +37,22 @@ function normalizeDifficulty(diff) {
   if (!diff) return 'EASY';
   const str = String(diff).toUpperCase().trim();
   if (str.includes('EASY') || str.includes('BEGINNER') || str.includes('BASIC')) return 'EASY';
-  if (str.includes('HARD') || str.includes('ADVANCED') || str.includes('EXPERT')) return 'HARD';
+  if (str.includes('HARD') || str.includes('ADVANCED') || str.includes('EXPERT') || str.includes('EXTREME')) return 'HARD';
   return 'INTERMEDIATE';
+}
+
+/**
+ * Standard difficulty points for question solving:
+ * - Easy & Basic: 1 point
+ * - Medium & Intermediate: 2 points
+ * - Hard & Advanced: 3 points
+ */
+function getDifficultyPoints(diff) {
+  const key = normalizeDifficulty(diff);
+  if (key === 'EASY') return 1;
+  if (key === 'INTERMEDIATE') return 2;
+  if (key === 'HARD') return 3;
+  return 1;
 }
 
 /**
@@ -51,40 +65,22 @@ function getDifficultyConfig(diff) {
 
 /**
  * Calculate score for a single live quiz question answer
- * Standardized: 1 count per question for beginner / easy level
+ * Standardized: Easy/Basic = 1 point, Medium/Intermediate = 2 points, Hard/Advanced = 3 points
  */
 function calculateLiveQuestionScore({ marks = 1, difficulty = 'Easy', timer = 30, responseTimeMs = 0, isCorrect = false }) {
   if (!isCorrect) return 0;
-
-  const diffConf = getDifficultyConfig(difficulty);
-  let baseMarks = Number(marks) || diffConf.defaultMarks;
-  // If legacy marks were huge (e.g. 100, 500, 1000, 10000), normalize down so beginner level is 1 count per question:
-  if (baseMarks >= 50) {
-    baseMarks = diffConf.defaultMarks;
-  }
-
-  // Base marks scaled by difficulty (e.g. Easy = 1, Intermediate = 2, Hard = 3)
-  const basePoints = Math.round(baseMarks * diffConf.weight);
-  return basePoints;
+  return getDifficultyPoints(difficulty);
 }
 
 /**
  * Calculate scheduled quiz question score
- * Standardized: 1 count per question for beginner / easy level
+ * Standardized: Easy/Basic = 1 point, Medium/Intermediate = 2 points, Hard/Advanced = 3 points
  */
-function calculateScheduledQuestionScore({ positiveMarks = 1, negativeMarks = 0, difficulty = 'Easy', isCorrect = false, applyDifficultyWeight = false }) {
+function calculateScheduledQuestionScore({ positiveMarks = 1, negativeMarks = 0, difficulty = 'Easy', isCorrect = false, applyDifficultyWeight = true }) {
   if (!isCorrect) {
     return -Math.abs(Number(negativeMarks) || 0);
   }
-  let baseMarks = Number(positiveMarks) > 0 ? Number(positiveMarks) : 1;
-  if (baseMarks >= 50) {
-    baseMarks = 1;
-  }
-  if (applyDifficultyWeight) {
-    const diffConf = getDifficultyConfig(difficulty);
-    return Math.round(baseMarks * diffConf.weight);
-  }
-  return baseMarks;
+  return getDifficultyPoints(difficulty);
 }
 
 /**
@@ -181,6 +177,7 @@ module.exports = {
   DIFFICULTY_CONFIG,
   normalizeDifficulty,
   getDifficultyConfig,
+  getDifficultyPoints,
   calculateLiveQuestionScore,
   calculateScheduledQuestionScore,
   calculateNormalizedScoreAndXP,

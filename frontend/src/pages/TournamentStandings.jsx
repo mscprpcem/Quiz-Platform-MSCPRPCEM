@@ -1,216 +1,42 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import {
-  Trophy,
-  Award,
-  Medal,
-  Users,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Search,
-  Filter,
-  RefreshCw,
-  Sparkles,
-  Layers,
-  ChevronDown,
-  Check,
-  Zap,
-  Flame,
-  BarChart3,
-  Calendar,
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  ShieldCheck,
-  SlidersHorizontal
-} from 'lucide-react';
+import { Trophy, RefreshCw } from 'lucide-react';
 
 export default function TournamentStandings() {
-  const navigate = useNavigate();
-
-  const [availableQuizzes, setAvailableQuizzes] = useState([]);
-  const [selectedQuizIds, setSelectedQuizIds] = useState([]);
   const [leaderboardData, setLeaderboardData] = useState([]);
-  const [selectedQuizzesMeta, setSelectedQuizzesMeta] = useState([]);
-  const [summary, setSummary] = useState({
-    totalParticipants: 0,
-    completedCount: 0,
-    notAttendedCount: 0,
-    totalQuizzes: 0,
-    highestScore: 0,
-    averageScore: 0,
-    perfectAttendanceCount: 0
-  });
-
-  const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [quizSearchQuery, setQuizSearchQuery] = useState('');
-  const [attendanceFilter, setAttendanceFilter] = useState('all'); // 'all', 'completed', 'not_attended'
-  const [sortBy, setSortBy] = useState('rank'); // 'rank', 'score', 'time', 'attendance'
-  const [showQuizSelector, setShowQuizSelector] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const PAGE_SIZE = 25;
 
-  // Fetch available quizzes list on mount
   useEffect(() => {
-    fetchInitialData();
+    fetchLeaderboard();
   }, []);
 
-  const fetchInitialData = async () => {
+  const fetchLeaderboard = async () => {
     try {
       setInitialLoading(true);
       const res = await api.get('/api/analytics/public/cumulative-leaderboard');
-      if (res.data) {
-        if (Array.isArray(res.data.availableQuizzes)) {
-          setAvailableQuizzes(res.data.availableQuizzes);
-        }
-        if (Array.isArray(res.data.selectedQuizzes) && res.data.selectedQuizzes.length > 0) {
-          const defaultIds = res.data.selectedQuizzes.map((q) => q.id);
-          setSelectedQuizIds(defaultIds);
-          setSelectedQuizzesMeta(res.data.selectedQuizzes);
-        }
-        if (Array.isArray(res.data.leaderboard)) {
-          setLeaderboardData(res.data.leaderboard);
-        }
-        if (res.data.summary) {
-          setSummary(res.data.summary);
-        }
+      if (res.data && Array.isArray(res.data.leaderboard)) {
+        setLeaderboardData(res.data.leaderboard);
       }
     } catch (err) {
-      console.error('Failed to load initial tournament standings:', err);
+      console.error('Failed to load leaderboard:', err);
     } finally {
       setInitialLoading(false);
     }
   };
 
-  const fetchCumulativeLeaderboard = async (quizIdsToFetch) => {
-    if (!quizIdsToFetch || quizIdsToFetch.length === 0) {
-      setLeaderboardData([]);
-      setSelectedQuizzesMeta([]);
-      setSummary({
-        totalParticipants: 0,
-        completedCount: 0,
-        notAttendedCount: 0,
-        totalQuizzes: 0,
-        highestScore: 0,
-        averageScore: 0,
-        perfectAttendanceCount: 0
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const res = await api.post('/api/analytics/public/cumulative-leaderboard', {
-        quizIds: quizIdsToFetch
-      });
-
-      if (res.data?.success) {
-        setLeaderboardData(res.data.leaderboard || []);
-        setSelectedQuizzesMeta(res.data.selectedQuizzes || []);
-        setSummary(res.data.summary || {});
-      }
-    } catch (err) {
-      console.error('Failed to calculate public tournament standings:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleToggleQuiz = (quizId) => {
-    const updated = selectedQuizIds.includes(quizId)
-      ? selectedQuizIds.filter((id) => id !== quizId)
-      : [...selectedQuizIds, quizId];
-
-    setSelectedQuizIds(updated);
-    fetchCumulativeLeaderboard(updated);
-  };
-
-  const handleSelectAllQuizzes = () => {
-    const allIds = availableQuizzes.map((q) => q.id);
-    setSelectedQuizIds(allIds);
-    fetchCumulativeLeaderboard(allIds);
-  };
-
-  const handleClearSelection = () => {
-    setSelectedQuizIds([]);
-    fetchCumulativeLeaderboard([]);
-  };
-
-  const handleResetDefaults = () => {
-    const defaultIds = availableQuizzes
-      .filter((q) => q.hasInjectedData || q.status === 'completed')
-      .map((q) => q.id);
-    const toSelect = defaultIds.length > 0 ? defaultIds : availableQuizzes.slice(0, 3).map((q) => q.id);
-    setSelectedQuizIds(toSelect);
-    fetchCumulativeLeaderboard(toSelect);
-  };
-
-  // Format seconds into readable m:ss
-  const formatSeconds = (totalSeconds) => {
-    if (!totalSeconds || isNaN(totalSeconds) || totalSeconds <= 0) return '0s';
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    if (m === 0) return `${s}s`;
-    return `${m}m ${s}s`;
-  };
-
-  // Filter and Sort Leaderboard rows
-  const filteredLeaderboard = useMemo(() => {
-    return leaderboardData
-      .filter((item) => {
-        // Text search
-        const q = searchTerm.toLowerCase().trim();
-        const matchesQuery =
-          !q ||
-          (item.name && item.name.toLowerCase().includes(q)) ||
-          (item.college && item.college.toLowerCase().includes(q));
-
-        if (!matchesQuery) return false;
-
-        // Attendance filter
-        if (attendanceFilter === 'completed') {
-          return item.quizzesAttendedCount > 0;
-        }
-        if (attendanceFilter === 'not_attended') {
-          return item.quizzesAttendedCount === 0;
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'score') return b.totalScore - a.totalScore;
-        if (sortBy === 'time') return a.totalTimeTakenSeconds - b.totalTimeTakenSeconds;
-        if (sortBy === 'attendance') return b.quizzesAttendedCount - a.quizzesAttendedCount;
-        return a.rank - b.rank; // default by rank
-      });
-  }, [leaderboardData, searchTerm, attendanceFilter, sortBy]);
-
-  // Reset pagination to page 1 whenever filters, search, sort, or quizzes change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, attendanceFilter, sortBy, selectedQuizIds]);
-
-  // Pagination calculations
-  const totalItems = filteredLeaderboard.length;
-  const effectivePageSize = pageSize === 'all' ? (totalItems || 1) : pageSize;
-  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(totalItems / effectivePageSize));
+  // Pagination calculations: 25 students per page
+  const totalItems = leaderboardData.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
   const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
 
   const paginatedLeaderboard = useMemo(() => {
-    if (pageSize === 'all') return filteredLeaderboard;
-    const startIndex = (validCurrentPage - 1) * effectivePageSize;
-    return filteredLeaderboard.slice(startIndex, startIndex + effectivePageSize);
-  }, [filteredLeaderboard, validCurrentPage, effectivePageSize, pageSize]);
+    const startIndex = (validCurrentPage - 1) * PAGE_SIZE;
+    return leaderboardData.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [leaderboardData, validCurrentPage]);
 
-  const startRecord = totalItems === 0 ? 0 : (validCurrentPage - 1) * effectivePageSize + 1;
-  const endRecord = pageSize === 'all' ? totalItems : Math.min(validCurrentPage * effectivePageSize, totalItems);
-
-  // Dynamic pagination item list with smart ellipsis
+  // Pagination page numbers with ellipsis
   const paginationItems = useMemo(() => {
     if (totalPages <= 7) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -224,747 +50,139 @@ export default function TournamentStandings() {
     return [1, '...', validCurrentPage - 1, validCurrentPage, validCurrentPage + 1, '...', totalPages];
   }, [totalPages, validCurrentPage]);
 
-  // Top 3 from completed participants only
-  const completedList = leaderboardData.filter((s) => s.quizzesAttendedCount > 0);
-  const top3 = completedList.slice(0, 3);
-  const gold = top3[0] || null;
-  const silver = top3[1] || null;
-  const bronze = top3[2] || null;
-
-  const filteredQuizOptions = availableQuizzes.filter((q) => {
-    if (!quizSearchQuery) return true;
-    const s = quizSearchQuery.toLowerCase();
-    return (
-      (q.title && q.title.toLowerCase().includes(s)) ||
-      (q.event_name && q.event_name.toLowerCase().includes(s))
-    );
-  });
-
   return (
     <div className="min-h-screen bg-slate-50 py-6 px-4 sm:px-6 lg:px-8 font-sans text-slate-900">
-      <div className="max-w-7xl mx-auto space-y-6">
-
-        {/* Back navigation */}
-        <div>
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="inline-flex items-center gap-1.5 text-xs font-extrabold text-slate-600 hover:text-purple-700 bg-white border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-xs transition hover:bg-slate-50 cursor-pointer"
-          >
-            <ArrowLeft size={14} />
-            <span>Back to Home</span>
-          </button>
+      <div className="max-w-4xl mx-auto space-y-4">
+        
+        {/* Top Header */}
+        <div className="flex items-center">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+            <Trophy size={24} className="text-amber-500" />
+            Leaderboard
+          </h1>
         </div>
 
-        {/* Header Hero Banner */}
-        <div className="bg-gradient-to-r from-purple-50/70 via-indigo-50/40 to-blue-50/60 border border-purple-200/80 p-6 sm:p-8 rounded-3xl shadow-soft relative overflow-hidden text-left">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700 border border-purple-200 rounded-full text-xs font-bold tracking-wide uppercase shadow-2xs">
-                <Sparkles size={13} className="text-purple-600" />
-                MSC PRPCEM Tech Championship
-              </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 flex items-center gap-3">
-                Tournament Standings
-                <Trophy size={32} className="text-amber-500 shrink-0" />
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-600 max-w-2xl font-medium leading-relaxed">
-                Live cumulative rankings across weekly challenges and hackathon assessments. Ranked by verified points with total response time tie-breaking.
-              </p>
+        {/* Leaderboard Table */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+          {initialLoading ? (
+            <div className="py-16 text-center text-xs text-slate-500 font-semibold flex items-center justify-center gap-2">
+              <RefreshCw size={16} className="animate-spin text-purple-600" />
+              Loading leaderboard...
             </div>
-
-            <div className="flex flex-wrap items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => setShowQuizSelector(!showQuizSelector)}
-                className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer"
-              >
-                <SlidersHorizontal size={14} />
-                <span>{showQuizSelector ? 'Hide Quiz Filter' : 'Filter Quizzes'}</span>
-                <span className="px-1.5 py-0.2 bg-purple-600 text-white rounded-md text-[10px] font-black">
-                  {selectedQuizIds.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => fetchCumulativeLeaderboard(selectedQuizIds)}
-                disabled={loading || selectedQuizIds.length === 0}
-                className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                <span>Refresh</span>
-              </button>
+          ) : leaderboardData.length === 0 ? (
+            <div className="py-16 text-center text-xs text-slate-500 font-medium">
+              No students found.
             </div>
-          </div>
-        </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-xs bg-slate-50/80">
+                    <th className="py-3 px-4 w-16 text-center">Rank</th>
+                    <th className="py-3 px-4">Name</th>
+                    <th className="py-3 px-4 text-right">Score</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedLeaderboard.map((student) => {
+                    const isTop1 = student.rank === 1;
+                    const isTop2 = student.rank === 2;
+                    const isTop3 = student.rank === 3;
+                    const score = student.totalScore !== undefined ? student.totalScore : (student.score || 0);
 
-        {/* Collapsible Quiz Multi-Select Section */}
-        {showQuizSelector && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm transition-all">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-              <div>
-                <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                  <Layers size={16} className="text-purple-600" />
-                  Select Quizzes to Compare & Aggregate
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Select 1 or more quizzes (e.g. VisionX Season 2 Week 1, Live Challenges) to aggregate standings.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-extrabold px-2.5 py-1 bg-purple-50 text-purple-800 border border-purple-200 rounded-lg">
-                  {selectedQuizIds.length} Quiz{selectedQuizIds.length === 1 ? '' : 'zes'} Selected
-                </span>
-                <button
-                  type="button"
-                  onClick={handleResetDefaults}
-                  className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer border border-slate-200"
-                >
-                  Active Only
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSelectAllQuizzes}
-                  className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer border border-slate-200"
-                >
-                  Select All
-                </button>
-                {selectedQuizIds.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleClearSelection}
-                    className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg transition cursor-pointer border border-rose-200"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Search for Quizzes */}
-            <div className="mt-3.5 mb-3">
-              <div className="relative max-w-sm">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search quizzes by title..."
-                  value={quizSearchQuery}
-                  onChange={(e) => setQuizSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition"
-                />
-              </div>
-            </div>
-
-            {/* Quiz Checkbox Chips */}
-            {initialLoading ? (
-              <div className="py-6 text-center text-xs text-slate-500 font-semibold flex items-center justify-center gap-2">
-                <RefreshCw size={14} className="animate-spin text-purple-600" />
-                Loading available quizzes...
-              </div>
-            ) : filteredQuizOptions.length === 0 ? (
-              <div className="py-4 text-center text-xs text-slate-500 font-medium">
-                No quizzes matched your search.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1">
-                {filteredQuizOptions.map((q) => {
-                  const isSelected = selectedQuizIds.includes(q.id);
-
-                  return (
-                    <div
-                      key={q.id}
-                      onClick={() => handleToggleQuiz(q.id)}
-                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition flex items-start justify-between gap-2.5 ${
-                        isSelected
-                          ? 'bg-purple-50/90 border-purple-400 ring-2 ring-purple-500/20 shadow-sm'
-                          : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-xs font-extrabold truncate ${isSelected ? 'text-purple-950' : 'text-slate-900'}`}>
-                          {q.title}
-                        </p>
-                        {q.event_name && (
-                          <p className="text-[10px] text-purple-700 font-semibold truncate mt-0.5">
-                            {q.event_name}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[9px] text-slate-500 flex items-center gap-1 font-medium">
-                            <Calendar size={9} />
-                            {new Date(q.createdAt).toLocaleDateString()}
-                          </span>
-                          {q.hasInjectedData && (
-                            <span className="px-1 py-0.2 bg-amber-100 text-amber-900 border border-amber-300 rounded text-[9px] font-black flex items-center gap-0.5">
-                              <Zap size={8} className="text-amber-700" /> Week 1
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div
-                        className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 mt-0.5 transition ${
-                          isSelected
-                            ? 'bg-purple-600 text-white shadow-sm'
-                            : 'border border-slate-300 bg-white'
+                    return (
+                      <tr
+                        key={student.key || student.id || student.name}
+                        className={`transition hover:bg-slate-50/80 ${
+                          isTop1 ? 'bg-amber-50/30' : isTop2 ? 'bg-slate-50/50' : isTop3 ? 'bg-orange-50/20' : ''
                         }`}
                       >
-                        {isSelected && <Check size={10} strokeWidth={3} />}
-                      </div>
-                    </div>
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          {isTop1 ? (
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-400 text-slate-950 font-black text-xs shadow-xs">
+                              🥇
+                            </span>
+                          ) : isTop2 ? (
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-300 text-slate-800 font-black text-xs shadow-xs">
+                              🥈
+                            </span>
+                          ) : isTop3 ? (
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-200 text-amber-950 font-black text-xs shadow-xs">
+                              🥉
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 font-bold text-xs">
+                              #{student.rank}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
+                          {student.name}
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right font-black text-purple-700 text-sm whitespace-nowrap">
+                          {score} pts
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Normal Centered Page Numbers (No boxes) */}
+          {!initialLoading && totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 py-4 px-4 border-t border-slate-100 bg-slate-50/30 text-sm font-medium">
+              <button
+                type="button"
+                disabled={validCurrentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="text-slate-600 hover:text-purple-700 disabled:opacity-30 disabled:hover:text-slate-600 cursor-pointer transition font-medium"
+              >
+                Prev
+              </button>
+
+              <div className="flex items-center gap-2.5">
+                {paginationItems.map((item, idx) => {
+                  if (item === '...') {
+                    return (
+                      <span key={`dots-${idx}`} className="text-slate-400 select-none">
+                        ...
+                      </span>
+                    );
+                  }
+                  const pageNum = Number(item);
+                  const isActive = pageNum === validCurrentPage;
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`cursor-pointer transition px-1 ${
+                        isActive
+                          ? 'font-black text-purple-700 underline underline-offset-4'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
                   );
                 })}
               </div>
-            )}
-          </div>
-        )}
 
-        {/* When no quiz is selected */}
-        {selectedQuizIds.length === 0 && (
-          <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-12 text-center my-6">
-            <div className="w-16 h-16 bg-purple-100 text-purple-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Layers size={28} />
+              <button
+                type="button"
+                disabled={validCurrentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="text-slate-600 hover:text-purple-700 disabled:opacity-30 disabled:hover:text-slate-600 cursor-pointer transition font-medium"
+              >
+                Next
+              </button>
             </div>
-            <h3 className="text-lg font-black text-slate-900">No Quizzes Selected</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-5">
-              Please choose 1 or more quizzes to view the cumulative tournament leaderboard.
-            </p>
-            <button
-              type="button"
-              onClick={handleResetDefaults}
-              className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-extrabold rounded-xl transition shadow-sm cursor-pointer"
-            >
-              Load Active Tournament Quizzes
-            </button>
-          </div>
-        )}
-
-        {/* Content View when quizzes selected */}
-        {selectedQuizIds.length > 0 && (
-          <>
-            {/* KPI Stats Summary Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                <div className="flex items-center justify-between text-slate-400 mb-1">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
-                    Contenders
-                  </span>
-                  <Users size={16} className="text-blue-600" />
-                </div>
-                <div className="text-2xl font-black text-slate-900">
-                  {summary.totalParticipants || 0}
-                </div>
-                <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">Total registered cohort</p>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                <div className="flex items-center justify-between text-slate-400 mb-1">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
-                    Active
-                  </span>
-                  <CheckCircle2 size={16} className="text-emerald-600" />
-                </div>
-                <div className="text-2xl font-black text-emerald-700">
-                  {summary.completedCount || 0}
-                </div>
-                <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">Completed tests</p>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                <div className="flex items-center justify-between text-slate-400 mb-1">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
-                    Quizzes
-                  </span>
-                  <Layers size={16} className="text-purple-600" />
-                </div>
-                <div className="text-2xl font-black text-purple-700">
-                  {selectedQuizzesMeta.length}
-                </div>
-                <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">Selected in tournament</p>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                <div className="flex items-center justify-between text-slate-400 mb-1">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
-                    High Score
-                  </span>
-                  <Flame size={16} className="text-rose-600" />
-                </div>
-                <div className="text-2xl font-black text-rose-600">
-                  {summary.highestScore || 0} pts
-                </div>
-                <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">Tournament top score</p>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm col-span-2 sm:col-span-1">
-                <div className="flex items-center justify-between text-slate-400 mb-1">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
-                    Avg Score
-                  </span>
-                  <BarChart3 size={16} className="text-teal-600" />
-                </div>
-                <div className="text-2xl font-black text-teal-700">
-                  {summary.averageScore || 0} pts
-                </div>
-                <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">Mean completed score</p>
-              </div>
-            </div>
-
-            {/* Top 3 Champions Podium */}
-            {top3.length > 0 && (
-              <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
-                <div className="text-center mb-6">
-                  <span className="px-3.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-xs font-black uppercase tracking-wider inline-flex items-center gap-1.5 shadow-xs">
-                    <Trophy size={13} className="text-amber-600" />
-                    Tournament Podium
-                  </span>
-                  <h3 className="text-xl sm:text-2xl font-black mt-2 text-slate-900">Top 3 Overall Performers</h3>
-                  <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                    Ranked by highest cumulative score with aggregate response speed tie-breaking.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end max-w-4xl mx-auto pt-2">
-                  {/* Silver - 2nd Place */}
-                  {silver ? (
-                    <div className="order-2 md:order-1 bg-gradient-to-b from-slate-50 to-slate-100 border border-slate-300 rounded-2xl p-5 text-center flex flex-col items-center shadow-sm hover:shadow-md transition">
-                      <div className="w-12 h-12 rounded-full bg-slate-200 border-2 border-slate-400 flex items-center justify-center text-slate-800 mb-2 font-black text-base shadow-xs">
-                        2
-                      </div>
-                      <Medal size={28} className="text-slate-500 mb-1" />
-                      <h4 className="text-sm font-black text-slate-900 truncate max-w-full">{silver.name}</h4>
-                      <p className="text-[11px] text-slate-500 truncate max-w-full font-semibold">{silver.college || 'PRPCEM Amravati'}</p>
-                      <div className="mt-3 pt-3 border-t border-slate-200 w-full flex justify-between items-center text-xs">
-                        <div>
-                          <span className="text-[10px] text-slate-500 block font-bold uppercase">Total Score</span>
-                          <span className="font-black text-slate-900 text-base">{silver.totalScore} pts</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[10px] text-slate-500 block font-bold uppercase">Total Time</span>
-                          <span className="font-extrabold text-slate-700">{formatSeconds(silver.totalTimeTakenSeconds)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="order-2 md:order-1 hidden md:block" />
-                  )}
-
-                  {/* Gold - 1st Place */}
-                  {gold ? (
-                    <div className="order-1 md:order-2 bg-gradient-to-b from-amber-50 via-yellow-50 to-amber-100/60 border-2 border-amber-400 rounded-3xl p-6 text-center flex flex-col items-center shadow-md relative -translate-y-2">
-                      <div className="absolute -top-3 bg-amber-500 text-white font-black text-[10px] px-3.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                        <Trophy size={11} /> Overall #1
-                      </div>
-                      <div className="w-14 h-14 rounded-full bg-amber-400 border-2 border-amber-500 flex items-center justify-center text-slate-950 mb-2 font-black text-xl shadow-md mt-1">
-                        1
-                      </div>
-                      <Trophy size={34} className="text-amber-500 mb-1" />
-                      <h4 className="text-base font-black text-slate-950 truncate max-w-full">{gold.name}</h4>
-                      <p className="text-xs text-amber-900 truncate max-w-full font-bold">{gold.college || 'PRPCEM Amravati'}</p>
-                      <div className="mt-4 pt-3 border-t border-amber-300/80 w-full flex justify-between items-center text-xs">
-                        <div>
-                          <span className="text-[10px] text-amber-800 block uppercase font-black">Total Score</span>
-                          <span className="font-black text-amber-950 text-xl">{gold.totalScore} pts</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[10px] text-amber-800 block uppercase font-black">Total Time</span>
-                          <span className="font-black text-slate-900 text-sm">{formatSeconds(gold.totalTimeTakenSeconds)}</span>
-                        </div>
-                      </div>
-                      <div className="mt-2 text-[11px] font-extrabold text-emerald-800 flex items-center gap-1">
-                        <CheckCircle2 size={12} className="text-emerald-600" />
-                        Attended {gold.quizzesAttendedCount} / {selectedQuizzesMeta.length} Quizzes
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* Bronze - 3rd Place */}
-                  {bronze ? (
-                    <div className="order-3 bg-gradient-to-b from-orange-50 to-amber-50 border border-amber-300 rounded-2xl p-5 text-center flex flex-col items-center shadow-sm hover:shadow-md transition">
-                      <div className="w-12 h-12 rounded-full bg-amber-200 border-2 border-amber-400 flex items-center justify-center text-amber-950 mb-2 font-black text-base shadow-xs">
-                        3
-                      </div>
-                      <Award size={28} className="text-amber-700 mb-1" />
-                      <h4 className="text-sm font-black text-slate-900 truncate max-w-full">{bronze.name}</h4>
-                      <p className="text-[11px] text-slate-500 truncate max-w-full font-semibold">{bronze.college || 'PRPCEM Amravati'}</p>
-                      <div className="mt-3 pt-3 border-t border-amber-200 w-full flex justify-between items-center text-xs">
-                        <div>
-                          <span className="text-[10px] text-slate-500 block font-bold uppercase">Total Score</span>
-                          <span className="font-black text-slate-900 text-base">{bronze.totalScore} pts</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[10px] text-slate-500 block font-bold uppercase">Total Time</span>
-                          <span className="font-extrabold text-slate-700">{formatSeconds(bronze.totalTimeTakenSeconds)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="order-3 hidden md:block" />
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Leaderboard Table Section */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
-              {/* Filter & Search Bar */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
-                <div className="relative flex-1 max-w-md">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by participant name or college..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition"
-                  />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Attendance Filter Tabs */}
-                  <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => setAttendanceFilter('all')}
-                      className={`px-3 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer ${
-                        attendanceFilter === 'all'
-                          ? 'bg-white text-purple-700 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      All ({leaderboardData.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAttendanceFilter('completed')}
-                      className={`px-3 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer ${
-                        attendanceFilter === 'completed'
-                          ? 'bg-white text-emerald-700 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Active ({summary.completedCount || 0})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAttendanceFilter('not_attended')}
-                      className={`px-3 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer ${
-                        attendanceFilter === 'not_attended'
-                          ? 'bg-white text-rose-700 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Absent ({summary.notAttendedCount || 0})
-                    </button>
-                  </div>
-
-                  {/* Sort dropdown */}
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-                    <span>Sort:</span>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-                    >
-                      <option value="rank">Rank (Score + Time)</option>
-                      <option value="score">Highest Score</option>
-                      <option value="time">Fastest Time</option>
-                      <option value="attendance">Most Attended</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Table Render */}
-              {loading ? (
-                <div className="py-12 text-center text-xs text-slate-500 font-semibold flex items-center justify-center gap-2">
-                  <RefreshCw size={16} className="animate-spin text-purple-600" />
-                  Calculating cumulative standings...
-                </div>
-              ) : filteredLeaderboard.length === 0 ? (
-                <div className="py-12 text-center text-xs text-slate-500 font-medium">
-                  No participants matched your current search or filters.
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
-                  <table className="w-full text-left text-xs min-w-[900px]">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-slate-600 font-black uppercase tracking-wider text-[11px] bg-slate-100/80">
-                        <th className="py-3.5 px-3 w-16 text-center whitespace-nowrap">Rank</th>
-                        <th className="py-3.5 px-4 min-w-[200px] max-w-[280px] whitespace-nowrap">Participant</th>
-                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Score</th>
-                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Time</th>
-                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Attendance</th>
-                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Accuracy</th>
-                        {selectedQuizzesMeta.map((quiz, idx) => (
-                          <th key={quiz.id} className="py-3.5 px-3 text-center min-w-[130px] max-w-[160px] whitespace-nowrap">
-                            <span className="block truncate font-bold text-slate-800 normal-case text-xs max-w-[140px] mx-auto" title={quiz.title}>
-                              Q{idx + 1}: {quiz.title}
-                            </span>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {paginatedLeaderboard.map((student) => {
-                        const isGold = student.rank === 1 && student.quizzesAttendedCount > 0;
-                        const isSilver = student.rank === 2 && student.quizzesAttendedCount > 0;
-                        const isBronze = student.rank === 3 && student.quizzesAttendedCount > 0;
-                        const isAbsent = student.quizzesAttendedCount === 0;
-
-                        return (
-                          <tr
-                            key={student.key || student.id || student.name}
-                            className={`transition-colors hover:bg-purple-50/25 ${
-                              isGold ? 'bg-amber-50/40 font-semibold' : ''
-                            } ${isSilver ? 'bg-slate-50/70' : ''} ${isBronze ? 'bg-orange-50/30' : ''} ${
-                              isAbsent ? 'opacity-60 bg-slate-50/30' : 'bg-white'
-                            }`}
-                          >
-                            {/* Rank Medal / Badge */}
-                            <td className="py-3 px-3 text-center whitespace-nowrap">
-                              <div className="flex items-center justify-center">
-                                {isGold ? (
-                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-400 text-slate-950 font-black text-xs shadow-xs ring-2 ring-amber-300/60">
-                                    🥇
-                                  </span>
-                                ) : isSilver ? (
-                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-300 text-slate-800 font-black text-xs shadow-xs ring-2 ring-slate-200">
-                                    🥈
-                                  </span>
-                                ) : isBronze ? (
-                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-200 text-amber-950 font-black text-xs shadow-xs ring-2 ring-amber-400/40">
-                                    🥉
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-slate-600 font-bold text-xs border border-slate-200">
-                                    #{student.rank}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-
-                            {/* Participant Name & College */}
-                            <td className="py-3 px-4 min-w-[200px] max-w-[280px]">
-                              <div className="space-y-0.5">
-                                <div className="font-extrabold text-slate-900 flex items-center gap-1.5" title={student.name}>
-                                  <span className="truncate max-w-[200px]">
-                                    {student.name}
-                                  </span>
-                                  {student.quizzesAttendedCount > 0 && (
-                                    <ShieldCheck size={13} className="text-purple-600 shrink-0" title="Verified Participant" />
-                                  )}
-                                </div>
-                                <div className="text-[10px] text-slate-500 font-medium truncate max-w-[200px]" title={student.college || 'PRPCEM Amravati'}>
-                                  {student.college || 'PRPCEM Amravati'}
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* Cumulative Score */}
-                            <td className="py-3 px-4 text-center whitespace-nowrap">
-                              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-900 font-black rounded-xl border border-purple-200/80 text-xs shadow-2xs whitespace-nowrap">
-                                <span>{student.totalScore}</span>
-                                <span className="text-[10px] font-bold opacity-75 uppercase tracking-wider">pts</span>
-                              </span>
-                            </td>
-
-                            {/* Total Time */}
-                            <td className="py-3 px-4 text-center font-bold text-slate-700 whitespace-nowrap">
-                              {student.totalTimeTakenSeconds > 0 ? (
-                                <span className="inline-flex items-center justify-center gap-1.5 text-slate-700 font-semibold bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/70 text-xs whitespace-nowrap tabular-nums">
-                                  <Clock size={12} className="text-slate-400 shrink-0" />
-                                  <span>{formatSeconds(student.totalTimeTakenSeconds)}</span>
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </td>
-
-                            {/* Attendance */}
-                            <td className="py-3 px-4 text-center whitespace-nowrap">
-                              <div className="inline-flex flex-col items-center whitespace-nowrap">
-                                <span
-                                  className={`text-[11px] font-extrabold ${
-                                    student.quizzesAttendedCount === selectedQuizzesMeta.length
-                                      ? 'text-emerald-700'
-                                      : student.quizzesAttendedCount > 0
-                                      ? 'text-blue-700'
-                                      : 'text-slate-400'
-                                  }`}
-                                >
-                                  {student.quizzesAttendedCount} / {selectedQuizzesMeta.length}
-                                </span>
-                                <div className="w-14 bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1">
-                                  <div
-                                    className={`h-full ${
-                                      student.quizzesAttendedCount === selectedQuizzesMeta.length
-                                        ? 'bg-emerald-500'
-                                        : student.quizzesAttendedCount > 0
-                                        ? 'bg-blue-500'
-                                        : 'bg-transparent'
-                                    }`}
-                                    style={{ width: `${student.attendancePercentage || 0}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* Accuracy */}
-                            <td className="py-3 px-4 text-center font-bold whitespace-nowrap">
-                              {student.quizzesAttendedCount > 0 ? (
-                                <span className="text-slate-800 text-xs sm:text-sm">
-                                  {student.accuracyPercentage}%
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </td>
-
-                            {/* Per-Quiz Breakdown */}
-                            {selectedQuizzesMeta.map((quiz) => {
-                              const breakdown = student.quizBreakdown?.[quiz.id];
-                              const isQuizAttended = breakdown && breakdown.status !== 'not_attended';
-
-                              return (
-                                <td key={quiz.id} className="py-3 px-3 text-center whitespace-nowrap">
-                                  {isQuizAttended ? (
-                                    <div className="inline-flex flex-col items-center justify-center px-2.5 py-1 bg-slate-50 border border-slate-200/80 rounded-xl whitespace-nowrap min-w-[80px]">
-                                      <span className="font-extrabold text-slate-900 text-xs block">
-                                        {breakdown.score} <span className="text-[10px] text-slate-500 font-medium">pts</span>
-                                      </span>
-                                      <span className="text-[10px] text-slate-500 font-semibold block mt-0.5 tabular-nums">
-                                        {formatSeconds(breakdown.timeTakenSeconds)}
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-[10px] text-slate-400 font-semibold bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200 block whitespace-nowrap">
-                                      Absent
-                                    </span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Pagination Controls */}
-              {!loading && filteredLeaderboard.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 mt-4 border-t border-slate-100">
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 font-medium">
-                    <div>
-                      Showing <span className="font-black text-slate-900">{startRecord}</span> to{' '}
-                      <span className="font-black text-slate-900">{endRecord}</span> of{' '}
-                      <span className="font-black text-slate-900">{totalItems}</span> participants
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-400 text-[11px] font-semibold">Per page:</span>
-                      <select
-                        value={pageSize}
-                        onChange={(e) => {
-                          setPageSize(e.target.value === 'all' ? 'all' : Number(e.target.value));
-                          setCurrentPage(1);
-                        }}
-                        className="bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer"
-                      >
-                        <option value={10}>10</option>
-                        <option value={25}>25</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                        <option value="all">All</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {totalPages > 1 && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        disabled={validCurrentPage === 1}
-                        onClick={() => setCurrentPage(1)}
-                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
-                        title="First Page"
-                        aria-label="First Page"
-                      >
-                        <ChevronsLeft size={16} />
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={validCurrentPage === 1}
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
-                        title="Previous Page"
-                        aria-label="Previous Page"
-                      >
-                        <ChevronLeft size={16} />
-                      </button>
-
-                      <div className="flex items-center gap-1 mx-1">
-                        {paginationItems.map((item, idx) => {
-                          if (item === '...') {
-                            return (
-                              <span
-                                key={`dots-${idx}`}
-                                className="w-8 h-8 flex items-center justify-center text-slate-400 font-bold select-none text-xs"
-                              >
-                                ...
-                              </span>
-                            );
-                          }
-                          const pageNum = Number(item);
-                          const isActive = pageNum === validCurrentPage;
-                          return (
-                            <button
-                              key={pageNum}
-                              type="button"
-                              onClick={() => setCurrentPage(pageNum)}
-                              className={`w-8 h-8 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center shadow-2xs ${
-                                isActive
-                                  ? 'bg-purple-600 text-white shadow-purple-500/20'
-                                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={validCurrentPage === totalPages}
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
-                        title="Next Page"
-                        aria-label="Next Page"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={validCurrentPage === totalPages}
-                        onClick={() => setCurrentPage(totalPages)}
-                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
-                        title="Last Page"
-                        aria-label="Last Page"
-                      >
-                        <ChevronsRight size={16} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </>
-        )}
+          )}
+        </div>
 
       </div>
     </div>

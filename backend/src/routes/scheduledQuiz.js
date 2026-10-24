@@ -8,7 +8,7 @@ const adminAuth = [authMiddleware, authMiddleware.requireAdmin];
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 const { sendQuizReminderEmail } = require('../services/emailService');
-const { calculateScheduledQuestionScore, calculateNormalizedScoreAndXP, rankLeaderboard, getDifficultyConfig } = require('../services/scoringService');
+const { calculateScheduledQuestionScore, calculateNormalizedScoreAndXP, rankLeaderboard, getDifficultyConfig, getDifficultyPoints } = require('../services/scoringService');
 const { getInjectedScoresForQuiz } = require('../services/injectedScoresService');
 const { normalizeAnswers, isAnswerCorrect, determineQuestionType } = require('../utils/answerUtils');
 
@@ -1736,7 +1736,8 @@ router.post('/attempts/:attemptId/answer', async (req, res) => {
 
     const quiz = await Quiz.findByPk(attempt.quiz_id);
     const isCorrect = isAnswerCorrect(selectedOption, question.correct_answer);
-    const points = isCorrect ? (quiz.positive_marks || 1) : -(quiz.negative_marks || 0);
+    const diffPoints = getDifficultyPoints(question.difficulty);
+    const points = isCorrect ? diffPoints : -(quiz.negative_marks || 0);
 
     const normSelected = normalizeAnswers(selectedOption);
 
@@ -1816,9 +1817,7 @@ router.post('/attempts/:attemptId/submit', async (req, res) => {
     let incorrectCount = 0;
 
     questions.forEach(q => {
-      const qMarks = (q.marks !== undefined && q.marks !== null && Number(q.marks) > 0)
-        ? Number(q.marks)
-        : (Number(quiz.positive_marks) > 0 ? Number(quiz.positive_marks) : 1);
+      const qPoints = getDifficultyPoints(q.difficulty);
       const qNegMarks = (q.negative_marks !== undefined && q.negative_marks !== null)
         ? Number(q.negative_marks)
         : (Number(quiz.negative_marks) || 0);
@@ -1828,7 +1827,7 @@ router.post('/attempts/:attemptId/submit', async (req, res) => {
         const isCorrect = isAnswerCorrect(ans.selected_option, q.correct_answer);
         if (isCorrect) {
           correctCount++;
-          totalScore += qMarks;
+          totalScore += qPoints;
         } else {
           incorrectCount++;
           totalScore -= Math.abs(qNegMarks);

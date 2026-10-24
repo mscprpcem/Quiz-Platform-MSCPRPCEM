@@ -6,7 +6,7 @@ const {
 } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
-const { rankLeaderboard, calculateNormalizedScoreAndXP } = require('../services/scoringService');
+const { rankLeaderboard, calculateNormalizedScoreAndXP, getDifficultyPoints } = require('../services/scoringService');
 const { getInjectedScoresForQuiz, loadInjectedScoresData } = require('../services/injectedScoresService');
 
 // Public endpoint for homepage leaderboard & recent events
@@ -78,8 +78,8 @@ router.get('/public/leaderboard', async (req, res) => {
 
       let attScore = Math.round(Number(att.score) || 0);
       const attCorrect = Number(att.correct_count) || 0;
-      // Normalize legacy inflated scores (e.g. 10,000 or 100+ points when questions are few) to 1 count per question
-      if (attScore >= 50 && attCorrect > 0 && attCorrect <= 30) {
+      // Normalize legacy inflated scores (e.g. 10,000 or 500+ points)
+      if (attScore >= 200 && attCorrect > 0 && attCorrect <= 50) {
         attScore = attCorrect;
       }
 
@@ -988,8 +988,8 @@ const handleCumulativeLeaderboard = async (req, res) => {
       const timeSeconds = Math.max(0, Number(att.time_taken_seconds) || 0);
       const correct = Number(att.correct_count) || 0;
       const incorrect = Number(att.incorrect_count) || 0;
-      // Normalize legacy inflated scores (e.g. 10000) to 1 count per question for beginner / standard
-      if (score >= 50 && correct > 0 && correct <= 30) {
+      // Normalize legacy inflated scores (e.g. 10000 or 500+)
+      if (score >= 200 && correct > 0 && correct <= 50) {
         score = correct;
       }
       const isAttended = att.status !== 'not_attended';
@@ -1057,8 +1057,8 @@ const handleCumulativeLeaderboard = async (req, res) => {
         const incorrect = pAnswers.filter(a => !a.is_correct).length;
         const pPoints = pAnswers.reduce((sum, a) => sum + (Number(a.points) || 0), 0);
         let score = pPoints > 0 ? pPoints : Math.max(0, (correct * (qMeta.positive_marks || 1)) - (incorrect * (qMeta.negative_marks || 0)));
-        // Normalize live inflated score down to 1 count per question
-        if (score >= 50 && correct <= 30) {
+        // Normalize live inflated score (500+)
+        if (score >= 200 && correct <= 50) {
           score = correct;
         }
         const timeSeconds = Math.round(pAnswers.reduce((sum, a) => sum + (Number(a.response_time) || 0), 0) / 1000);

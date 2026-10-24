@@ -123,6 +123,12 @@ export default function Navbar() {
                 icon={Play}
                 label="Join Quiz"
               />
+              <NavButton
+                onClick={() => navTo('/leaderboard')}
+                isActive={isActive('/leaderboard') || isActive('/standings')}
+                icon={Trophy}
+                label="Leaderboard"
+              />
 
               {/* Student Account or Admin Account Status / Sign Out vs Login */}
               {studentAccount ? (
@@ -212,9 +218,15 @@ export default function Navbar() {
                 label="Join Live Quiz"
               />
               <MobileNavButton
+                onClick={() => navTo('/leaderboard')}
+                isActive={isActive('/leaderboard') || isActive('/standings')}
+                icon={Trophy}
+                label="Leaderboard & Standings"
+              />
+              <MobileNavButton
                 onClick={() => navTo('/practice')}
                 isActive={isActive('/practice')}
-                icon={Trophy}
+                icon={FileCode}
                 label="Practice Challenges"
               />
               

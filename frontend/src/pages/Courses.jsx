@@ -70,8 +70,8 @@ const FALLBACK_COURSES = [
     desc: 'Master Git branching, pull requests, merge conflict resolution, CI/CD workflows, and open-source collaboration in our virtual terminal.',
     imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/github.svg',
     color: 'from-rose-50/80 to-pink-50/50 border-rose-200/80',
-    status: 'coming_soon',
-    badge: 'Coming Soon',
+    status: 'published',
+    badge: 'Interactive Lab Active',
     hasInteractiveLab: true
   }
 ];
@@ -246,13 +246,13 @@ export default function Courses() {
                       </div>
 
                       <span className={`text-[10px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider ${
-                        course.slug === 'dbms'
+                        course.slug === 'dbms' || course.slug === 'git'
                           ? 'bg-blue-100 text-blue-800 border border-blue-300'
                           : isPublished
                           ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse'
                           : 'bg-amber-100/80 text-amber-800 border border-amber-200'
                       }`}>
-                        {course.slug === 'dbms' ? '⚡ Interactive Lab' : isPublished ? 'Quiz Available' : 'Coming Soon'}
+                        {course.slug === 'dbms' || course.slug === 'git' ? '⚡ Interactive Lab' : isPublished ? 'Quiz Available' : 'Coming Soon'}
                       </span>
                     </div>
 
@@ -283,7 +283,7 @@ export default function Courses() {
                     )}
 
                     {/* Git Lab Feature Badges */}
-                    {course.slug === 'git' && isPublished && (
+                    {course.slug === 'git' && (
                       <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold text-slate-600">
                         <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center gap-1">
                           <BookOpen size={10} /> 34 Topics & Lessons
@@ -340,7 +340,7 @@ export default function Courses() {
                           <span>Code Lab</span>
                         </button>
                       </div>
-                    ) : course.slug === 'git' && isPublished ? (
+                    ) : course.slug === 'git' ? (
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => navigate('/courses/git')}

@@ -665,7 +665,15 @@ export default function Home() {
               <p className="text-brand-textMuted text-xs sm:text-sm">Recognizing top scoring members across live quizzes and scheduled tests.</p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/leaderboard')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black transition-all shadow-xs w-fit cursor-pointer active:scale-98"
+              >
+                <Trophy size={14} />
+                <span>View Full Leaderboard (25/page)</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setShowMatrixModal(true)}
