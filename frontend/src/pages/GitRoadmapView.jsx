@@ -122,7 +122,8 @@ export default function GitRoadmapView({ onBackToOverview }) {
           {/* Week Selector Pills */}
           <div className="flex flex-wrap gap-1 sm:gap-1.5">
             {[
-              { id: 'all', label: 'All 30 Days' },
+              { id: 'all', label: 'All Days' },
+              { id: 'Orientation', label: 'Day 0: Orientation' },
               { id: 'Week 1', label: 'Week 1: Foundations' },
               { id: 'Week 2', label: 'Week 2: Branching' },
               { id: 'Week 3', label: 'Week 3: GitHub' },

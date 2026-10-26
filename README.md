@@ -210,6 +210,7 @@ Visit `http://localhost:5173` in your browser.
 ## 📚 Platform Documentation & Guides
 
 - 📘 **[Neon Serverless Postgres Guide](docs/neon-guide.md)**: Full guide to running, branching, and scaling with Neon.
+- 🐙 **[30-Day Git & GitHub Developer Roadmap](30_DAY_GIT_GITHUB_ROADMAP.md)**: Complete 30-day curriculum with daily modules and hands-on practical tasks.
 - 📐 **[Design & Architecture Specification](DESIGN.md)**: Comprehensive architectural topology, ERDs, and state diagrams.
 - 🔒 **[Security Audit & Remediation Report](report.md)**: 100% verified security audit covering all 19 remediations.
 

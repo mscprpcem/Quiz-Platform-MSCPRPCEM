@@ -5,7 +5,7 @@ import {
   ChevronRight, ChevronDown, ChevronUp, ArrowLeft, ArrowRight,
   Search, Menu, X, Clock, Sparkles, Layers, ShieldCheck,
   AlertTriangle, Lightbulb, ExternalLink, Code2, Play, Bookmark,
-  CheckSquare, ArrowUpRight, Flame, Trophy, FileText, Compass
+  CheckSquare, ArrowUpRight, Flame, Trophy, FileText, Compass, Info
 } from 'lucide-react';
 import { GIT_CURRICULUM } from '../data/gitCurriculumData';
 import api from '../services/api';
@@ -192,74 +192,241 @@ function VisualDiagramBlock({ content }) {
 }
 
 /**
- * Rich Markdown Lesson Content Parser
+ * Robust Structured Markdown Parser for Lesson Content
+ */
+function parseMarkdownBlocks(markdown) {
+  if (!markdown) return [];
+  const lines = markdown.split('\n');
+  const blocks = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
+
+    if (!trimmed) {
+      i++;
+      continue;
+    }
+
+    // 1. Code blocks: ```
+    if (trimmed.startsWith('```')) {
+      const codeLines = [rawLine];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      if (i < lines.length) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      blocks.push({ type: 'code', raw: codeLines.join('\n') });
+      continue;
+    }
+
+    // 2. Images: ![alt](url)
+    if (trimmed.startsWith('![') && trimmed.includes('](') && trimmed.endsWith(')')) {
+      const match = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
+      if (match) {
+        blocks.push({ type: 'image', alt: match[1], src: match[2] });
+        i++;
+        continue;
+      }
+    }
+
+    // 3. Tables: lines starting and ending with |
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      const tableLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      blocks.push({ type: 'table', lines: tableLines });
+      continue;
+    }
+
+    // 4. Blockquotes / Alerts: lines starting with >
+    if (trimmed.startsWith('>')) {
+      const quoteLines = [];
+      while (i < lines.length && (lines[i].trim().startsWith('>') || (lines[i].trim() && quoteLines.length > 0 && !lines[i].trim().startsWith('#') && !lines[i].trim().startsWith('```')))) {
+        if (!lines[i].trim()) break;
+        quoteLines.push(lines[i].trim().replace(/^>\s*/, ''));
+        i++;
+      }
+      const quoteContent = quoteLines.join(' ');
+      blocks.push({ type: 'quote', raw: trimmed, content: quoteContent });
+      continue;
+    }
+
+    // 5. Horizontal rule: ---
+    if (trimmed === '---' || trimmed === '***') {
+      blocks.push({ type: 'hr' });
+      i++;
+      continue;
+    }
+
+    // 6. Headings: ###, ####, ##, #
+    if (trimmed.startsWith('#')) {
+      const hashes = trimmed.match(/^#+/)[0];
+      const level = hashes.length;
+      const headingText = trimmed.replace(/^#+\s*/, '');
+      blocks.push({ type: 'heading', level, text: headingText });
+      i++;
+      continue;
+    }
+
+    // 7. Unordered lists: * or -
+    if (/^[-*]\s+/.test(trimmed)) {
+      const items = [];
+      while (i < lines.length && /^[-*]\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^[-*]\s+/, ''));
+        i++;
+      }
+      blocks.push({ type: 'ul', items });
+      continue;
+    }
+
+    // 8. Ordered lists: 1. , 2. 
+    if (/^\d+\.\s+/.test(trimmed)) {
+      const items = [];
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^\d+\.\s+/, ''));
+        i++;
+      }
+      blocks.push({ type: 'ol', items });
+      continue;
+    }
+
+    // 9. Standard Paragraph (accumulate consecutive text lines)
+    const pLines = [];
+    while (
+      i < lines.length &&
+      lines[i].trim() &&
+      !lines[i].trim().startsWith('```') &&
+      !lines[i].trim().startsWith('#') &&
+      !lines[i].trim().startsWith('>') &&
+      !lines[i].trim().startsWith('|') &&
+      !lines[i].trim().startsWith('![') &&
+      lines[i].trim() !== '---' &&
+      !/^[-*]\s+/.test(lines[i].trim()) &&
+      !/^\d+\.\s+/.test(lines[i].trim())
+    ) {
+      pLines.push(lines[i].trim());
+      i++;
+    }
+
+    if (pLines.length > 0) {
+      blocks.push({ type: 'paragraph', text: pLines.join(' ') });
+    }
+  }
+
+  return blocks;
+}
+
+/**
+ * Rich Markdown Lesson Content Component
  */
 function GitLessonContent({ markdown, onJumpToPractice }) {
   if (!markdown) return null;
 
-  const blocks = markdown.trim().split('\n\n');
+  const blocks = useMemo(() => parseMarkdownBlocks(markdown), [markdown]);
 
   const renderInline = (text) => {
+    if (!text) return null;
+    // Strip any unicode emojis completely
+    const cleanText = text.replace(/[\u{1F300}-\u{1F9FF}]|[⚠️🚨⚡🔥🎯💡🧭🗺️]/gu, '');
     const parts = [];
-    const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+    const regex = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
     let lastIndex = 0;
     let match;
 
-    while ((match = regex.exec(text)) !== null) {
+    while ((match = regex.exec(cleanText)) !== null) {
       if (match.index > lastIndex) {
-        parts.push(text.slice(lastIndex, match.index));
+        parts.push(cleanText.slice(lastIndex, match.index));
       }
       const token = match[0];
       if (token.startsWith('**') && token.endsWith('**')) {
         parts.push(
-          <strong key={match.index} className="font-extrabold text-slate-900 bg-slate-100/90 px-1 py-0.5 rounded text-inherit">
+          <strong key={match.index} className="font-semibold text-slate-900">
             {token.slice(2, -2)}
           </strong>
         );
       } else if (token.startsWith('`') && token.endsWith('`')) {
         parts.push(
-          <code key={match.index} className="font-mono text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200/80 px-1.5 py-0.5 rounded">
+          <code key={match.index} className="font-mono text-xs font-semibold text-blue-700 bg-blue-50/70 border border-blue-200/60 px-1.5 py-0.5 rounded">
             {token.slice(1, -1)}
           </code>
+        );
+      } else if (token.startsWith('*') && token.endsWith('*')) {
+        parts.push(
+          <em key={match.index} className="italic text-slate-700">
+            {token.slice(1, -1)}
+          </em>
         );
       }
       lastIndex = regex.lastIndex;
     }
 
-    if (lastIndex < text.length) {
-      parts.push(text.slice(lastIndex));
+    if (lastIndex < cleanText.length) {
+      parts.push(cleanText.slice(lastIndex));
     }
     return parts;
   };
 
   return (
-    <div className="space-y-6 text-slate-700 text-sm sm:text-base leading-relaxed font-normal">
+    <div className="space-y-6 text-slate-600 text-sm sm:text-base leading-relaxed font-normal">
       {blocks.map((block, idx) => {
-        const trimmed = block.trim();
-        if (!trimmed) return null;
-
-        if (trimmed.startsWith('### ')) {
-          const headingText = trimmed.replace('### ', '');
+        // Image
+        if (block.type === 'image') {
           return (
-            <div key={idx} className="pt-4 border-t border-slate-100 first:border-t-0 first:pt-0">
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                <span className="w-2 h-6 bg-blue-600 rounded-full inline-block" />
-                {headingText}
+            <figure key={idx} className="my-8 rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm bg-white p-3 sm:p-5">
+              <img
+                src={block.src}
+                alt={block.alt}
+                className="w-full h-auto max-h-[580px] object-contain rounded-xl mx-auto block shadow-2xs"
+                loading="lazy"
+              />
+              {block.alt && (
+                <figcaption className="text-center text-xs sm:text-sm text-slate-500 font-medium mt-3 italic">
+                  {block.alt.replace(/[\u{1F300}-\u{1F9FF}]|[⚠️🚨⚡🔥🎯💡🧭🗺️]/gu, '')}
+                </figcaption>
+              )}
+            </figure>
+          );
+        }
+
+        // Heading
+        if (block.type === 'heading') {
+          const cleanHeading = block.text.replace(/[\u{1F300}-\u{1F9FF}]|[⚠️🚨⚡🔥🎯💡🧭🗺️]/gu, '').trim();
+          if (block.level <= 3) {
+            return (
+              <div key={idx} className="pt-6 pb-1 border-t border-slate-200/80 first:border-t-0 first:pt-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                  <span className="w-1.5 h-5 bg-blue-600 rounded-sm inline-block shrink-0" />
+                  <span>{renderInline(cleanHeading)}</span>
+                </h2>
+              </div>
+            );
+          }
+
+          return (
+            <div key={idx} className="pt-3 pb-1">
+              <h3 className="text-base sm:text-lg font-bold text-slate-800 tracking-tight">
+                {renderInline(cleanHeading)}
               </h3>
             </div>
           );
         }
 
-        if (trimmed.startsWith('#### ')) {
-          return (
-            <h4 key={idx} className="text-base sm:text-lg font-black text-slate-800 pt-2 tracking-tight">
-              {trimmed.replace('#### ', '')}
-            </h4>
-          );
+        // Horizontal Rule
+        if (block.type === 'hr') {
+          return <hr key={idx} className="my-6 border-slate-200/80" />;
         }
 
-        if (trimmed.startsWith('```')) {
-          const codeLines = trimmed.split('\n');
+        // Code Block
+        if (block.type === 'code') {
+          const codeLines = block.raw.trim().split('\n');
           const firstLine = codeLines[0].replace('```', '').trim().toLowerCase();
           const cleanCode = codeLines.slice(1, -1).join('\n');
 
@@ -279,50 +446,45 @@ function GitLessonContent({ markdown, onJumpToPractice }) {
           );
         }
 
-        if (trimmed.startsWith('> 💡') || trimmed.startsWith('>💡')) {
-          const text = trimmed.replace(/^>\s*💡\s*/, '');
-          return (
-            <aside key={idx} className="my-6 bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-yellow-50/80 border-2 border-amber-300/80 rounded-2xl p-5 sm:p-6 shadow-sm">
-              <div className="flex items-start space-x-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-200/80 text-amber-900 flex items-center justify-center shrink-0 text-lg">
-                  💡
-                </div>
-                <div className="space-y-1.5 flex-1">
-                  <span className="text-xs font-black uppercase tracking-wider text-amber-900 block">
-                    Developer Mental Model (ELI5)
-                  </span>
-                  <div className="text-xs sm:text-sm text-amber-950 font-medium leading-relaxed">
-                    {renderInline(text)}
+        // Blockquotes & Notes (NO emojis, clean SVG icons)
+        if (block.type === 'quote') {
+          const cleanContent = block.content.replace(/[\u{1F300}-\u{1F9FF}]|[⚠️🚨⚡🔥🎯💡🧭🗺️]/gu, '').trim();
+          const isWarning = /warning|critical|caution|danger|rule|important/i.test(cleanContent);
+
+          if (isWarning) {
+            return (
+              <aside
+                key={idx}
+                className="my-5 rounded-xl p-4 sm:p-5 border-l-4 border-amber-500 bg-amber-50/70 text-slate-800 shadow-2xs"
+              >
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1 flex-1">
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-900 block">
+                      Important Technical Notice
+                    </span>
+                    <div className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
+                      {renderInline(cleanContent)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </aside>
-          );
-        }
+              </aside>
+            );
+          }
 
-        if (trimmed.startsWith('> ⚠️') || trimmed.startsWith('> 🚨') || trimmed.startsWith('>⚠️') || trimmed.startsWith('>🚨')) {
-          const isCritical = trimmed.includes('🚨');
-          const cleanText = trimmed.replace(/^>\s*[⚠️🚨]\s*/, '');
           return (
             <aside
               key={idx}
-              className={`my-6 rounded-2xl p-5 border-l-4 shadow-xs ${
-                isCritical
-                  ? 'bg-rose-50/80 border-rose-600 text-rose-950'
-                  : 'bg-amber-50/80 border-amber-500 text-amber-950'
-              }`}
+              className="my-5 rounded-xl p-4 sm:p-5 border-l-4 border-blue-600 bg-blue-50/60 text-slate-800 shadow-2xs"
             >
               <div className="flex items-start space-x-3">
-                <AlertTriangle
-                  size={20}
-                  className={`shrink-0 mt-0.5 ${isCritical ? 'text-rose-600' : 'text-amber-600'}`}
-                />
+                <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
                 <div className="space-y-1 flex-1">
-                  <span className="text-xs font-black uppercase tracking-wider block">
-                    {isCritical ? 'Critical Security & Production Rule' : 'Important Developer Warning'}
+                  <span className="text-xs font-bold uppercase tracking-wider text-blue-900 block">
+                    Key Concept
                   </span>
-                  <div className="text-xs sm:text-sm leading-relaxed font-medium">
-                    {renderInline(cleanText)}
+                  <div className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
+                    {renderInline(cleanContent)}
                   </div>
                 </div>
               </div>
@@ -330,42 +492,75 @@ function GitLessonContent({ markdown, onJumpToPractice }) {
           );
         }
 
-        if (trimmed.startsWith('> ')) {
-          const cleanQuote = trimmed.replace(/^>\s*/, '');
+        // Unordered List
+        if (block.type === 'ul') {
           return (
-            <blockquote key={idx} className="my-6 border-l-4 border-blue-500 bg-blue-50/60 p-4 sm:p-5 rounded-r-2xl text-blue-950 text-xs sm:text-sm shadow-xs flex items-start space-x-3">
-              <Lightbulb size={20} className="text-blue-600 shrink-0 mt-0.5" />
-              <div className="flex-1 font-medium leading-relaxed">
-                {renderInline(cleanQuote)}
-              </div>
-            </blockquote>
-          );
-        }
-
-        if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
-          const items = trimmed.split('\n').filter(l => l.trim().startsWith('* ') || l.trim().startsWith('- '));
-          return (
-            <ul key={idx} className="space-y-2 pl-2">
-              {items.map((item, iIdx) => {
-                const itemText = item.trim().replace(/^[-*]\s+/, '');
-                return (
-                  <li key={iIdx} className="flex items-start space-x-2.5 text-xs sm:text-sm text-slate-700">
-                    <span className="text-blue-600 font-black mt-1 text-sm">•</span>
-                    <span className="flex-1 leading-relaxed">{renderInline(itemText)}</span>
-                  </li>
-                );
-              })}
+            <ul key={idx} className="space-y-2 my-3 pl-1">
+              {block.items.map((item, iIdx) => (
+                <li key={iIdx} className="flex items-start space-x-2.5 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-2 shrink-0" />
+                  <span className="flex-1">{renderInline(item)}</span>
+                </li>
+              ))}
             </ul>
           );
         }
 
-        if (trimmed === '---') {
-          return <hr key={idx} className="my-6 border-slate-200" />;
+        // Ordered List
+        if (block.type === 'ol') {
+          return (
+            <ol key={idx} className="space-y-2 my-3 pl-1">
+              {block.items.map((item, iIdx) => (
+                <li key={iIdx} className="flex items-start space-x-2.5 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                  <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    {iIdx + 1}
+                  </span>
+                  <span className="flex-1">{renderInline(item)}</span>
+                </li>
+              ))}
+            </ol>
+          );
         }
 
+        // Table
+        if (block.type === 'table') {
+          const lines = block.lines;
+          if (lines.length >= 2) {
+            const headerCols = lines[0].split('|').map(c => c.trim()).filter(Boolean);
+            const dataRows = lines.slice(2).map(l => l.split('|').map(c => c.trim()).filter(Boolean));
+            return (
+              <div key={idx} className="my-6 overflow-x-auto rounded-xl border border-slate-200/90 shadow-2xs bg-white">
+                <table className="w-full text-left text-xs sm:text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 font-bold">
+                      {headerCols.map((h, hIdx) => (
+                        <th key={hIdx} className="py-2.5 px-4 font-semibold text-slate-700 uppercase tracking-wider text-xs">
+                          {renderInline(h)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {dataRows.map((row, rIdx) => (
+                      <tr key={rIdx} className="hover:bg-blue-50/30 transition-colors even:bg-slate-50/30">
+                        {row.map((cell, cIdx) => (
+                          <td key={cIdx} className="py-2.5 px-4 text-slate-600 font-normal">
+                            {renderInline(cell)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          }
+        }
+
+        // Paragraph
         return (
-          <p key={idx} className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
-            {renderInline(trimmed)}
+          <p key={idx} className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+            {renderInline(block.text)}
           </p>
         );
       })}
@@ -461,6 +656,9 @@ export default function GitLearningView({
     const list = [];
     GIT_CURRICULUM.forEach((tier, tierIdx) => {
       tier.topics.forEach((topic, topicIdx) => {
+        const computedDay = topic.day !== undefined 
+          ? topic.day 
+          : (topic.slug === 'day-0-orientation' ? 0 : list.length);
         list.push({
           ...topic,
           tierId: tier.id,
@@ -468,7 +666,8 @@ export default function GitLearningView({
           tierTitle: tier.title,
           tierBadge: tier.badge,
           tierIndex: tierIdx,
-          lessonCode: `${tier.level}.${topicIdx + 1}`,
+          day: computedDay,
+          lessonCode: `Day ${computedDay}`,
           globalIndex: list.length + 1
         });
       });
@@ -479,7 +678,7 @@ export default function GitLearningView({
   const totalTopicsCount = allTopicsFlat.length;
 
   // 2. Active topic slug state (URL query param > props > default)
-  const initialSlug = searchParams.get('topic') || propTopicSlug || 'git-basics';
+  const initialSlug = searchParams.get('topic') || propTopicSlug || 'day-0-orientation';
   const [currentTopicSlug, setCurrentTopicSlug] = useState(initialSlug);
 
   useEffect(() => {
@@ -635,7 +834,7 @@ export default function GitLearningView({
               <span>Git Course Hub</span>
             </button>
             <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-              34 Lessons
+              {totalTopicsCount} Lessons
             </span>
           </div>
 
@@ -744,7 +943,9 @@ export default function GitLearningView({
                     {filteredTopics.map((topic, topicIdx) => {
                       const isSelected = activeTopic.slug === topic.slug;
                       const isCompleted = completedLessons.includes(topic.slug);
-                      const lessonCode = `${tier.level}.${topicIdx + 1}`;
+                      const lessonCode = topic.day !== undefined 
+                        ? `Day ${topic.day}` 
+                        : (topic.slug === 'day-0-orientation' ? 'Day 0' : `Day ${topicIdx + 1}`);
 
                       return (
                         <button
@@ -769,7 +970,7 @@ export default function GitLearningView({
                                 {lessonCode}
                               </span>
                             )}
-                            <span className="truncate">{topic.title.replace(/^\d+\.\s*/, '')}</span>
+                            <span className="truncate">{topic.title.replace(/^(?:Day\s*\d+:|\d+\.)\s*/, '')}</span>
                           </div>
 
                           <span className="text-[10px] text-slate-400 shrink-0 font-normal">
@@ -810,7 +1011,9 @@ export default function GitLearningView({
               <span className="text-slate-300 hidden md:inline">/</span>
               <span className="text-blue-600 shrink-0 hidden sm:inline">{activeTopic.tierBadge}</span>
               <span className="text-slate-300 hidden sm:inline">/</span>
-              <span className="text-slate-800 font-black truncate max-w-[130px] xs:max-w-[180px] sm:max-w-[260px] md:max-w-xs">{activeTopic.title}</span>
+              <span className="text-slate-800 font-black truncate max-w-[150px] xs:max-w-[200px] sm:max-w-[300px] md:max-w-md">
+                {activeTopic.title.replace(/^(?:Day\s*\d+:|\d+\.)\s*/, '')}
+              </span>
             </nav>
           </div>
 
@@ -854,51 +1057,40 @@ export default function GitLearningView({
           </div>
         </header>
 
-        {/* Scrollable Lesson Article Body */}
+        {/* Scrollable Lesson Article Body — Utilizes full workspace */}
         <div
           id="git-lesson-article-container"
-          className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-12 py-8 custom-scrollbar"
+          className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-20 py-8 custom-scrollbar"
         >
-          <article className="w-full max-w-4xl mx-auto space-y-8 animate-fadeIn text-slate-900">
+          <article className="w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl mx-auto space-y-8 animate-fadeIn text-slate-700 font-normal">
             
             {/* 1. TOPIC HEADER BANNER */}
-            <header className="space-y-3.5 pb-6 border-b border-slate-200">
-              <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <header className="space-y-4 pb-6 border-b border-slate-200/90">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center space-x-2">
-                  <span className="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-black tracking-wide shadow-xs">
-                    {activeTopic.tierBadge}
+                  <span className="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold tracking-wide shadow-xs">
+                    {activeTopic.lessonCode || `Day ${activeTopic.day}`}
                   </span>
-                  <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-mono font-bold border border-slate-200">
-                    Lesson {activeTopic.lessonCode}
+                  <span className="px-3 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200/70">
+                    {activeTopic.tierBadge}
                   </span>
                 </div>
 
-                <div className="flex items-center space-x-2 text-xs font-bold text-slate-500">
-                  <span className="flex items-center gap-1">
-                    <Clock size={13} className="text-slate-400" />
+                <div className="flex items-center space-x-2 text-xs font-medium text-slate-500">
+                  <span className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-md text-slate-600">
+                    <Clock size={13} className="text-slate-500" />
                     {activeTopic.readTime}
                   </span>
-                  <span>•</span>
-                  <span>{currentGlobalIndex} of {totalTopicsCount}</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="bg-slate-100/80 px-2.5 py-1 rounded-md text-slate-600 font-mono text-xs">
+                    Lesson {currentGlobalIndex} of {totalTopicsCount}
+                  </span>
                 </div>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-                {activeTopic.title}
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                {activeTopic.title.replace(/^(?:Day\s*\d+:|\d+\.)\s*/, '')}
               </h1>
-
-              {/* Lesson Summary Card */}
-              {activeTopic.summary && (
-                <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200/80 text-blue-950 text-xs sm:text-sm font-medium leading-relaxed flex items-start space-x-3">
-                  <Compass size={18} className="text-blue-600 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-blue-800 block">
-                      Lesson Objectives & Core Concept
-                    </span>
-                    <p>{activeTopic.summary}</p>
-                  </div>
-                </div>
-              )}
             </header>
 
             {/* 2. MAIN LESSON MARKDOWN CONTENT */}
@@ -907,31 +1099,27 @@ export default function GitLearningView({
               onJumpToPractice={() => navigate('/practice/git/lab')}
             />
 
-            {/* 3. KEY TAKEAWAYS CHECKLIST */}
-            <section className="pt-6 border-t border-slate-200">
-              <div className="bg-emerald-50/70 border-l-4 border-emerald-500 rounded-r-2xl p-5 space-y-3 shadow-xs">
-                <div className="flex items-center space-x-2 text-emerald-900 font-black text-sm uppercase tracking-wider">
-                  <CheckCircle2 size={18} className="text-emerald-600" />
-                  <span>Key Architectural Takeaways</span>
-                </div>
-                <div className="space-y-2 text-xs sm:text-sm text-slate-800 font-medium">
-                  <div className="flex items-start space-x-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0 mt-2" />
-                    <span>Always run <code className="font-mono text-xs font-bold text-emerald-800 bg-emerald-100/80 px-1 py-0.5 rounded">git status</code> before and after state transitions to keep mental clarity.</span>
+            {/* Optional Topic Takeaways */}
+            {activeTopic.takeaways && activeTopic.takeaways.length > 0 && (
+              <section className="pt-6 border-t border-slate-200">
+                <div className="bg-emerald-50/70 border-l-4 border-emerald-500 rounded-r-2xl p-5 space-y-3 shadow-xs">
+                  <div className="flex items-center space-x-2 text-emerald-900 font-black text-sm uppercase tracking-wider">
+                    <CheckCircle2 size={18} className="text-emerald-600" />
+                    <span>Key Takeaways</span>
                   </div>
-                  <div className="flex items-start space-x-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0 mt-2" />
-                    <span>Git tracks file snapshots rather than diffs, ensuring complete cryptographic tamper resistance.</span>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0 mt-2" />
-                    <span>Commits should be atomic: one logical change per commit with conventional message formatting.</span>
+                  <div className="space-y-2 text-xs sm:text-sm text-slate-800 font-medium">
+                    {activeTopic.takeaways.map((item, tIdx) => (
+                      <div key={tIdx} className="flex items-start space-x-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0 mt-2" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            )}
 
-            {/* 4. BOTTOM LESSON NAVIGATION CONTROLS */}
+            {/* 3. BOTTOM LESSON NAVIGATION CONTROLS */}
             <footer className="pt-8 pb-16 border-t border-slate-200 space-y-4">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 {previousTopic ? (

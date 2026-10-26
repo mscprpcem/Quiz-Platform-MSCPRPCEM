@@ -1,18 +1,31 @@
 // Git & GitHub Complete Curriculum Data (5-Tier Architecture)
 // Designed for MSC PRPCEM Assessment & Learning Platform
+import { DAY_0_TOPIC } from './gitDays/index.js';
 
 export const GIT_CURRICULUM = [
   {
-    id: 'tier-1',
+    id: 'week-0',
+    level: 0,
+    title: 'Orientation: Mental Models & Fundamentals (Day 0)',
+    subtitle: 'The Big Picture, Save Points, Git vs GitHub, computer literacy & 30-day roadmap.',
+    badge: 'Day 0: Orientation',
+    color: 'from-amber-500 to-orange-500',
+    topics: [
+      DAY_0_TOPIC
+    ]
+  },
+  {
+    id: 'week-1',
     level: 1,
-    title: 'Beginner: Git Foundations & Daily Workflow',
-    subtitle: 'Understand the core snapshot model, the 3 trees, staging, and commits.',
-    badge: 'Level 1: Novice',
+    title: 'Week 1: Foundations & Daily Workflow (Days 1–7)',
+    subtitle: 'Understand snapshots, .git anatomy, staging, commits, diffs, and .gitignore.',
+    badge: 'Week 1: Days 1–7',
     color: 'from-blue-600 to-cyan-600',
     topics: [
       {
+        day: 1,
         slug: 'git-basics',
-        title: '1. What is Version Control? (Snapshots vs Deltas)',
+        title: 'Day 1: What is Version Control? (Snapshots vs Deltas)',
         summary: 'Understand why Git won the version control battle: Snapshots over Deltas, distributed architecture, and cryptographic integrity.',
         readTime: '6 min read',
         content: `
@@ -81,7 +94,7 @@ When you run \`git init\`, Git creates a hidden \`.git\` directory. This folder 
     └── tags/       # Release tags (e.g., v1.0.0)
 \`\`\`
 
-> 💡 **Key Takeaway**: If you delete the \`.git\` folder, your project reverts to an untracked, normal directory. All historical commits and branches inside \`.git\` will be erased.
+>  **Key Takeaway**: If you delete the \`.git\` folder, your project reverts to an untracked, normal directory. All historical commits and branches inside \`.git\` will be erased.
         `
       },
       {
@@ -151,7 +164,7 @@ git add .
 git add -A
 \`\`\`
 
-> ⚠️ **Professional Tip**: Avoid blindly running \`git add .\` without running \`git status\` first. You might accidentally stage credentials, build logs, or temporary files!
+>  **Professional Tip**: Avoid blindly running \`git add .\` without running \`git status\` first. You might accidentally stage credentials, build logs, or temporary files!
         `
       },
       {
@@ -310,7 +323,7 @@ build/
 /TODO.md
 \`\`\`
 
-> 🚨 **Critical Rule**: \`.gitignore\` only ignores **untracked** files. If a file was already committed to Git, adding it to \`.gitignore\` will NOT stop Git from tracking it. You must first remove it from the index:
+>  **Critical Rule**: \`.gitignore\` only ignores **untracked** files. If a file was already committed to Git, adding it to \`.gitignore\` will NOT stop Git from tracking it. You must first remove it from the index:
 > \`\`\`bash
 > git rm --cached .env
 > git commit -m "chore: stop tracking .env secret"
@@ -481,7 +494,7 @@ feature:                   \──► [D'] ──► [E']   <-- Linear history!
 
 ---
 
-### 🚨 The Golden Rule of Rebasing
+### The Golden Rule of Rebasing
 > **Never rebase a branch that has already been pushed and shared with other teammates!**
 > Because rebasing generates new commit hashes, pushing a rebased shared branch will break your teammates' local repositories. Rebase only your private, local feature branches before opening a PR.
         `
@@ -560,7 +573,7 @@ git restore --staged index.html
 | :--- | :---: | :---: | :---: | :---: |
 | **\`--soft\`** | YES | NO (Files stay staged) | NO | Very Safe |
 | **\`--mixed\`** (default) | YES | YES (Files unstage) | NO (Files stay in working dir) | Safe |
-| **\`--hard\`** | YES | YES | **YES (Erases all uncommitted code!)** | ⚠️ Destructive |
+| **\`--hard\`** | YES | YES | **YES (Erases all uncommitted code!)** |  Destructive |
 
 \`\`\`bash
 # Undo the last commit, but keep all modified code staged for revision
@@ -611,7 +624,7 @@ git switch main
 git cherry-pick c3f81e7
 \`\`\`
 
-> 💡 **Best Use Case**: A teammate wrote an urgent bug fix inside a long experimental feature branch. Instead of waiting weeks to merge the unfinished feature, you cherry-pick just the bug fix commit onto \`main\`!
+>  **Best Use Case**: A teammate wrote an urgent bug fix inside a long experimental feature branch. Instead of waiting weeks to merge the unfinished feature, you cherry-pick just the bug fix commit onto \`main\`!
         `
       },
       {
@@ -1079,11 +1092,11 @@ If tests fail, GitHub blocks the PR from merging, preventing broken code from hi
         summary: 'What to do when an AWS key or database password is accidentally committed: Revoke, scrub history, and force-push.',
         readTime: '7 min read',
         content: `
-### 🚨 Production Emergency: Leaked API Keys
+### Production Emergency: Leaked API Keys
 
 If you accidentally committed an AWS secret key or DB password to GitHub:
 
-> ⚠️ **IMMEDIATE RULE #1: REVOKE THE KEY FIRST.**
+> **IMMEDIATE RULE #1: REVOKE THE KEY FIRST.**
 > Automated bot scrapers clone public GitHub commits in under 3 seconds. The moment a commit hits GitHub, assume the secret is compromised. Revoke it in your AWS/Azure console immediately!
 
 ---
@@ -1179,6 +1192,13 @@ When dealing with conflicts across 50+ files during a major framework upgrade:
 
 // 30-Day Developer Mastery Roadmap
 export const GIT_ROADMAP = [
+  {
+    week: 'Orientation',
+    title: 'Orientation & Mental Models',
+    days: [
+      { day: 0, title: 'Day 0: The Big Picture, Git vs GitHub & Computer Literacy', topic: 'day-0-orientation' }
+    ]
+  },
   {
     week: 'Week 1',
     title: 'Foundations & Daily Workflow',
