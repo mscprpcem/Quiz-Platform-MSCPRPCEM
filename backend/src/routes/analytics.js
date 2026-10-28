@@ -1118,6 +1118,19 @@ const handleCumulativeLeaderboard = async (req, res) => {
       }
     }
 
+    // 5b. Integrate SQL Practice Challenge Points (Basic/Easy = 1, Medium = 2, Hard = 3)
+    try {
+      const sqlLearners = loadSqlLearners();
+      for (const learner of Object.values(sqlLearners)) {
+        if (!learner || !learner.studentEmail || (learner.totalPoints || 0) <= 0) continue;
+        const student = getOrCreateStudent(learner.studentEmail, learner.studentName, null, learner.college || '');
+        student.totalScore += Number(learner.totalPoints || 0);
+        student.sqlPracticePoints = Number(learner.totalPoints || 0);
+        student.sqlChallengesSolved = Number(learner.challengesSolved || Object.keys(learner.solvedChallenges || {}).length || 0);
+        student.sqlCleanSolves = Number(learner.cleanSolvesCount || 0);
+      }
+    } catch (_) {}
+
     // 6. Tournament Ranking Algorithm (Filter test users & sort descending by score)
     const isTestCandidate = (student) => {
       const name = (student.name || '').toLowerCase().trim();
@@ -1396,6 +1409,232 @@ router.get('/practice-activity', (req, res) => {
   } catch (error) {
     console.error('Failed to fetch practice reach activity:', error);
     return res.status(500).json({ error: 'Failed to load practice activity' });
+  }
+});
+
+// Helper: Calculate challenge points: Basic/Easy = 1, Medium = 2, Hard = 3.
+// Points are awarded when solved cleanly without hints.
+function getSqlDifficultyPoints(difficulty, cleanSolve = true) {
+  const diff = String(difficulty || '').toLowerCase();
+  let points = 1; // Basic and Easy = 1 pt
+  if (diff === 'medium') {
+    points = 2; // Medium = 2 pts
+  } else if (diff === 'hard') {
+    points = 3; // Hard = 3 pts
+  }
+  return {
+    basePoints: points,
+    totalPoints: cleanSolve ? points : 0
+  };
+}
+
+// ── SQL PRACTICE: Record challenge solve with hint tracking & leaderboard points ──
+router.post('/sql/record-solve', (req, res) => {
+  try {
+    const { studentEmail, studentName, studentUsername, challengeId, difficulty, cleanSolve } = req.body;
+    if (!studentEmail || studentEmail.includes('anonymous') || studentEmail.includes('guest')) {
+      return res.json({ success: true, message: 'Anonymous session solve skipped' });
+    }
+    if (!challengeId) {
+      return res.status(400).json({ error: 'challengeId is required' });
+    }
+
+    const cleanEmail = studentEmail.toLowerCase().trim();
+    const cleanName = studentName ? studentName.trim() : cleanEmail.split('@')[0];
+    const cleanUsername = studentUsername ? studentUsername.trim() : cleanEmail.split('@')[0];
+
+    const learners = loadSqlLearners();
+    const nowIso = new Date().toISOString();
+
+    if (!learners[cleanEmail]) {
+      learners[cleanEmail] = {
+        studentEmail: cleanEmail,
+        studentName: cleanName,
+        studentUsername: cleanUsername,
+        firstSeen: nowIso,
+        lastActive: nowIso,
+        sessionCount: 1,
+        totalPoints: 0,
+        cleanSolvesCount: 0,
+        hintSolvesCount: 0,
+        solvedChallenges: {}
+      };
+    }
+
+    const learner = learners[cleanEmail];
+    learner.studentName = cleanName || learner.studentName;
+    learner.studentUsername = cleanUsername || learner.studentUsername;
+    learner.lastActive = nowIso;
+    learner.solvedChallenges = learner.solvedChallenges || {};
+
+    const isClean = Boolean(cleanSolve);
+    const pts = getSqlDifficultyPoints(difficulty, isClean);
+    const existing = learner.solvedChallenges[challengeId];
+
+    let pointsAdded = 0;
+    let upgradedToClean = false;
+
+    if (!existing) {
+      // First time solving this challenge
+      learner.solvedChallenges[challengeId] = {
+        difficulty: difficulty || 'Easy',
+        cleanSolve: isClean,
+        points: pts.totalPoints,
+        solvedAt: nowIso
+      };
+      if (isClean) {
+        learner.cleanSolvesCount = (learner.cleanSolvesCount || 0) + 1;
+      } else {
+        learner.hintSolvesCount = (learner.hintSolvesCount || 0) + 1;
+      }
+      pointsAdded = pts.totalPoints;
+    } else {
+      // Already solved previously: check if upgraded from hint-solve to clean-solve
+      if (!existing.cleanSolve && isClean) {
+        const bonusDiff = pts.totalPoints - (Number(existing.points) || 0);
+        existing.cleanSolve = true;
+        existing.points = pts.totalPoints;
+        existing.upgradedAt = nowIso;
+        learner.cleanSolvesCount = (learner.cleanSolvesCount || 0) + 1;
+        learner.hintSolvesCount = Math.max(0, (learner.hintSolvesCount || 1) - 1);
+        pointsAdded = Math.max(0, bonusDiff);
+        upgradedToClean = true;
+      }
+    }
+
+    // Recalculate learner total points
+    learner.totalPoints = Object.values(learner.solvedChallenges).reduce(
+      (acc, c) => acc + (Number(c.points) || 0), 0
+    );
+    learner.challengesSolved = Object.keys(learner.solvedChallenges).length;
+
+    saveSqlLearners(learners);
+
+    // Compute rank
+    const allLearners = Object.values(learners).filter(
+      l => l.studentEmail && !l.studentEmail.includes('test')
+    );
+    allLearners.sort((a, b) => {
+      if ((b.totalPoints || 0) !== (a.totalPoints || 0)) {
+        return (b.totalPoints || 0) - (a.totalPoints || 0);
+      }
+      return (b.cleanSolvesCount || 0) - (a.cleanSolvesCount || 0);
+    });
+    const userRank = allLearners.findIndex(l => l.studentEmail === cleanEmail) + 1;
+
+    return res.json({
+      success: true,
+      message: upgradedToClean 
+        ? `Clean solve upgraded! +${pointsAdded} pt(s) incremented on leaderboard.`
+        : isClean
+        ? `Clean solve recorded! +${pts.totalPoints} pt(s) added to leaderboard!`
+        : `Solve recorded with hints. (0 leaderboard points).`,
+      pointsEarned: pts.totalPoints,
+      pointsAdded,
+      isCleanSolve: isClean,
+      upgradedToClean,
+      totalPoints: learner.totalPoints,
+      cleanSolvesCount: learner.cleanSolvesCount || 0,
+      totalSolved: learner.challengesSolved,
+      rank: userRank > 0 ? userRank : 1
+    });
+  } catch (error) {
+    console.error('Failed to record SQL challenge solve:', error);
+    return res.status(500).json({ error: 'Failed to record challenge solve' });
+  }
+});
+
+// ── SQL PRACTICE: Get Ranked SQL Leaderboard ──
+router.get('/sql/leaderboard', (req, res) => {
+  try {
+    const { limit = 50, filter = 'all', currentEmail = '' } = req.query;
+    const learners = loadSqlLearners();
+
+    const isTestCandidate = (email, name) => {
+      const e = (email || '').toLowerCase();
+      const n = (name || '').toLowerCase();
+      const tests = ['test@', 'tester@', 'sample@', 'dummy', 'asdf', 'fake'];
+      return tests.some(t => e.includes(t) || n.includes(t));
+    };
+
+    let list = Object.values(learners).filter(l => !isTestCandidate(l.studentEmail, l.studentName));
+
+    if (filter === 'clean') {
+      list = list.filter(l => (l.cleanSolvesCount || 0) > 0);
+    }
+
+    list.sort((a, b) => {
+      const ptsA = Number(a.totalPoints || 0);
+      const ptsB = Number(b.totalPoints || 0);
+      if (ptsB !== ptsA) return ptsB - ptsA;
+      const cleanA = Number(a.cleanSolvesCount || 0);
+      const cleanB = Number(b.cleanSolvesCount || 0);
+      if (cleanB !== cleanA) return cleanB - cleanA;
+      const solvedA = Number(a.challengesSolved || Object.keys(a.solvedChallenges || {}).length || 0);
+      const solvedB = Number(b.challengesSolved || Object.keys(b.solvedChallenges || {}).length || 0);
+      if (solvedB !== solvedA) return solvedB - solvedA;
+      return new Date(b.lastActive || 0) - new Date(a.lastActive || 0);
+    });
+
+    const cleanUserEmail = (currentEmail || '').toLowerCase().trim();
+    let currentUserStats = null;
+
+    const ranked = list.map((l, idx) => {
+      const rank = idx + 1;
+      const email = l.studentEmail || '';
+      const isMe = cleanUserEmail && email === cleanUserEmail;
+
+      const parts = email.split('@');
+      const maskedEmail = parts[0].length > 3
+        ? `${parts[0].slice(0, 3)}***@${parts[1] || 'domain.com'}`
+        : `${parts[0]}***@${parts[1] || 'domain.com'}`;
+
+      const totalSolved = Number(l.challengesSolved || Object.keys(l.solvedChallenges || {}).length || 0);
+      const cleanSolves = Number(l.cleanSolvesCount || 0);
+
+      const item = {
+        rank,
+        studentName: l.studentName || parts[0] || 'Learner',
+        studentUsername: l.studentUsername || parts[0] || 'learner',
+        studentEmail: isMe ? email : maskedEmail,
+        isCurrentUser: isMe,
+        totalPoints: Number(l.totalPoints || 0),
+        cleanSolvesCount: cleanSolves,
+        totalSolved,
+        cleanSolveRate: totalSolved > 0 ? Math.round((cleanSolves / totalSolved) * 100) : 0,
+        lastActive: l.lastActive
+      };
+
+      if (isMe) {
+        currentUserStats = item;
+      }
+      return item;
+    });
+
+    if (cleanUserEmail && !currentUserStats) {
+      currentUserStats = {
+        rank: ranked.length + 1,
+        studentName: cleanUserEmail.split('@')[0],
+        studentUsername: cleanUserEmail.split('@')[0],
+        studentEmail: cleanUserEmail,
+        isCurrentUser: true,
+        totalPoints: 0,
+        cleanSolvesCount: 0,
+        totalSolved: 0,
+        cleanSolveRate: 0,
+        lastActive: new Date().toISOString()
+      };
+    }
+
+    return res.json({
+      success: true,
+      totalParticipants: ranked.length,
+      leaderboard: ranked.slice(0, parseInt(limit, 10)),
+      currentUserStats
+    });
+  } catch (error) {
+    console.error('Failed to get SQL leaderboard:', error);
+    return res.status(500).json({ error: 'Failed to load SQL leaderboard' });
   }
 });
 

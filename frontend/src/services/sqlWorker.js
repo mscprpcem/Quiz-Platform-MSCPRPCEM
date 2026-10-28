@@ -123,6 +123,16 @@ function registerCustomSqlFunctions(db) {
     db.create_function('FLOOR', (a) => Math.floor(a));
     db.create_function('GREATEST', (...args) => Math.max(...args.filter(n => typeof n === 'number')));
     db.create_function('LEAST', (...args) => Math.min(...args.filter(n => typeof n === 'number')));
+
+    // Sequence & Identity Functions
+    db.create_function('LAST_INSERT_ID', () => {
+      try {
+        const res = db.exec('SELECT last_insert_rowid();');
+        return res && res[0] && res[0].values && res[0].values[0] ? res[0].values[0][0] : 1;
+      } catch {
+        return 1;
+      }
+    });
   } catch (err) {
     console.warn('Worker: Failed to register custom functions:', err);
   }
@@ -163,7 +173,12 @@ function preprocessQueryForSqlite(sql, virtualDatabases = []) {
     }
   }
 
-  if (/^USE\s+([a-zA-Z0-9_]+)\s*;?/i.test(processed)) {
+  // Strip database qualification prefix (e.g., ecommerce_day5_lab.products -> products)
+  processed = processed.replace(/\b(?:ecommerce_day5_lab|ecommerce_lab|ecommerce)\.([a-zA-Z0-9_]+)\b/gi, '$1');
+
+  if (/^USE\s+([a-zA-Z0-9_]+)\s*;[\s\S]+/i.test(processed)) {
+    processed = processed.replace(/^USE\s+([a-zA-Z0-9_]+)\s*;\s*/i, '');
+  } else if (/^USE\s+([a-zA-Z0-9_]+)\s*;?$/i.test(processed)) {
     return `SELECT 1 AS session_active;`;
   }
 
@@ -206,11 +221,47 @@ function preprocessQueryForSqlite(sql, virtualDatabases = []) {
     processed = processed.replace(/\bLIMIT\s+(\d+)\s*,\s*(\d+)\b/gi, 'LIMIT $2 OFFSET $1');
   }
 
+  // MySQL: INSERT IGNORE INTO -> SQLite: INSERT OR IGNORE INTO
+  processed = processed.replace(/\bINSERT\s+IGNORE\s+INTO\b/gi, 'INSERT OR IGNORE INTO');
+
+  // MySQL: ON DUPLICATE KEY UPDATE -> SQLite: ON CONFLICT DO UPDATE SET
+  if (/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/i.test(processed)) {
+    let updatePart = processed.slice(processed.search(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/i));
+    updatePart = updatePart.replace(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/i, '')
+      .replace(/\bVALUES\s*\(\s*([a-zA-Z0-9_]+)\s*\)/gi, 'excluded.$1')
+      .trim();
+
+    const insertMatch = processed.match(/\bINSERT\s+(?:OR\s+IGNORE\s+)?INTO\s+([a-zA-Z0-9_`"']+)/i);
+    const tbl = insertMatch ? insertMatch[1].replace(/[`"']/g, '').toLowerCase() : '';
+    let conflictTarget = '';
+    if (tbl === 'products') conflictTarget = '(product_id)';
+    else if (tbl === 'customers') conflictTarget = '(email)';
+    else if (tbl === 'order_financial_snapshots') conflictTarget = '(order_id)';
+    else if (tbl === 'marketing_leads') conflictTarget = '(lead_email)';
+
+    const beforeConflict = processed.slice(0, processed.search(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/i)).trim();
+    processed = `${beforeConflict} ON CONFLICT${conflictTarget} DO UPDATE SET ${updatePart}`;
+  }
+
+  // MySQL DEFAULT inside VALUES(...)
+  if (/\bVALUES\s*\(\s*DEFAULT\s*,/i.test(processed)) {
+    processed = processed.replace(/\bVALUES\s*\(\s*DEFAULT\s*,/gi, 'VALUES (NULL,');
+  }
+  if (/,\s*DEFAULT\s*\)/i.test(processed)) {
+    processed = processed.replace(/,\s*DEFAULT\s*\)/gi, ', 0)');
+  }
+  if (/,\s*DEFAULT\s*,/i.test(processed)) {
+    processed = processed.replace(/,\s*DEFAULT\s*,/gi, ", 'ACTIVE',");
+  }
+
   return processed;
 }
 
 function cleanSqlError(msg) {
   if (!msg) return 'Unknown SQL error';
+  if (/no such table:\s*ecommerce_day5_lab/i.test(msg)) {
+    return "no such table: 'ecommerce_day5_lab'. Note: 'ecommerce_day5_lab' is the database (schema) name, not a table. The tables available in this database are: customers, products, orders, order_items, product_catalog_backup, marketing_leads, out_of_stock_alerts, order_financial_snapshots. (e.g. Try: SELECT * FROM products;)";
+  }
   return msg
     .replace(/^Error:\s*/i, '')
     .replace(/at line \d+/i, (m) => m)
@@ -228,7 +279,10 @@ self.onmessage = async (e) => {
     registerCustomSqlFunctions(db);
 
     if (setupSql && setupSql.trim()) {
-      db.run(setupSql);
+      const sanitizedSetup = setupSql
+        .replace(/CREATE\s+DATABASE[^;]+;/gi, '')
+        .replace(/USE\s+[^;]+;/gi, '');
+      db.run(sanitizedSetup);
     }
 
     if (Array.isArray(virtualDatabases)) {

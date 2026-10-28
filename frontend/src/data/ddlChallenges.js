@@ -53,12 +53,11 @@ export const DDL_SCHEMAS = {
     CREATE TABLE classes (
       class_id INTEGER PRIMARY KEY,
       class_name TEXT NOT NULL,
-      room_no TEXT,
-      room_number TEXT
+      room_no TEXT
     );
   `,
 
-  renamedTables: `
+    schoolTablesBeforeRename: `
     CREATE TABLE school_students (
       student_id INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
@@ -77,10 +76,17 @@ export const DDL_SCHEMAS = {
       class_name TEXT NOT NULL
     );
 
+    INSERT INTO school_students VALUES (1, 'Rohan', 16, 'Mumbai'), (2, 'Pooja', 17, 'Delhi');
+    INSERT INTO school_teachers VALUES (101, 'Dr. Nair', 'Chemistry');
+    INSERT INTO school_classes VALUES (1, 'Math 101');
+  `,
+
+  renamedTables: `
     CREATE TABLE students_info (
       student_id INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
-      age INTEGER
+      age INTEGER,
+      city TEXT
     );
 
     CREATE TABLE teachers_info (
@@ -89,10 +95,41 @@ export const DDL_SCHEMAS = {
       subject TEXT NOT NULL
     );
 
-    INSERT INTO students_info VALUES (1, 'Rohan', 16), (2, 'Pooja', 17);
+    CREATE TABLE school_classes (
+      class_id INTEGER PRIMARY KEY,
+      class_name TEXT NOT NULL
+    );
+
+    INSERT INTO students_info VALUES (1, 'Rohan', 16, 'Mumbai'), (2, 'Pooja', 17, 'Delhi');
     INSERT INTO teachers_info VALUES (101, 'Dr. Nair', 'Chemistry');
     INSERT INTO school_classes VALUES (1, 'Math 101');
   `
+,
+
+  classesWithRoomNumber: `
+    CREATE TABLE students (
+      student_id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      age INTEGER,
+      city TEXT,
+      email TEXT,
+      phone TEXT
+    );
+
+    CREATE TABLE teachers (
+      teacher_id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      salary INTEGER,
+      experience INTEGER
+    );
+
+    CREATE TABLE classes (
+      class_id INTEGER PRIMARY KEY,
+      class_name TEXT NOT NULL,
+      room_number TEXT
+    );
+  `,
 };
 
 export const DDL_CHALLENGES = [
@@ -410,7 +447,7 @@ Associates physical classroom numbers with academic class divisions.
     moduleId: 'ddl-sec-c',
     moduleTitle: 'Section C: ALTER – MODIFY COLUMN',
     title: 'Optimize age Column Storage',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['ALTER TABLE', 'MODIFY COLUMN', 'OPTIMIZATION'],
     interviewFrequency: 'Interview Standard',
     description: `
@@ -436,7 +473,7 @@ Associates physical classroom numbers with academic class divisions.
     moduleId: 'ddl-sec-c',
     moduleTitle: 'Section C: ALTER – MODIFY COLUMN',
     title: 'Expand name Column Capacity',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['ALTER TABLE', 'MODIFY COLUMN'],
     interviewFrequency: 'Common',
     description: `
@@ -462,7 +499,7 @@ Increasing the length of a variable-length character field is an online metadata
     moduleId: 'ddl-sec-c',
     moduleTitle: 'Section C: ALTER – MODIFY COLUMN',
     title: 'Standardize phone Column Format',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['ALTER TABLE', 'MODIFY COLUMN'],
     interviewFrequency: 'Common',
     description: `
@@ -488,7 +525,7 @@ Phone numbers must always use character datatypes rather than integers to preser
     moduleId: 'ddl-sec-c',
     moduleTitle: 'Section C: ALTER – MODIFY COLUMN',
     title: 'Expand salary Column to BIGINT',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['ALTER TABLE', 'MODIFY COLUMN'],
     interviewFrequency: 'Common',
     description: `
@@ -514,7 +551,7 @@ Upgrading to \`BIGINT\` safeguards against arithmetic overflow when aggregating 
     moduleId: 'ddl-sec-c',
     moduleTitle: 'Section C: ALTER – MODIFY COLUMN',
     title: 'Expand subject Column Capacity',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['ALTER TABLE', 'MODIFY COLUMN'],
     interviewFrequency: 'Common',
     description: `
@@ -676,7 +713,7 @@ Embedding units of measurement directly in column names prevents human data entr
     moduleId: 'ddl-sec-e',
     moduleTitle: 'Section E: ALTER – DROP COLUMN',
     title: 'Drop email Column',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['ALTER TABLE', 'DROP COLUMN', 'COMPLIANCE'],
     interviewFrequency: 'High',
     description: `
@@ -702,7 +739,7 @@ Embedding units of measurement directly in column names prevents human data entr
     moduleId: 'ddl-sec-e',
     moduleTitle: 'Section E: ALTER – DROP COLUMN',
     title: 'Drop phone Column',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['ALTER TABLE', 'DROP COLUMN'],
     interviewFrequency: 'Common',
     description: `
@@ -728,7 +765,7 @@ Removes redundant phone contact data from the core student entity.
     moduleId: 'ddl-sec-e',
     moduleTitle: 'Section E: ALTER – DROP COLUMN',
     title: 'Drop salary Column',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['ALTER TABLE', 'DROP COLUMN', 'SECURITY'],
     interviewFrequency: 'Common',
     description: `
@@ -754,7 +791,7 @@ Decouples sensitive financial compensation from general faculty academic directo
     moduleId: 'ddl-sec-e',
     moduleTitle: 'Section E: ALTER – DROP COLUMN',
     title: 'Drop room_number Column from classes',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['ALTER TABLE', 'DROP COLUMN'],
     interviewFrequency: 'Common',
     description: `
@@ -763,7 +800,7 @@ Decouples sensitive financial compensation from general faculty academic directo
 **Task Requirements**:
 - Remove the **\`room_number\`** column from the **\`classes\`** table.
     `,
-    setupSql: DDL_SCHEMAS.studentsWithExtraCols,
+    setupSql: DDL_SCHEMAS.classesWithRoomNumber,
     starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE classes DROP COLUMN room_number;`,
     checkOrder: false,
@@ -780,7 +817,7 @@ Eliminates static room allocations to support flexible daily schedule assignment
     moduleId: 'ddl-sec-e',
     moduleTitle: 'Section E: ALTER – DROP COLUMN',
     title: 'Drop years_of_experience Column from teachers',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['ALTER TABLE', 'DROP COLUMN'],
     interviewFrequency: 'Common',
     description: `
@@ -903,7 +940,7 @@ Standardizes table naming for classes.
 **Task Requirements**:
 - Rename **\`school_students\`** to **\`students_info\`**.
     `,
-    setupSql: DDL_SCHEMAS.renamedTables,
+    setupSql: DDL_SCHEMAS.schoolTablesBeforeRename,
     starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE school_students RENAME TO students_info;`,
     checkOrder: false,
@@ -929,7 +966,7 @@ Refactors the entity name to students_info.
 **Task Requirements**:
 - Rename **\`school_teachers\`** to **\`teachers_info\`**.
     `,
-    setupSql: DDL_SCHEMAS.renamedTables,
+    setupSql: DDL_SCHEMAS.schoolTablesBeforeRename,
     starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE school_teachers RENAME TO teachers_info;`,
     checkOrder: false,
@@ -949,7 +986,7 @@ Updates table naming to teachers_info.
     moduleId: 'ddl-sec-g',
     moduleTitle: 'Section G: TRUNCATE TABLE',
     title: 'Purge students_info Table',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['TRUNCATE', 'DELETE', 'DDL vs DML'],
     interviewFrequency: 'Very Common',
     description: `
@@ -975,7 +1012,7 @@ Updates table naming to teachers_info.
     moduleId: 'ddl-sec-g',
     moduleTitle: 'Section G: TRUNCATE TABLE',
     title: 'Reset Faculty Records',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['TRUNCATE TABLE'],
     interviewFrequency: 'Common',
     description: `
@@ -1001,7 +1038,7 @@ Empties faculty records while preserving table columns and constraints.
     moduleId: 'ddl-sec-g',
     moduleTitle: 'Section G: TRUNCATE TABLE',
     title: 'Reset Classroom Allocations',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['TRUNCATE TABLE'],
     interviewFrequency: 'Common',
     description: `
@@ -1027,7 +1064,7 @@ Wipes out all classroom assignment rows.
     moduleId: 'ddl-sec-g',
     moduleTitle: 'Section G: TRUNCATE TABLE',
     title: 'Retruncate students_info Table',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['TRUNCATE TABLE', 'IDEMPOTENCY'],
     interviewFrequency: 'Conceptual',
     description: `
@@ -1053,7 +1090,7 @@ Demonstrates that truncating empty tables safely resets high-water marks and ide
     moduleId: 'ddl-sec-g',
     moduleTitle: 'Section G: TRUNCATE TABLE',
     title: 'Retruncate teachers_info Table',
-    difficulty: 'Medium',
+    difficulty: 'Easy',
     tags: ['TRUNCATE TABLE'],
     interviewFrequency: 'Conceptual',
     description: `

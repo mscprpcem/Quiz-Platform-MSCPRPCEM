@@ -58,6 +58,9 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 - **Light Theme Git Course Hub (`GitCourseHub.jsx` at `/courses/git`)**:
   - Rebuilt in MSC signature light theme (`#F5FAFF`), removing all loaders, tracking progress bars, dumped cheatsheets, and excessive content.
   - Clean primary action cards for **Learning** (`/courses/git/learn`) and **Practice Lab** (`/practice/git/lab`), with dedicated secondary link cards for the **30-Day Roadmap** and **Cheat Sheet**.
+- **Enterprise 30-Day SQL Mastery Roadmap (`30_DAY_SQL_ROADMAP.md`)**:
+  - Authored a comprehensive, production-grade 30-day SQL curriculum spanning 4 structured phases: Relational Foundations & DDL (Week 1), Joins, Aggregations & Subqueries (Week 2), Functions, Views, Indexes & Transactions (Week 3), and Window Functions, CTEs, Security & Optimization with Capstone (Week 4).
+  - Outlined daily routine (60–90 mins), hands-on practice tasks, expected deliverables, and multi-engine compatibility matrices for PostgreSQL, MySQL 8.0+, and Microsoft SQL Server.
 - **Comprehensive Responsive Media Queries Across All Git Views**:
   - **Learning View**: Adaptive breadcrumb truncation on mobile (`max-w-[130px] xs:max-w-[180px] sm:max-w-[260px] md:max-w-xs`), compact mobile completion toggle (`Mark` / `Done`), responsive lab button, mobile slide-over drawer with integrated live search, and full-width navigation footers on small screens.
   - **Course Hub**: Adaptive hero headers, responsive 1/2/4-column tutor grids, and touch-optimized action buttons.

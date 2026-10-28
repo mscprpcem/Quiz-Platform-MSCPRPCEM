@@ -1,6 +1,7 @@
 import { DDL_CHALLENGES } from './ddlChallenges.js';
 import { DML_CHALLENGES } from './dmlChallenges.js';
 import { FILTERING_CHALLENGES } from './filteringChallenges.js';
+import { INSERT_CHALLENGES } from './insertChallenges.js';
 
 // Enterprise & E-Commerce Seed Schemas
 export const COMMON_SCHEMAS = {
@@ -1339,7 +1340,7 @@ export function getChallengeSlug(challenge) {
   return slugifyTitle(challenge.title) || challenge.id;
 }
 
-export const SQL_CHALLENGES = [...BASE_CHALLENGES, ...DDL_CHALLENGES, ...DML_CHALLENGES, ...FILTERING_CHALLENGES].map(c => ({
+export const SQL_CHALLENGES = [...BASE_CHALLENGES, ...DDL_CHALLENGES, ...DML_CHALLENGES, ...FILTERING_CHALLENGES, ...INSERT_CHALLENGES].map(c => ({
   ...c,
   slug: c.slug || slugifyTitle(c.title) || c.id
 }));

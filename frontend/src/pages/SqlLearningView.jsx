@@ -17,6 +17,7 @@ import ComparisonTable from '../components/learn/ComparisonTable';
 import DdlQuestionsBank from '../components/learn/DdlQuestionsBank';
 import DmlQuestionsBank from '../components/learn/DmlQuestionsBank';
 import FilteringQuestionsBank from '../components/learn/FilteringQuestionsBank';
+import InsertQuestionsBank from '../components/learn/InsertQuestionsBank';
 import NullLogicGuide from '../components/learn/NullLogicGuide';
 
 /**
@@ -506,7 +507,9 @@ export default function SqlLearningView({
             </div>
           ) : topicData.isQuestionsBankTopic ? (
             <div className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-8">
-              {topicData.questionBankType === 'dml' ? (
+              {topicData.questionBankType === 'insert' ? (
+                <InsertQuestionsBank onJumpToPractice={onJumpToPractice} />
+              ) : topicData.questionBankType === 'dml' ? (
                 <DmlQuestionsBank onJumpToPractice={onJumpToPractice} />
               ) : topicData.questionBankType === 'filtering' ? (
                 <FilteringQuestionsBank onJumpToPractice={onJumpToPractice} />

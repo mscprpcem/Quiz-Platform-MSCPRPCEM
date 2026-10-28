@@ -78,15 +78,18 @@ export const SQL_30_DAY_ROADMAP = [
     week: 1,
     phase: 'DML - Data Manipulation',
     title: 'INSERT & Bulk Data Ingestion',
-    moduleId: 'mod-03',
-    topicId: 'top-03-01',
-    estimatedMinutes: 30,
+    moduleId: 'mod-day5',
+    topicId: 'top-day5-01',
+    estimatedMinutes: 45,
     difficulty: 'Beginner',
-    summary: 'Insert single and multiple records, handle column order variations, and use INSERT INTO SELECT.',
+    summary: 'Master positional vs explicit syntax, multi-row batch ingestion (10x–50x speedup), INSERT INTO SELECT, ecommerce_lab schema setup, seed data, and constraint traps (1062, 1452, 3819).',
     goals: [
-      'Insert records specifying all columns vs specific columns',
-      'Perform multi-row batch inserts for efficiency',
-      'Copy data from one table to another via INSERT INTO SELECT'
+      'Understand the role of DML and transactional boundaries for write commands',
+      'Distinguish between fragile Positional Inserts and recommended Explicit Column Inserts',
+      'Execute multi-row batch inserts for 10x–50x write throughput gains',
+      'Perform zero-copy server-side table migrations using INSERT INTO ... SELECT',
+      'Build and seed the ecommerce_lab database schema with PK, FK, and CHECK constraints',
+      'Identify and remediate MySQL Error Codes: 1062 (Duplicate Key), 1452 (Foreign Key), and 3819 (Check Constraint)'
     ],
     milestone: false
   },

@@ -7,12 +7,32 @@ import {
   ArrowUpRight, Flame, BarChart3, RefreshCw, X, GripVertical, GripHorizontal,
   Send, FileText, CheckCircle, Settings, Sliders, AlignLeft, EyeOff, LayoutGrid,
   Columns, GitCompare, CheckCheck, CircleAlert, Monitor, Smartphone, Tablet, Target,
-  Shuffle, Gauge
+  Shuffle, Gauge, Zap
 } from 'lucide-react';
 import { SQL_CHALLENGES } from '../data/sqlChallenges';
 import { executeSqlQuery, validateChallengeWithTestcases, getTablesPreview } from '../services/sqlEngine';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import SqlLeaderboardModal from '../components/SqlLeaderboardModal';
+
+/**
+ * Challenge Points Calculation:
+ * Basic & Easy: 1 pt, Medium: 2 pts, Hard: 3 pts
+ * Points are awarded when solved cleanly without hints.
+ */
+export function getSqlChallengePoints(difficulty, cleanSolve = true) {
+  const diff = String(difficulty || '').toLowerCase();
+  let points = 1; // Basic and Easy = 1 pt
+  if (diff === 'medium') {
+    points = 2; // Medium = 2 pts
+  } else if (diff === 'hard') {
+    points = 3; // Hard = 3 pts
+  }
+  return {
+    basePoints: points,
+    totalPoints: cleanSolve ? points : 0
+  };
+}
 
 /**
  * Clean & Short Category Name Helper
@@ -22,10 +42,47 @@ function getCleanCategoryName(title) {
   if (!title) return 'General';
   const cleaned = title.replace(/^(\d+\.|\d+\)|\bModule\s*\d+:?)\s*/i, '').trim();
   
-  if (cleaned.toLowerCase().includes('day 4') || cleaned.toLowerCase().includes('advanced filtering')) {
-    return 'Day 4: Advanced Filtering';
+  if (
+    cleaned.toLowerCase().includes('day 5') ||
+    cleaned.toLowerCase().includes('bulk ingestion') ||
+    cleaned.toLowerCase().includes('single-row explicit') ||
+    cleaned.toLowerCase().includes('column permutations') ||
+    cleaned.toLowerCase().includes('defaults & expressions') ||
+    cleaned.toLowerCase().includes('batch ingestion') ||
+    cleaned.toLowerCase().includes('positional inserts') ||
+    cleaned.toLowerCase().includes('upserts') ||
+    cleaned.toLowerCase().includes('insert')
+  ) {
+    return 'INSERT & Bulk Ingestion';
   }
-  if (cleaned.toLowerCase().includes('drop')) {
+  if (
+    cleaned.toLowerCase().includes('day 4') ||
+    cleaned.toLowerCase().includes('advanced filtering') ||
+    cleaned.toLowerCase().includes('filtering') ||
+    cleaned.toLowerCase().includes('pattern matching') ||
+    cleaned.toLowerCase().includes('set membership') ||
+    cleaned.toLowerCase().includes('range queries') ||
+    cleaned.toLowerCase().includes('null value') ||
+    cleaned.toLowerCase().includes('boolean logic') ||
+    cleaned.toLowerCase().includes('string & pattern') ||
+    cleaned.toLowerCase().includes('edge cases') ||
+    cleaned.toLowerCase().includes('optimization')
+  ) {
+    return 'Advanced Filtering';
+  }
+  if (cleaned.toLowerCase().includes('update')) {
+    return 'UPDATE Operations';
+  }
+  if (cleaned.toLowerCase().includes('delete') && !cleaned.toLowerCase().includes('database')) {
+    return 'DELETE Operations';
+  }
+  if (cleaned.toLowerCase().includes('select')) {
+    return 'Basic SELECT';
+  }
+  if (cleaned.toLowerCase().includes('interview') || cleaned.toLowerCase().includes('thinking')) {
+    return 'Interview Concepts';
+  }
+  if (cleaned.toLowerCase().includes('drop table') || cleaned.toLowerCase().includes('drop operation')) {
     return 'DROP Operations';
   }
   if (cleaned.toLowerCase().includes('alter') || cleaned.toLowerCase().includes('modify') || cleaned.toLowerCase().includes('add column') || cleaned.toLowerCase().includes('rename')) {
@@ -36,9 +93,6 @@ function getCleanCategoryName(title) {
   }
   if (cleaned.toLowerCase().includes('create table')) {
     return 'Table Creation';
-  }
-  if (cleaned.toLowerCase().includes('filtering') || cleaned.toLowerCase().includes('sorting')) {
-    return 'Filtering & Sorting';
   }
   if (cleaned.toLowerCase().includes('join')) {
     return 'JOIN Operations';
@@ -60,15 +114,6 @@ function getCleanCategoryName(title) {
   }
   if (cleaned.toLowerCase().includes('dml') || cleaned.toLowerCase().includes('manipulation')) {
     return 'DML Operations';
-  }
-  if (cleaned.toLowerCase().includes('index') || cleaned.toLowerCase().includes('optimi')) {
-    return 'Optimization';
-  }
-  if (cleaned.toLowerCase().includes('interview') || cleaned.toLowerCase().includes('leetcode') || cleaned.toLowerCase().includes('faang')) {
-    return 'Interview Challenges';
-  }
-  if (cleaned.toLowerCase().startsWith('section ')) {
-    return cleaned.replace(/^section\s+[a-z]:\s*/i, '').replace(/^(ALTER|CREATE|DROP|TRUNCATE)\s*–?\s*/i, '');
   }
   return cleaned;
 }
@@ -612,6 +657,75 @@ export default function SqlPracticeView({
     }
   });
 
+  // Hint viewing tracking per challenge { [challengeId]: true }
+  const [viewedHints, setViewedHints] = useState(() => {
+    try {
+      const saved = localStorage.getItem('msc_sql_viewed_hints');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Solved details breakdown { [challengeId]: { difficulty, isClean, points, solvedAt } }
+  const [solvedDetails, setSolvedDetails] = useState(() => {
+    try {
+      const saved = localStorage.getItem('msc_sql_solved_details');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Cumulative SQL points
+  const [sqlPoints, setSqlPoints] = useState(() => {
+    try {
+      const saved = localStorage.getItem('msc_sql_points');
+      if (saved) return Number(saved);
+      const details = localStorage.getItem('msc_sql_solved_details');
+      if (details) {
+        const parsed = JSON.parse(details);
+        return Object.values(parsed).reduce((acc, c) => acc + (Number(c.points) || 0), 0);
+      }
+      return 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  const [leaderboardRank, setLeaderboardRank] = useState(null);
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+
+  // Sync initial student rank from backend leaderboard
+  useEffect(() => {
+    const email = studentAccount?.email || user?.email;
+    if (!email) return;
+
+    api.get('/api/analytics/sql/leaderboard', {
+      params: { currentEmail: email, limit: 1 }
+    }).then(res => {
+      if (res.data?.currentUserStats) {
+        if (res.data.currentUserStats.rank) setLeaderboardRank(res.data.currentUserStats.rank);
+        if (res.data.currentUserStats.totalPoints && res.data.currentUserStats.totalPoints > sqlPoints) {
+          setSqlPoints(res.data.currentUserStats.totalPoints);
+          try { localStorage.setItem('msc_sql_points', res.data.currentUserStats.totalPoints.toString()); } catch (_) {}
+        }
+      }
+    }).catch(() => {});
+  }, [studentAccount?.email, user?.email]);
+
+  const handleOpenHints = () => {
+    if (!activeChallenge) return;
+    if (!viewedHints[activeChallenge.id]) {
+      setViewedHints(prev => {
+        const next = { ...prev, [activeChallenge.id]: true };
+        try { localStorage.setItem('msc_sql_viewed_hints', JSON.stringify(next)); } catch (_) {}
+        return next;
+      });
+    }
+    setSolveTab('hints');
+  };
+
   // Extract unique short category names from challenges
   const categories = useMemo(() => {
     const set = new Set();
@@ -783,23 +897,73 @@ export default function SqlPracticeView({
       const result = await validateChallengeWithTestcases(activeChallenge, userSql);
       setSubmissionResult(result);
 
-      if (result.passed && !solvedChallenges.includes(activeChallenge.id)) {
-        const updated = [...solvedChallenges, activeChallenge.id];
-        setSolvedChallenges(updated);
+      if (result.passed) {
+        const isClean = !viewedHints[activeChallenge.id];
+        const pts = getSqlChallengePoints(activeChallenge.difficulty, isClean);
+
+        const nextSolved = solvedChallenges.includes(activeChallenge.id)
+          ? solvedChallenges
+          : [...solvedChallenges, activeChallenge.id];
+
+        setSolvedChallenges(nextSolved);
         try {
-          localStorage.setItem('msc_sql_solved_challenges', JSON.stringify(updated));
+          localStorage.setItem('msc_sql_solved_challenges', JSON.stringify(nextSolved));
         } catch (_) {}
 
-        // Track course completion eligibility if solving challenges
-        if (studentAccount?.email && updated.length >= 10) {
-          api.post('/api/student/record-course-completion', {
-            email: studentAccount.email,
-            name: studentAccount.name,
-            username: studentAccount.username,
-            courseTitle: 'SQL Mastery & Advanced Relational Database Systems',
-            score: Math.min(100, Math.round((updated.length / SQL_CHALLENGES.length) * 100)),
-            challengesSolved: updated.length
+        // Record solved details
+        const existingDetail = solvedDetails[activeChallenge.id];
+        const nextDetails = {
+          ...solvedDetails,
+          [activeChallenge.id]: {
+            difficulty: activeChallenge.difficulty || 'Easy',
+            isClean: existingDetail?.isClean ? true : isClean,
+            points: Math.max(existingDetail?.points || 0, pts.totalPoints),
+            solvedAt: new Date().toISOString()
+          }
+        };
+        setSolvedDetails(nextDetails);
+        try {
+          localStorage.setItem('msc_sql_solved_details', JSON.stringify(nextDetails));
+        } catch (_) {}
+
+        const nextTotal = Object.values(nextDetails).reduce(
+          (acc, c) => acc + (Number(c.points) || 0), 0
+        );
+        setSqlPoints(nextTotal);
+        try {
+          localStorage.setItem('msc_sql_points', nextTotal.toString());
+        } catch (_) {}
+
+        // Sync with backend SQL Leaderboard
+        const userEmail = studentAccount?.email || user?.email;
+        const userName = studentAccount?.name || user?.name || (userEmail ? userEmail.split('@')[0] : 'Learner');
+        const userUsername = studentAccount?.username || user?.username || (userEmail ? userEmail.split('@')[0] : 'learner');
+
+        if (userEmail) {
+          api.post('/api/analytics/sql/record-solve', {
+            studentEmail: userEmail,
+            studentName: userName,
+            studentUsername: userUsername,
+            challengeId: activeChallenge.id,
+            difficulty: activeChallenge.difficulty,
+            cleanSolve: isClean,
+            points: pts.totalPoints
+          }).then(res => {
+            if (res.data?.rank) setLeaderboardRank(res.data.rank);
+            if (res.data?.totalPoints) setSqlPoints(res.data.totalPoints);
           }).catch(() => {});
+
+          // Track course completion eligibility if solving challenges
+          if (nextSolved.length >= 10) {
+            api.post('/api/student/record-course-completion', {
+              email: userEmail,
+              name: userName,
+              username: userUsername,
+              courseTitle: 'SQL Mastery & Advanced Relational Database Systems',
+              score: Math.min(100, Math.round((nextSolved.length / SQL_CHALLENGES.length) * 100)),
+              challengesSolved: nextSolved.length
+            }).catch(() => {});
+          }
         }
       }
       // Zero server cost: Validation runs 100% locally in browser WebAssembly
@@ -1389,6 +1553,15 @@ export default function SqlPracticeView({
               )}
               <button
                 type="button"
+                onClick={() => setShowLeaderboardModal(true)}
+                className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+                title="View SQL Practice Leaderboard"
+              >
+                <Trophy size={14} className="text-amber-600" />
+                <span className="hidden sm:inline">Leaderboard</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setShowSettingsModal(true)}
                 className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
                 title="Practice Settings"
@@ -1711,7 +1884,6 @@ export default function SqlPracticeView({
 
                 {categories.map((cat) => {
                   const isActive = selectedCategory === cat;
-                  const isDay4 = cat.toLowerCase().includes('day 4');
                   return (
                     <button
                       type="button"
@@ -1719,15 +1891,10 @@ export default function SqlPracticeView({
                       onClick={() => setSelectedCategory(cat)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer flex items-center space-x-1.5 ${
                         isActive
-                          ? isDay4
-                            ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-slate-900 text-white shadow-xs'
-                          : isDay4
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
                       }`}
                     >
-                      {isDay4 && <Flame size={12} className={isActive ? 'text-amber-300' : 'text-amber-500'} />}
                       <span>{cat}</span>
                     </button>
                   );
@@ -2226,7 +2393,7 @@ export default function SqlPracticeView({
             {!settings.hideHints && activeChallenge?.hints && activeChallenge.hints.length > 0 && (
               <button
                 type="button"
-                onClick={() => setSolveTab('hints')}
+                onClick={handleOpenHints}
                 className={`px-3 py-1.5 rounded-lg flex items-center space-x-1.5 transition-all cursor-pointer ${
                   solveTab === 'hints'
                     ? 'bg-white text-amber-700 font-black shadow-2xs border border-slate-200/80'
@@ -2235,6 +2402,11 @@ export default function SqlPracticeView({
               >
                 <Lightbulb size={13} className="text-amber-500" />
                 <span>Hints</span>
+                {viewedHints[activeChallenge.id] && (
+                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full font-bold">
+                    Viewed
+                  </span>
+                )}
               </button>
             )}
           </div>
@@ -2398,9 +2570,22 @@ export default function SqlPracticeView({
 
             {!settings.hideHints && solveTab === 'hints' && (
               <div className="space-y-3">
+                <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 text-xs space-y-1.5 text-amber-950 shadow-2xs">
+                  <div className="flex items-center space-x-2 font-black text-amber-900">
+                    <Lightbulb size={15} className="text-amber-600" />
+                    <span>Hint Mode Activated • 0 Leaderboard Points</span>
+                  </div>
+                  <p className="leading-relaxed text-amber-900/90 font-medium">
+                    Hints are unlocked to guide you. When hints are used, 0 leaderboard points are awarded. Solve cleanly without hints to earn +{getSqlChallengePoints(activeChallenge?.difficulty, true).basePoints} pt(s) for the leaderboard!
+                  </p>
+                  <p className="text-[11px] text-amber-800/80">
+                    💡 Tip: Switch ON <strong>Hide Hints (Strict Mode)</strong> in Settings ⚙️ to practice under strict interview conditions!
+                  </p>
+                </div>
+
                 <div className="text-xs font-black text-slate-900 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center space-x-1.5">
                   <Lightbulb size={14} className="text-amber-500" />
-                  <span>Challenge Hints</span>
+                  <span>Challenge Hints ({activeChallenge?.hints?.length || 0})</span>
                 </div>
                 {activeChallenge?.hints?.map((h, i) => (
                   <div key={i} className="bg-amber-50/80 border border-amber-200/90 rounded-xl p-3.5 text-xs text-amber-950 font-medium flex items-start space-x-2">
@@ -2702,6 +2887,51 @@ export default function SqlPracticeView({
 
                     return (
                       <div className="space-y-3">
+                        {/* Overall Challenge Passed & Points Feedback Banner */}
+                        {submissionResult.passed && (
+                          <div className={`p-3.5 sm:p-4 rounded-2xl border flex items-center justify-between shadow-xs ${
+                            !viewedHints[activeChallenge.id]
+                              ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-300 text-emerald-950'
+                              : 'bg-slate-50 border-slate-200 text-slate-800'
+                          }`}>
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                !viewedHints[activeChallenge.id] ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-200 text-slate-600'
+                              }`}>
+                                <CheckCircle2 size={20} />
+                              </div>
+                              <div>
+                                <div className="text-sm font-black flex items-center space-x-2">
+                                  <span>Accepted!</span>
+                                  {!viewedHints[activeChallenge.id] ? (
+                                    <span className="px-2.5 py-0.5 rounded-full text-xs bg-emerald-600 text-white font-black shadow-2xs">
+                                      +{getSqlChallengePoints(activeChallenge.difficulty, true).totalPoints} {getSqlChallengePoints(activeChallenge.difficulty, true).totalPoints === 1 ? 'Point' : 'Points'} Added
+                                    </span>
+                                  ) : (
+                                    <span className="px-2.5 py-0.5 rounded-full text-xs bg-slate-200 text-slate-600 font-bold">
+                                      0 Points (Hint Used)
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-slate-600 font-medium pt-0.5">
+                                  {!viewedHints[activeChallenge.id]
+                                    ? `All test cases passed cleanly! +${getSqlChallengePoints(activeChallenge.difficulty, true).totalPoints} pt added to your Leaderboard score.`
+                                    : 'All test cases passed! (Hints were viewed, so 0 points were added to the leaderboard).'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0 pl-2">
+                              <span className={`text-xs font-black px-3 py-1.5 rounded-xl border ${
+                                !viewedHints[activeChallenge.id]
+                                  ? 'bg-emerald-100 text-emerald-900 border-emerald-300 font-black'
+                                  : 'bg-slate-100 text-slate-600 border-slate-200 font-bold'
+                              }`}>
+                                {!viewedHints[activeChallenge.id] ? `+${getSqlChallengePoints(activeChallenge.difficulty, true).totalPoints} pt` : '0 pt'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Pass / Fail Banner */}
                         <div
                           className={`p-3 rounded-xl border flex items-start space-x-2 text-xs font-semibold ${
@@ -3198,6 +3428,18 @@ export default function SqlPracticeView({
           TABBED PRACTICE SETTINGS MODAL (PREMIUM & BALANCED UI)
          ========================================================================= */}
       {showSettingsModal && renderSettingsModal()}
+
+      {/* =========================================================================
+          SQL MASTERY LEADERBOARD & CLEAN SOLVE RANKINGS MODAL
+         ========================================================================= */}
+      <SqlLeaderboardModal
+        isOpen={showLeaderboardModal}
+        onClose={() => setShowLeaderboardModal(false)}
+        currentUserEmail={studentAccount?.email || user?.email || ''}
+        currentUserName={studentAccount?.name || user?.name || (studentAccount?.email || user?.email || '').split('@')[0]}
+        currentUserPoints={sqlPoints}
+        cleanSolvesCount={Object.values(solvedDetails).filter(d => d.isClean).length}
+      />
 
     </div>
   );

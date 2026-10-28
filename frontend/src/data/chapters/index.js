@@ -3,6 +3,7 @@ import { CHAPTER_2_METADATA, CHAPTER_2_TOPICS } from './chapter2BuildingBlocks.j
 import { CHAPTER_1_METADATA, CHAPTER_1_TOPICS } from './chapter1Ddl.js';
 import { CHAPTER_3_METADATA, CHAPTER_3_TOPICS } from './chapter3Dml.js';
 import { CHAPTER_4_METADATA, CHAPTER_4_TOPICS } from './chapter4Filtering.js';
+import { CHAPTER_5_METADATA, CHAPTER_5_TOPICS } from './chapter5InsertBulk.js';
 
 // All Chapters Catalog with Availability Status
 export const CHAPTER_CATALOG = [
@@ -11,6 +12,7 @@ export const CHAPTER_CATALOG = [
   CHAPTER_1_METADATA,
   CHAPTER_3_METADATA,
   CHAPTER_4_METADATA,
+  CHAPTER_5_METADATA,
   {
     id: 'mod-06',
     number: 6,
@@ -85,7 +87,8 @@ export const ALL_TOPIC_DETAILS = {
   ...CHAPTER_2_TOPICS,
   ...CHAPTER_1_TOPICS,
   ...CHAPTER_3_TOPICS,
-  ...CHAPTER_4_TOPICS
+  ...CHAPTER_4_TOPICS,
+  ...CHAPTER_5_TOPICS
 };
 
 // Helper utilities
