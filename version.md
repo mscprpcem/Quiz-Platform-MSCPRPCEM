@@ -49,6 +49,9 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 - **Dedicated 30-Day Developer Roadmap (`GitRoadmapView.jsx` at `/courses/git/roadmap`)**:
   - Dedicated interactive study schedule guiding students through 30 daily goals from basic repo initialization to CI/CD and emergency production hotfixes.
   - Interactive week-by-week selector pills (All 30 Days, Week 1-4), live roadmap search filter, and individual day completion toggle checkboxes.
+  - Added modular **Day 1: Version Control Fundamentals & Local Installation** ([day1Fundamentals.js](file:///d:/Quiz-platform/frontend/src/data/gitDays/day1Fundamentals.js)), comprehensive curriculum integration, and custom light-theme educational infographics for What/Why VCS, Centralized vs Distributed architectures, cross-platform setup (Windows, macOS, Linux), and verification.
+  - Added modular **Day 2: Git Configuration (`git config`, Local vs. Global)** ([day2Configuration.js](file:///d:/Quiz-platform/frontend/src/data/gitDays/day2Configuration.js)), scopes hierarchy and precedence rules, author identity embedding, essential behavioral defaults, and clean UI vector diagrams matching the platform aesthetic.
+  - Added modular **Day 3: Repository Basics & The Three Trees** ([day3RepositoryBasics.js](file:///d:/Quiz-platform/frontend/src/data/gitDays/day3RepositoryBasics.js)), detailing standard directory vs repository, Three-Stage Tree workflow, untracked vs tracked file lifecycle, `git init`, and `.git` internal database anatomy with custom website-theme vector diagrams.
 - **Dedicated Git Command Cheat Sheet (`/courses/git/cheatsheet`)**:
   - Dedicated reference page categorizing essential commands: Setup & Config, Basic Snapshotting, Branching & Merging, Inspection & History, Remote Repositories, Stashing & Recovery, and Advanced Plumbing.
   - Instant live search filter and one-click copyable command cards with responsive text wrapping.

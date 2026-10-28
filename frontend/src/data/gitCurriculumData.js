@@ -1,6 +1,4 @@
-// Git & GitHub Complete Curriculum Data (5-Tier Architecture)
-// Designed for MSC PRPCEM Assessment & Learning Platform
-import { DAY_0_TOPIC } from './gitDays/index.js';
+import { DAY_0_TOPIC, DAY_1_TOPIC, DAY_2_TOPIC, DAY_3_TOPIC } from './gitDays/index.js';
 
 export const GIT_CURRICULUM = [
   {
@@ -22,81 +20,9 @@ export const GIT_CURRICULUM = [
     badge: 'Week 1: Days 1–7',
     color: 'from-blue-600 to-cyan-600',
     topics: [
-      {
-        day: 1,
-        slug: 'git-basics',
-        title: 'Day 1: What is Version Control? (Snapshots vs Deltas)',
-        summary: 'Understand why Git won the version control battle: Snapshots over Deltas, distributed architecture, and cryptographic integrity.',
-        readTime: '6 min read',
-        content: `
-### What is Version Control?
-
-A **Version Control System (VCS)** is software that records changes to files over time so that you can recall specific versions later, collaborate without overwriting work, and audit history.
-
-#### Centralized vs. Distributed (CVCS vs. DVCS)
-* **Centralized (SVN, Perforce)**: A single central server holds the entire history. If the server goes down, no one can commit or review history.
-* **Distributed (Git, Mercurial)**: Every developer's local machine contains a **full clone of the entire repository history**. You can commit, branch, diff, and inspect logs completely offline.
-
-#### How Git Thinks: Snapshots, Not Differences
-Traditional systems (like Subversion) store information as a list of file-based changes (deltas). Git does not store diffs!
-
-Git models data as a **stream of snapshots**:
-* Every time you commit, Git takes a picture of what all your files look like at that moment.
-* For efficiency, if a file has not changed, Git does not store it again — it simply stores a reference/pointer to the previous identical blob.
-
-\`\`\`
-Traditional VCS (Deltas):
-File A ──► Δ1 ──► Δ2 ──► Δ3
-
-Git (Snapshots):
-Commit 1 ──► [Blob A1] [Blob B1] [Blob C1]
-Commit 2 ──► [Blob A2] [   B1  ] [Blob C2]   <-- B1 reused directly!
-\`\`\`
-
-#### Cryptographic Integrity (SHA-1)
-Everything in Git is checksummed before it is stored and is then referred to by that checksum (a 40-character hexadecimal string, e.g. \`c3f81e7...\`). It is mathematically impossible to alter any file or commit without Git detecting the change.
-        `
-      },
-      {
-        slug: 'git-init',
-        title: '2. Initializing a Repository & Anatomy of .git',
-        summary: 'How git init transforms a normal directory into a repository, and what lives inside the hidden .git directory.',
-        readTime: '5 min read',
-        content: `
-### Initializing a Repository
-
-To place an existing project folder under Git tracking:
-
-\`\`\`bash
-cd my-project/
-git init
-\`\`\`
-
-This command outputs:
-\`Initialized empty Git repository in /path/to/my-project/.git/\`
-
----
-
-### Anatomy of the Hidden \`.git\` Directory
-
-When you run \`git init\`, Git creates a hidden \`.git\` directory. This folder is the entire repository!
-
-\`\`\`
-.git/
-├── HEAD            # Reference pointer to the currently checked-out branch
-├── config          # Repository-specific configuration options
-├── description     # Used by GitWeb (rarely used today)
-├── hooks/          # Client-side and server-side script hooks (pre-commit, etc.)
-├── info/           # Global exclude patterns
-├── objects/        # The Object Database: blobs, trees, commits, tags
-└── refs/           # Pointers to commit objects (heads, tags, remotes)
-    ├── heads/      # Local branch pointers (e.g., main, feature/login)
-    └── tags/       # Release tags (e.g., v1.0.0)
-\`\`\`
-
->  **Key Takeaway**: If you delete the \`.git\` folder, your project reverts to an untracked, normal directory. All historical commits and branches inside \`.git\` will be erased.
-        `
-      },
+      DAY_1_TOPIC,
+      DAY_2_TOPIC,
+      DAY_3_TOPIC,
       {
         slug: 'three-trees',
         title: '3. The Three Trees: Working Directory, Staging & Repository',
@@ -1203,9 +1129,9 @@ export const GIT_ROADMAP = [
     week: 'Week 1',
     title: 'Foundations & Daily Workflow',
     days: [
-      { day: 1, title: 'Version Control Concepts & Snapshots', topic: 'git-basics' },
-      { day: 2, title: 'Initializing Repos & .git Anatomy', topic: 'git-init' },
-      { day: 3, title: 'The Three Trees (Working, Staging, HEAD)', topic: 'three-trees' },
+      { day: 1, title: 'Day 1: Version Control Fundamentals & Local Installation', topic: 'git-basics' },
+      { day: 2, title: 'Day 2: Git Configuration (git config, Local vs. Global)', topic: 'git-config' },
+      { day: 3, title: 'Day 3: Repository Basics & The Three Trees', topic: 'git-init' },
       { day: 4, title: 'Inspecting Status & Staging Changes', topic: 'git-status-add' },
       { day: 5, title: 'Crafting Atomic Commits & Semantics', topic: 'git-commit' },
       { day: 6, title: 'Navigating History with git log', topic: 'git-log' },

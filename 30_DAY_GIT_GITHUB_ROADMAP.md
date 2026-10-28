@@ -158,6 +158,685 @@ Hand this glossary to your students so they aren't intimidated by the jargon in 
 
 ---
 
+## 🛠️ Day 1: Version Control Fundamentals & Local Installation
+
+> [!NOTE]
+> Day 1 covers the core theory of Version Control Systems (VCS), the 4 metadata pillars of a commit, CVCS vs. DVCS architectural paradigms, and step-by-step local installation across Windows, macOS, and Linux.
+
+<div align="center">
+  <img src="docs/assets/git-vcs-fundamentals.jpg" alt="Version Control Fundamentals: What is VCS and Why Use It" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 1.1: What is Version Control (What, Who, When, Why) and Why Use Version Control.</em></p>
+</div>
+
+---
+
+### 1. What is Version Control?
+
+A **Version Control System (VCS)** is a tool that tracks and manages every change made to computer files over time.
+
+Whenever a change is recorded, the system saves an exact record of:
+* **What changed:** Which exact lines were added, altered, or deleted.
+* **Who made the change:** Author name and email.
+* **When it occurred:** Date and timestamp.
+* **Why it was done:** A mandatory commit message explaining the change.
+
+---
+
+### 2. Why Use Version Control?
+
+Without version control, backups rely on duplicating files manually (e.g., `script_v1.py`, `script_final.py`). Version control eliminates this workflow by providing:
+
+* **Complete Historical Record:** Reverts any file or entire project back to a prior state without losing progress.
+* **Traceability and Accountability:** Pinpoints when an error was introduced, what caused it, and who committed it.
+* **Branching & Experimentation:** Allows developers to test new features in isolated environments without risking production-ready code.
+* **Concurrent Collaboration:** Enables multiple people to work on the exact same codebase simultaneously, merging modifications together programmatically.
+* **Audit Trail & Documentation:** Creates an organized change log that serves as technical documentation for the codebase.
+
+---
+
+### 3. Git vs. Other Version Control Systems
+
+Version control architectures fall into two primary models: **Centralized** and **Distributed**.
+
+```
+Centralized (CVCS):              Distributed (DVCS - Git):
+   [ Central Server ]               [ Central / Remote ]
+     /      |      \                   ^        ^
+    v       v       v                  |        |
+[Dev A]  [Dev B]  [Dev C]           [Dev A]  [Dev B]
+(Working (Working (Working          (Full    (Full
+ Copy)    Copy)    Copy)            Clone)   Clone)
+```
+
+<div align="center">
+  <img src="docs/assets/git-cvcs-vs-dvcs.jpg" alt="Centralized (CVCS) vs Distributed Version Control Systems (DVCS - Git)" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 1.2: Architectural Comparison: Centralized VCS (SVN, Perforce) vs. Distributed VCS (Git).</em></p>
+</div>
+
+#### Centralized Version Control Systems (CVCS)
+* **Examples:** SVN (Apache Subversion), CVS, Perforce.
+* **Architecture:** A single central server houses the entire version history. Clients check out only a single snapshot of the files locally.
+* **Limitations:**
+  * **Single Point of Failure:** If the central server crashes or corrupts, history is lost unless external backups exist.
+  * **Network Dependent:** Viewing commit history, creating branches, or saving versions requires an active network connection to the server.
+
+#### Distributed Version Control Systems (DVCS)
+* **Examples:** Git, Mercurial.
+* **Architecture:** Every client clones the entire repository—including the full commit history, branches, and tags—directly onto their local storage.
+* **Advantages of Git:**
+  * **Offline Capability:** Commits, branches, diffs, and logs execute locally without network access.
+  * **Redundancy:** Every developer's machine acts as a complete backup of the repository.
+  * **Speed:** File operations happen on local disk storage rather than across a network.
+  * **Branching Model:** Git’s branching system is lightweight and fast compared to older systems where branching required duplicating entire directories.
+
+---
+
+### 4. Practical Task: Installing Git Locally
+
+Follow the instructions corresponding to your operating system to install Git and verify the setup.
+
+#### Option A: Windows Installation
+
+**Download the Official Installer:**
+* Navigate to [https://git-scm.com/install/windows](https://git-scm.com/install/windows).
+* Download the 64-bit Git for Windows Setup.
+
+**Run the Setup Wizard:**
+* **Default Editor:** When prompted to choose an editor, select **Visual Studio Code** (or your preferred editor).
+* **Initial Branch Name:** Choose **"Override the default branch name for new repositories"** and set it to `main`.
+* **PATH Environment:** Select **"Git from the command line and also from 3rd-party software"** (recommended).
+* **Line Ending Conversions:** Select **"Checkout Windows-style, commit Unix-style line endings"** (`core.autocrlf = true`).
+* **Terminal Emulator:** Choose **"Use MinTTY (the default terminal of MSYS2)"**.
+* Leave remaining options at their default settings and click **Install**.
+
+**Alternative via Windows Package Manager:**
+```powershell
+winget install --id Git.Git -e --source winget
+```
+*(After using winget, close and restart your terminal).*
+
+#### Option B: macOS Installation
+Choose one of the following methods:
+
+**Method 1: Apple Developer Command Line Tools (Quickest)**
+* Open Terminal (`Cmd + Space`, search `Terminal`).
+* Run:
+  ```bash
+  xcode-select --install
+  ```
+* Click **Install** in the software update popup and accept the license.
+
+**Method 2: Homebrew (Recommended for Latest Releases)**
+* If Homebrew is installed, run:
+  ```bash
+  brew install git
+  ```
+
+#### Option C: Linux Installation
+Open your terminal and run the commands for your distribution:
+
+* **Debian / Ubuntu:**
+  ```bash
+  sudo apt update
+  sudo apt install git -y
+  ```
+* **Fedora / RHEL / CentOS:**
+  ```bash
+  sudo dnf install git -y
+  ```
+* **Arch Linux:**
+  ```bash
+  sudo pacman -S git
+  ```
+
+---
+
+### 5. Verifying the Installation
+
+Once installation is complete, close any open terminal windows and open a new terminal session (Command Prompt/PowerShell on Windows, Terminal on macOS/Linux).
+
+#### 1. Run the Version Verification Command:
+```bash
+git --version
+```
+
+**Expected Output:**
+The command must output the installed version string without errors:
+```plaintext
+git version 2.x.x
+```
+*(Any version `2.x.x` confirms that Git is installed and available in your system's PATH).*
+
+#### 2. Run the Help Command to Inspect Core Subcommands:
+```bash
+git --help
+```
+*(This confirms the Git executable is responsive and prints standard command-line options).*
+
+<div align="center">
+  <img src="docs/assets/git-install-verify.jpg" alt="Installing Git Locally & Verification Guide Across Platforms" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 1.3: Cross-Platform Git Installation (Windows, macOS, Linux) and Terminal Verification.</em></p>
+</div>
+
+---
+
+### 📋 Quick Reference Summary
+
+| Concept | Definition |
+| :--- | :--- |
+| **VCS** | Software that records changes to a file or set of files over time. |
+| **CVCS** | Centralized VCS; depends on a single server for full history. |
+| **DVCS** | Distributed VCS; every client has a complete copy of repository history. |
+| **Git** | An open-source, local distributed version control software. |
+| **Verification Command** | `git --version` (used to verify successful installation). |
+
+---
+
+## ⚙️ Day 2: Git Configuration (git config, Local vs. Global)
+
+> [!NOTE]
+> Day 2 covers how Git embeds immutable author metadata into commit objects, how configuration scopes cascade from System to Global to Local, essential editor and newline configurations, and configuration inspection.
+
+<div align="center">
+  <img src="docs/assets/git-config-scopes.jpg" alt="Git Configuration Scopes and Hierarchical Precedence" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 2.1: Git Configuration Scopes & Precedence Hierarchy (Local > Global > System).</em></p>
+</div>
+
+---
+
+### 1. What is Git Configuration?
+
+Git does not operate anonymously. Every time a change is saved (committed), Git permanently embeds cryptographic metadata into that commit:
+
+* **The author's full display name:** The human-readable name of the engineer.
+* **The author's email address:** The verified email address linked to your developer profile.
+* **The exact timestamp:** The precise date, time, and timezone when the change was authored and committed.
+
+Once written into a commit, this identity becomes an immutable part of the project's historical hash tree. Altering it later requires rewriting repository history.
+
+The primary tool used to set, modify, and query these operational parameters is the `git config` command-line utility.
+
+---
+
+### 2. Configuration Scopes & Hierarchical Precedence
+
+Git stores its settings across three distinct configuration levels (or scopes). Understanding these scopes prevents identity conflicts between personal projects and professional or educational repositories.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 1. System Scope (--system)                                   │
+│    Applies to all OS user accounts on this machine           │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼  (Overridden by)
+┌─────────────────────────────────────────────────────────────┐
+│ 2. Global Scope (--global)                                  │
+│    Applies to the logged-in OS user across ALL repositories │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼  (Overridden by)
+┌─────────────────────────────────────────────────────────────┐
+│ 3. Local Scope (--local)                                    │
+│    Applies ONLY to a specific repository (.git/config)      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Detailed Breakdown of Scopes
+
+| Scope Level | CLI Flag | File System Location | Typical Use Case |
+| :--- | :--- | :--- | :--- |
+| **System** | `--system` | **Unix/macOS:** `/etc/gitconfig`<br/>**Windows:** `C:\Program Files\Git\etc\gitconfig` | Applied across all user accounts on the physical computer. Rarely edited unless managing multi-user shared lab servers. |
+| **Global** | `--global` | **Unix/macOS:** `~/.gitconfig` or `~/.config/git/config`<br/>**Windows:** `C:\Users\<Username>\.gitconfig` | General identity and baseline settings applied to every repository created or cloned by your computer profile. |
+| **Local** | `--local` | `<Repository-Root>/.git/config` | Applied strictly inside one individual project folder. Used when a specific project requires an alternate email address or custom remote settings. |
+
+#### Precedence Rule
+
+If the exact same configuration variable is set at multiple levels, Git resolves settings in order of specificity:
+
+> **Precedence Hierarchy:**  
+> **Local** *(Highest Precedence)* ❯ **Global** *(User Default)* ❯ **System** *(Lowest Precedence)*
+
+> **Important Detail:** If you execute `git config` inside an existing repository without supplying an explicit scope flag (such as `--global` or `--system`), Git defaults to `--local`. If executed outside of a repository without flags, Git throws a fatal error because no `.git/config` file exists to modify.
+
+---
+
+### 3. Configuring User Identity
+
+#### Setting the Global Identity (Default Setup)
+Run these commands in your terminal to set your baseline machine-wide developer identity:
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "your.email@example.com"
+```
+
+* **user.name:** Your professional name or public handle (e.g., Alex Morgan). It does not need to match your operating system account username.
+* **user.email:** The email address where your contributions are credited. For GitHub integration, this should match the verified email address linked to your GitHub account (which will be configured on Day 5).
+
+#### Setting a Local (Per-Repository) Identity
+When contributing to an employer codebase, client project, or institutional assignment that mandates a specific work/school email address (e.g., `alex@university.edu`), navigate inside that repository's directory and execute:
+
+```bash
+git config --local user.name "Alex Morgan"
+git config --local user.email "alex@university.edu"
+```
+
+* **Outcome:** Commits made inside this specific folder will use `alex@university.edu`, while every other repository on your machine continues to use `your.email@example.com` via the global configuration.
+
+---
+
+### 4. Essential Behavioral Configurations
+
+Beyond name and email, production workflows rely on standard defaults for branch naming, text editors, line endings, and credentials.
+
+<div align="center">
+  <img src="docs/assets/git-identity-defaults.jpg" alt="Git User Identity and Essential Configurations" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 2.2: User Identity Metadata & 4 Essential Git Configurations.</em></p>
+</div>
+
+#### 1. Default Branch Initialization (`init.defaultBranch`)
+Historically, Git defaulted initial branches to `master`. Modern Git distributions and hosting platforms (GitHub, GitLab) use `main` as the standard default branch name:
+
+```bash
+git config --global init.defaultBranch main
+```
+
+#### 2. Default Text Editor (`core.editor`)
+Whenever Git requires an interactive message (such as merge conflict resolution, empty commit messages, or interactive rebasing), it invokes your system's default editor:
+
+* **Visual Studio Code (GUI):**
+  ```bash
+  git config --global core.editor "code --wait"
+  ```
+  *(The `--wait` flag instructs your terminal to pause until you close the VS Code file tab).*
+* **Nano (Beginner-friendly CLI):**
+  ```bash
+  git config --global core.editor "nano"
+  ```
+* **Vim (Advanced CLI):**
+  ```bash
+  git config --global core.editor "vim"
+  ```
+
+#### 3. Cross-Platform Line Endings (`core.autocrlf`)
+Different operating systems represent newlines in text files using different ASCII control characters:
+* **Windows:** Carriage Return + Line Feed (`CRLF`, `\r\n`).
+* **macOS / Linux:** Line Feed (`LF`, `\n`).
+
+If Windows and macOS/Linux developers collaborate on the same repository without normalizations, Git detects the invisible line-ending changes as complete file modifications, polluting the commit history.
+
+* **On Windows Machines:**
+  ```bash
+  git config --global core.autocrlf true
+  ```
+  *(Converts LF to CRLF when checking out files to your disk, and converts CRLF back to LF when committing into the repository).*
+* **On macOS and Linux Machines:**
+  ```bash
+  git config --global core.autocrlf input
+  ```
+  *(Maintains LF on disk and ensures any accidental CRLF introduced is stripped before being committed).*
+
+#### 4. Credential Helper (`credential.helper`)
+Prevents having to manually authenticate repeatedly when communicating with remote servers over HTTPS:
+
+* **Windows:**
+  ```bash
+  git config --global credential.helper manager
+  ```
+* **macOS:**
+  ```bash
+  git config --global credential.helper osxkeychain
+  ```
+* **Linux:**
+  ```bash
+  git config --global credential.helper cache
+  ```
+
+---
+
+### 5. Inspecting, Verifying & Debugging Configurations
+
+#### Verifying Specific Configuration Keys
+Query the current resolved value of any single variable:
+
+```bash
+git config user.name
+git config user.email
+```
+
+#### Listing All Active Configurations
+To print every configuration variable currently active in your environment:
+
+```bash
+git config --list
+```
+
+To restrict the list output to a single scope:
+
+```bash
+git config --list --global
+git config --list --local
+```
+
+#### Tracing Configuration Sources (`--show-origin`)
+When a setting is behaving unexpectedly, print the configuration values along with the exact physical file path where each setting is defined:
+
+```bash
+git config --list --show-origin
+```
+
+**Example Output:**
+```
+file:C:/Program Files/Git/etc/gitconfig    core.symlinks=false
+file:C:/Program Files/Git/etc/gitconfig    core.autocrlf=true
+file:C:/Users/Alex/.gitconfig              user.name=Alex Morgan
+file:C:/Users/Alex/.gitconfig              user.email=alex@example.com
+file:C:/Users/Alex/.gitconfig              init.defaultbranch=main
+```
+
+---
+
+### 6. Modifying and Unsetting Configuration Values
+
+#### Overwriting an Existing Setting
+To update an existing variable, re-run the `git config` assignment with the new value. The old value is replaced automatically:
+
+```bash
+git config --global user.name "Alexander Morgan"
+```
+
+#### Removing a Variable (`--unset`)
+If a value was entered incorrectly or needs to be cleared:
+
+```bash
+git config --global --unset user.name
+```
+
+#### Direct File Editing (`--edit`)
+Git configuration files are standard INI-formatted text files. You can open and edit the configuration file directly inside your configured text editor:
+
+```bash
+git config --global --edit
+```
+
+**Sample Structure of `~/.gitconfig`:**
+```ini
+[user]
+    name = Alex Morgan
+    email = alex@example.com
+[init]
+    defaultBranch = main
+[core]
+    autocrlf = true
+    editor = code --wait
+```
+
+---
+
+### 7. Practical Task Walkthrough
+
+Complete the following validation sequence in your terminal to fulfill the Day 2 practical assignment:
+
+```bash
+# Step 1: Set your global name
+git config --global user.name "Your Preferred Name"
+
+# Step 2: Set your global email
+git config --global user.email "yourname@example.com"
+
+# Step 3: Set your default branch to main
+git config --global init.defaultBranch main
+
+# Step 4: Configure line-ending behavior (run the one matching your OS)
+# For Windows:
+git config --global core.autocrlf true
+# For macOS / Linux:
+git config --global core.autocrlf input
+
+# Step 5: Verify the values
+git config user.name
+git config user.email
+
+# Step 6: Print configuration origins to confirm the file location
+git config --list --show-origin
+```
+
+---
+
+### 📋 Quick Reference Summary
+
+| Command | Description |
+| :--- | :--- |
+| `git config --global user.name "Name"` | Sets the system user's default commit author name. |
+| `git config --global user.email "Email"` | Sets the system user's default commit author email. |
+| `git config --local user.email "Email"` | Overrides the commit email strictly within the current repository. |
+| `git config --global init.defaultBranch main` | Configures new local repositories to initialize on `main`. |
+| `git config --global core.autocrlf true/input` | Configures line-ending normalization across operating systems. |
+| `git config --list` | Dumps all active configuration keys and values. |
+| `git config --list --show-origin` | Displays every active configuration setting alongside its physical file path. |
+| `git config --global --unset <key>` | Removes a configuration entry from the global scope. |
+| `git config --global --edit` | Opens the global `.gitconfig` file in your text editor. |
+
+---
+
+## 📦 Day 3: Repository Basics & The Three Trees (git init, .git Anatomy)
+
+> [!NOTE]
+> Day 3 covers the core internal architecture of Git: standard directories vs Git repositories, the Three-Stage Tree workflow (Working Directory, Staging Area, Local Repository), file lifecycles, and the internal anatomy of the `.git` folder.
+
+<div align="center">
+  <img src="docs/assets/git-three-trees.jpg" alt="Git Three-Stage Architecture (The Three Trees)" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 3.1: The Three Trees: Working Directory, Staging Area (Index), and Local Repository (.git).</em></p>
+</div>
+
+---
+
+### 1. What is a Git Repository?
+
+A **Git Repository** (often shortened to **Repo**) is a filesystem directory that Git actively monitors for modifications.
+
+* **Standard Directory:** A regular folder managed purely by your operating system. Any modification or deletion overwrites the disk state with zero historical record or recovery capability.
+* **Git Repository:** A standard directory containing an invisible, internal subfolder named `.git`. The presence of this `.git` directory turns a basic folder into a fully tracked repository capable of taking historical snapshots (commits).
+
+---
+
+### 2. Git's Three-Stage Architecture (The "Three Trees")
+
+Git does not directly take a snapshot of your files the second you save them in an editor. Instead, Git manages files across three distinct states or areas before recording them permanently into history:
+
+```
+  Working Directory               Staging Area (Index)             Local Repository (.git)
+┌───────────────────────┐       ┌───────────────────────┐       ┌───────────────────────┐
+│                       │       │                       │       │                       │
+│  Actual files on disk │ ────> │  Staged snapshot      │ ────> │  Permanent commits    │
+│  (Untracked/Modified) │  git  │  (Prepared changes)   │  git  │  (Immutable history)  │
+│                       │  add  │                       │ commit│                       │
+└───────────────────────┘       └───────────────────────┘       └───────────────────────┘
+```
+
+#### The Three Areas Explained
+
+| Area | Technical Name | What Lives Here | Purpose |
+| :--- | :--- | :--- | :--- |
+| **1. Working Directory** | Working Tree | The visible files and folders sitting on your local storage drive. | Where you edit, create, and delete code using your text editor or IDE. |
+| **2. Staging Area** | The Index / Cache | A binary staging file located at `.git/index`. | A preparation holding zone where you pick and choose exactly which modified lines or files belong in the next snapshot. |
+| **3. Local Repository** | Git Directory (`.git`) | The internal database containing all project history and metadata. | The permanent storage archive where finished commits are recorded indefinitely. |
+
+> **Key Architectural Insight:** The Staging Area gives you surgical precision over your commits. If you edited 5 files today, you do not have to commit them all at once. You can stage 2 files for a bug fix commit, and stage the other 3 files separately for a feature commit.
+
+---
+
+### 3. The Lifecycle of a File in Git
+
+Inside your repository, every file exists in one of two major states: **Untracked** or **Tracked**.
+
+```
+              ┌─────────────── UNTRACKED (File newly created)
+              │                       │
+              │                       │ git add
+              ▼                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       TRACKED FILES                         │
+│                                                             │
+│   ┌──────────────┐     Edit file      ┌──────────────┐      │
+│   │  Unmodified  │ ─────────────────> │   Modified   │      │
+│   └──────────────┘                    └──────────────┘      │
+│          ▲                                   │              │
+│          │ git commit                        │ git add      │
+│          │                                   ▼              │
+│   ┌──────────────────────────────────────────────────┐      │
+│   │                 Staged / Indexed                 │      │
+│   └──────────────────────────────────────────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Detailed File States
+
+* **Untracked:** Any file present in the directory that Git has never seen before and is not yet part of any snapshot. Git explicitly ignores untracked files until told to include them.
+* **Tracked:** Files that were included in the previous snapshot. They can be:
+  * **Unmodified:** The file is identical to what is stored in the last commit.
+  * **Modified:** The file has been edited in the working directory since the last commit, but has not yet been staged.
+  * **Staged:** A modified or newly created file marked to go into the next commit snapshot.
+
+---
+
+### 4. Repository Initialization: `git init`
+
+To turn an existing folder into a tracked repository, you initialize it using the `git init` command:
+
+```bash
+git init
+```
+
+#### What Happens Behind the Scenes?
+
+Running `git init` creates a hidden subfolder named `.git` at the root of your project directory:
+
+* It **does not alter, move, or overwrite** any of your existing code files.
+* It sets up the default tracking branch (configured as `main` on Day 2).
+* **Destruction Warning:** If you delete the `.git` folder, your project reverts to a standard unversioned folder, and all commit history and branches are permanently erased.
+
+---
+
+### 5. Inspecting the Hidden `.git` Directory
+
+Because `.git` starts with a period (`.`), it is hidden by operating system file explorers by default to prevent accidental deletion.
+
+<div align="center">
+  <img src="docs/assets/git-file-lifecycle-anatomy.jpg" alt="File Lifecycle in Git and Internal Anatomy of .git" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 3.2: File State Transitions and Core Database Components inside .git.</em></p>
+</div>
+
+#### Internal Structure of the `.git` Directory
+
+When inspected, the initialized `.git` directory contains the following core files and folders:
+
+```plaintext
+.git/
+├── HEAD             # Points to the branch currently checked out (e.g., ref: refs/heads/main)
+├── config           # Repository-specific local configuration settings
+├── description      # Used primarily by GitWeb (default description file)
+├── hooks/           # Sample client/server scripts triggered before or after Git actions
+├── info/            # Global exclusion file (exclude patterns for this specific repo)
+├── objects/         # The object database (stores blobs, trees, commits, and tags)
+└── refs/            # Pointers to commit objects (heads, tags, remotes)
+    ├── heads/       # Local branch pointers (e.g., main, feature/login)
+    └── tags/        # Release tags (e.g., v1.0.0)
+```
+
+---
+
+### 6. Practical Task Walkthrough
+
+Follow these terminal steps to create a practice repository, initialize tracking, and inspect the internal file structure:
+
+#### Step 1: Create a Dedicated Directory & Enter It
+
+```bash
+# Navigate to your workspace (e.g., Desktop or Projects)
+cd Desktop
+
+# Create a new directory for today's exercise
+mkdir day3-repo-practice
+
+# Step inside the newly created directory
+cd day3-repo-practice
+```
+
+#### Step 2: Initialize the Repository
+Run the initialization command inside the directory:
+
+```bash
+git init
+```
+
+**Expected Terminal Output:**
+```plaintext
+Initialized empty Git repository in /Users/<Username>/Desktop/day3-repo-practice/.git/
+```
+
+#### Step 3: Inspect the Filesystem for Hidden Contents
+List all directory contents, including hidden files and flags:
+
+* **On macOS / Linux / Git Bash:**
+  ```bash
+  ls -la
+  ```
+* **On Windows PowerShell:**
+  ```powershell
+  Get-ChildItem -Force
+  ```
+
+**Expected Terminal Output:**
+```plaintext
+drwxr-xr-x   .
+drwxr-xr-x   ..
+drwxr-xr-x   .git
+```
+
+#### Step 4: Inspect the Internal Contents of the `.git` Folder
+List the components created inside the internal metadata folder:
+
+* **On macOS / Linux / Git Bash:**
+  ```bash
+  ls -la .git
+  ```
+* **On Windows PowerShell:**
+  ```powershell
+  Get-ChildItem -Force .git
+  ```
+
+#### Step 5: Check Repository Status
+Check the current state of the working directory and staging area:
+
+```bash
+git status
+```
+
+**Expected Terminal Output:**
+```plaintext
+On branch main
+
+No commits yet
+
+nothing to commit (create/copy files and use "git add" to track)
+```
+
+---
+
+### 📋 Quick Reference Summary
+
+| Concept / Command | Purpose |
+| :--- | :--- |
+| **Working Directory** | The folder containing visible files you directly edit on disk. |
+| **Staging Area (Index)** | The intermediary zone where changes are organized before committing. |
+| **Local Repository** | The internal `.git` database holding permanent snapshot records. |
+| **`git init`** | Initializes a new local Git repository in the current directory. |
+| **`git status`** | Displays active branch, untracked files, and staged changes. |
+| **`.git` folder** | The hidden folder housing all version history, objects, and configs. |
+
+---
+
 ## 📚 Detailed Weekly Breakdown
 
 ### 🎯 Week 1: Git & GitHub Foundations (Days 1–7)

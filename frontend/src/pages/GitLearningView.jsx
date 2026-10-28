@@ -266,6 +266,26 @@ function parseMarkdownBlocks(markdown) {
       continue;
     }
 
+    // 5b. Math / Formula block: $$...$$
+    if (trimmed.startsWith('$$')) {
+      let formulaContent = trimmed;
+      if (trimmed === '$$') {
+        i++;
+        const fLines = [];
+        while (i < lines.length && !lines[i].trim().startsWith('$$')) {
+          fLines.push(lines[i].trim());
+          i++;
+        }
+        if (i < lines.length) i++;
+        formulaContent = fLines.join(' ');
+      } else {
+        formulaContent = trimmed.replace(/^\$\$\s*/, '').replace(/\s*\$\$$/, '');
+        i++;
+      }
+      blocks.push({ type: 'formula', content: formulaContent });
+      continue;
+    }
+
     // 6. Headings: ###, ####, ##, #
     if (trimmed.startsWith('#')) {
       const hashes = trimmed.match(/^#+/)[0];
@@ -308,6 +328,7 @@ function parseMarkdownBlocks(markdown) {
       !lines[i].trim().startsWith('>') &&
       !lines[i].trim().startsWith('|') &&
       !lines[i].trim().startsWith('![') &&
+      !lines[i].trim().startsWith('$$') &&
       lines[i].trim() !== '---' &&
       !/^[-*]\s+/.test(lines[i].trim()) &&
       !/^\d+\.\s+/.test(lines[i].trim())
@@ -337,7 +358,7 @@ function GitLessonContent({ markdown, onJumpToPractice }) {
     // Strip any unicode emojis completely
     const cleanText = text.replace(/[\u{1F300}-\u{1F9FF}]|[⚠️🚨⚡🔥🎯💡🧭🗺️]/gu, '');
     const parts = [];
-    const regex = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
+    const regex = /(\[[^\]]+\]\([^)]+\)|https?:\/\/[^\s<)]+|\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
     let lastIndex = 0;
     let match;
 
@@ -346,7 +367,39 @@ function GitLessonContent({ markdown, onJumpToPractice }) {
         parts.push(cleanText.slice(lastIndex, match.index));
       }
       const token = match[0];
-      if (token.startsWith('**') && token.endsWith('**')) {
+      if (token.startsWith('[') && token.includes('](') && token.endsWith(')')) {
+        const linkMatch = token.match(/^\[(.*?)\]\((.*?)\)$/);
+        if (linkMatch) {
+          const [, label, url] = linkMatch;
+          parts.push(
+            <a
+              key={match.index}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors cursor-pointer"
+            >
+              <span>{label}</span>
+              <ExternalLink size={12} className="inline-block shrink-0 opacity-70" />
+            </a>
+          );
+        } else {
+          parts.push(token);
+        }
+      } else if (token.startsWith('http://') || token.startsWith('https://')) {
+        parts.push(
+          <a
+            key={match.index}
+            href={token}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors cursor-pointer"
+          >
+            <span>{token}</span>
+            <ExternalLink size={12} className="inline-block shrink-0 opacity-70" />
+          </a>
+        );
+      } else if (token.startsWith('**') && token.endsWith('**')) {
         parts.push(
           <strong key={match.index} className="font-semibold text-slate-900">
             {token.slice(2, -2)}
@@ -489,6 +542,63 @@ function GitLessonContent({ markdown, onJumpToPractice }) {
                 </div>
               </div>
             </aside>
+          );
+        }
+
+        // Formula Block (e.g. math or precedence formulas)
+        if (block.type === 'formula') {
+          const isPrecedence = /Local/i.test(block.content) && /Global/i.test(block.content) && /System/i.test(block.content);
+
+          if (isPrecedence) {
+            return (
+              <div
+                key={idx}
+                className="my-6 p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs text-center select-none"
+              >
+                <div className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 mb-3.5">
+                  <Sparkles size={12} className="text-blue-600" />
+                  <span>Configuration Precedence Hierarchy</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm font-bold">
+                  <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3.5 py-2 rounded-xl shadow-2xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                    <span className="font-extrabold">Local</span>
+                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-100/70 px-1.5 py-0.5 rounded">Highest Precedence</span>
+                  </div>
+                  <span className="text-blue-600 font-black text-lg select-none">❯</span>
+                  <div className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 border border-blue-200 px-3.5 py-2 rounded-xl shadow-2xs">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 inline-block" />
+                    <span className="font-extrabold">Global</span>
+                    <span className="text-[10px] text-blue-600 font-bold bg-blue-100/70 px-1.5 py-0.5 rounded">User Default</span>
+                  </div>
+                  <span className="text-blue-600 font-black text-lg select-none">❯</span>
+                  <div className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs">
+                    <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
+                    <span className="font-extrabold">System</span>
+                    <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded">Lowest Precedence</span>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          const cleanFormula = block.content
+            .replace(/\\textbf\{([^}]+)\}/g, '$1')
+            .replace(/\\text\{([^}]+)\}/g, '$1')
+            .replace(/\\times/g, '×')
+            .replace(/\\[;,]/g, ' ')
+            .replace(/\\;/g, ' ')
+            .replace(/\\quad/g, ' ')
+            .replace(/>/g, ' ❯ ')
+            .trim();
+
+          return (
+            <div
+              key={idx}
+              className="my-5 p-4 rounded-xl bg-slate-50 border border-slate-200 text-center font-mono text-xs sm:text-sm font-bold text-slate-800 shadow-2xs"
+            >
+              {cleanFormula}
+            </div>
           );
         }
 
