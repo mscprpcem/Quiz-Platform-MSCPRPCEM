@@ -55,13 +55,16 @@ export default function SqlPractice() {
     return [...SQL_CHALLENGES, ...customChallenges];
   }, [customChallenges]);
 
-  // Find active challenge based on URL slug, legacy id, or default to first
+  // Find active challenge based on URL slug, legacy id, numeric index, or default to first
   const activeChallenge = useMemo(() => {
     if (challengeId) {
-      const found = allChallenges.find(c => 
-        c.slug === challengeId || 
-        c.id === challengeId ||
-        slugifyTitle(c.title) === challengeId
+      const cleanTarget = decodeURIComponent(challengeId).toLowerCase().trim();
+      const found = allChallenges.find((c, idx) => 
+        (c.slug && c.slug.toLowerCase() === cleanTarget) || 
+        c.id.toLowerCase() === cleanTarget ||
+        slugifyTitle(c.title) === cleanTarget ||
+        String(idx + 1) === cleanTarget ||
+        c.id.replace(/^(sql|filt|dml|ddl|insert)-/i, '').toLowerCase() === cleanTarget
       );
       if (found) return found;
     }

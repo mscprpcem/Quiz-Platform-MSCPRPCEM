@@ -3,8 +3,23 @@
 // Track 1: Terminal & Shell Foundations (Challenges 1-25)
 // Track 2: Git Setup & Repository Management (Challenges 26-50)
 // Track 3: Git Branching & Advanced Workflows (Challenges 51-70)
+export function slugifyTitle(title) {
+  if (!title) return '';
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
-export const GIT_CHALLENGES = [
+export function getGitChallengeSlug(challenge) {
+  if (!challenge) return '';
+  if (challenge.slug) return challenge.slug;
+  return slugifyTitle(challenge.title) || challenge.id;
+}
+
+const RAW_GIT_CHALLENGES = [
   {
     id: "cli-01-pwd",
     track: "terminal",
@@ -2931,3 +2946,8 @@ export const GIT_CHALLENGES = [
     ]
   }
 ];
+
+export const GIT_CHALLENGES = RAW_GIT_CHALLENGES.map(c => ({
+  ...c,
+  slug: c.slug || slugifyTitle(c.title) || c.id
+}));

@@ -525,7 +525,43 @@ export default function SqlPracticeView({
     } catch (_) {}
     return initialChallengeIndex !== null ? 'solve' : 'list';
   });
-  const [selectedChallengeIndex, setSelectedChallengeIndex] = useState(() => (initialChallengeIndex !== null && initialChallengeIndex >= 0 ? initialChallengeIndex : 0));
+  const [selectedChallengeIndex, setSelectedChallengeIndex] = useState(() => {
+    if (initialChallengeIndex !== null && initialChallengeIndex >= 0) {
+      return initialChallengeIndex;
+    }
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryId = urlParams.get('challenge') || urlParams.get('id') || urlParams.get('challengeId') || urlParams.get('slug');
+      if (queryId) {
+        const clean = decodeURIComponent(queryId).toLowerCase().trim();
+        const foundIdx = SQL_CHALLENGES.findIndex((c, idx) => 
+          (c.slug && c.slug.toLowerCase() === clean) ||
+          c.id.toLowerCase() === clean ||
+          String(idx + 1) === clean ||
+          (c.title && c.title.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '') === clean)
+        );
+        if (foundIdx !== -1) return foundIdx;
+      }
+    } catch (_) {}
+    return 0;
+  });
+
+  // Sync active challenge slug with browser URL in solve mode
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const url = new URL(window.location.href);
+      if (viewMode === 'solve' && activeChallenge?.slug) {
+        if (url.searchParams.get('challenge') !== activeChallenge.slug) {
+          url.searchParams.set('challenge', activeChallenge.slug);
+          window.history.replaceState({}, '', url.toString());
+        }
+      } else if (viewMode === 'list' && url.searchParams.has('challenge')) {
+        url.searchParams.delete('challenge');
+        window.history.replaceState({}, '', url.toString());
+      }
+    } catch (_) {}
+  }, [viewMode, activeChallenge?.slug]);
 
   // Filters for Problemset List
   const [searchQuery, setSearchQuery] = useState('');

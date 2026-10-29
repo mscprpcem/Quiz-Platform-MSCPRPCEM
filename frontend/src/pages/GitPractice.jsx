@@ -7,7 +7,7 @@ import {
   Copy, X, Menu, Play, Eye, EyeOff, Code2, ListChecks, CheckSquare, Square,
   Loader2, Sun, Moon, ListOrdered, ChevronDown
 } from 'lucide-react';
-import { GIT_CHALLENGES } from '../data/gitChallenges';
+import { GIT_CHALLENGES, getGitChallengeSlug, slugifyTitle } from '../data/gitChallenges';
 import { VirtualGitEngine } from '../services/gitEngine';
 import GitTerminal from '../components/GitTerminal';
 import GitVisualizer from '../components/GitVisualizer';
@@ -190,14 +190,31 @@ export default function GitPractice() {
   const { user } = useAuth();
   const { addToast } = useToast();
 
-  // Find active challenge or default to first
+  // Find active challenge based on URL slug, raw id, title slug, or 1-based index
   const activeChallenge = useMemo(() => {
     if (challengeId) {
-      const found = GIT_CHALLENGES.find(c => c.id === challengeId);
+      const cleanTarget = decodeURIComponent(challengeId).toLowerCase().trim();
+      const found = GIT_CHALLENGES.find((c, idx) => 
+        c.slug === cleanTarget || 
+        c.id.toLowerCase() === cleanTarget ||
+        slugifyTitle(c.title) === cleanTarget ||
+        String(idx + 1) === cleanTarget ||
+        c.id.replace(/^(cli|git)-/i, '').toLowerCase() === cleanTarget
+      );
       if (found) return found;
     }
     return GIT_CHALLENGES[0];
   }, [challengeId]);
+
+  // Auto-redirect /practice/git/lab or legacy ID to standard canonical URL slug
+  useEffect(() => {
+    if (activeChallenge) {
+      const targetSlug = getGitChallengeSlug(activeChallenge);
+      if (challengeId !== targetSlug) {
+        navigate(`/practice/git/${targetSlug}`, { replace: true });
+      }
+    }
+  }, [challengeId, activeChallenge, navigate]);
 
   // State
   const [engine, setEngine] = useState(null);
@@ -648,7 +665,7 @@ export default function GitPractice() {
           {/* Navigation Prev / Next (Clean Ghost Buttons) */}
           <div className="flex items-center space-x-0.5">
             <button
-              onClick={() => prevChallenge && navigate(`/practice/git/${prevChallenge.id}`)}
+              onClick={() => prevChallenge && navigate(`/practice/git/${getGitChallengeSlug(prevChallenge)}`)}
               disabled={!prevChallenge}
               className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-20 disabled:hover:bg-transparent rounded-lg transition-colors cursor-pointer"
               title={prevChallenge ? `Previous: ${prevChallenge.title}` : 'First Challenge'}
@@ -656,7 +673,7 @@ export default function GitPractice() {
               <ChevronLeft size={16} />
             </button>
             <button
-              onClick={() => nextChallenge && navigate(`/practice/git/${nextChallenge.id}`)}
+              onClick={() => nextChallenge && navigate(`/practice/git/${getGitChallengeSlug(nextChallenge)}`)}
               disabled={!nextChallenge}
               className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-20 disabled:hover:bg-transparent rounded-lg transition-colors cursor-pointer"
               title={nextChallenge ? `Next: ${nextChallenge.title}` : 'Last Challenge'}
@@ -1274,7 +1291,7 @@ export default function GitPractice() {
                     key={c.id}
                     onClick={() => {
                       setShowDrawer(false);
-                      navigate(`/practice/git/${c.id}`);
+                      navigate(`/practice/git/${getGitChallengeSlug(c)}`);
                     }}
                     className={`px-4 py-3.5 transition-colors cursor-pointer flex items-center justify-between ${
                       isSelected
@@ -1353,7 +1370,7 @@ export default function GitPractice() {
                 <button
                   onClick={() => {
                     setShowCelebration(false);
-                    navigate(`/practice/git/${nextChallenge.id}`);
+                    navigate(`/practice/git/${getGitChallengeSlug(nextChallenge)}`);
                   }}
                   className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
                 >
