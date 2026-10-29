@@ -5,7 +5,7 @@ import {
   RotateCcw, Sparkles, ChevronRight, ChevronLeft, ArrowRight, ArrowLeft,
   BookOpen, Code2, Trophy, ListOrdered, Table, Layers, Clock, Eye,
   HelpCircle, Share2, Award, Check, ExternalLink, Zap, Sun, Moon,
-  Plus, Edit, Trash2, ShieldCheck, UserCheck, Search, ChevronDown, X
+  Plus, Edit, Trash2, ShieldCheck, UserCheck, Search, ChevronDown, X, Lock, AlertCircle
 } from 'lucide-react';
 import { SQL_CHALLENGES, getStoredCustomChallenges, deleteCustomChallenge, slugifyTitle, getChallengeSlug } from '../data/sqlChallenges';
 import { executeSqlQuery, validateSqlQuery, getTablesPreview } from '../services/sqlEngine';
@@ -884,55 +884,84 @@ export default function SqlPractice() {
                       <h3 className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
                         isDarkMode ? 'text-slate-400' : 'text-slate-600'
                       }`}>
-                        <Lightbulb size={13} className="text-amber-500" />
+                        <Lightbulb size={13} className="text-slate-500" />
                         <span>Hints ({activeChallenge.hints.length})</span>
                       </h3>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                         viewedHints[activeChallenge.id]
                           ? isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'
-                          : isDarkMode ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          : isDarkMode ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700 border border-slate-200'
                       }`}>
                         {viewedHints[activeChallenge.id] ? 'Hints Used (0 Leaderboard Pts)' : `No-Hint Mode (+${getSqlChallengePoints(activeChallenge?.difficulty, true).basePoints} pt)`}
                       </span>
                     </div>
 
-                    <div className="space-y-2">
-                      {activeChallenge.hints.map((hint, idx) => {
-                        const isRevealed = revealedHints[idx];
-                        return (
-                          <div key={idx} className={`border rounded-xl overflow-hidden ${
-                            isDarkMode ? 'border-slate-800 bg-slate-900/40' : 'border-slate-200 bg-white'
-                          }`}>
-                            <button
-                              onClick={() => {
-                                setRevealedHints(prev => ({ ...prev, [idx]: !prev[idx] }));
-                                markHintViewed(activeChallenge.id);
-                              }}
-                              className={`w-full flex items-center justify-between p-3 text-xs font-bold transition-colors text-left cursor-pointer ${
-                                isDarkMode ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-700 hover:bg-slate-50'
-                              }`}
-                            >
-                              <span className="flex items-center gap-2">
-                                <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-mono font-bold">
-                                  {idx + 1}
+                    {!viewedHints[activeChallenge.id] ? (
+                      <div className={`p-5 rounded-2xl border text-center space-y-3.5 shadow-2xs ${
+                        isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+                      }`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto ${
+                          isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          <Lock size={20} />
+                        </div>
+                        <div className="space-y-1 text-xs">
+                          <p className="font-bold text-red-600 flex items-center justify-center gap-1.5">
+                            <AlertCircle size={14} />
+                            <span>Warning: No points will be allotted</span>
+                          </p>
+                          <p className={`leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                            If you use hints, <strong>no points will be allotted</strong> for this challenge. Try to think and solve it on your own!
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => markHintViewed(activeChallenge.id)}
+                          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 mx-auto cursor-pointer"
+                        >
+                          <Lock size={13} />
+                          <span>Reveal Hint (No Points Will Be Allotted)</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {activeChallenge.hints.map((hint, idx) => {
+                          const isRevealed = revealedHints[idx];
+                          return (
+                            <div key={idx} className={`border rounded-xl overflow-hidden ${
+                              isDarkMode ? 'border-slate-800 bg-slate-900/40' : 'border-slate-200 bg-white'
+                            }`}>
+                              <button
+                                onClick={() => {
+                                  setRevealedHints(prev => ({ ...prev, [idx]: !prev[idx] }));
+                                  markHintViewed(activeChallenge.id);
+                                }}
+                                className={`w-full flex items-center justify-between p-3 text-xs font-bold transition-colors text-left cursor-pointer ${
+                                  isDarkMode ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center text-[10px] font-mono font-bold">
+                                    {idx + 1}
+                                  </span>
+                                  <span>Hint #{idx + 1}</span>
                                 </span>
-                                <span>Hint #{idx + 1}</span>
-                              </span>
-                              <span className="text-[11px] text-blue-600 font-semibold">
-                                {isRevealed ? 'Hide' : 'Reveal'}
-                              </span>
-                            </button>
-                            {isRevealed && (
-                              <div className={`p-3 border-t text-xs leading-relaxed font-mono ${
-                                isDarkMode ? 'bg-slate-900/90 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-800'
-                              }`}>
-                                {hint}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                                <span className="text-[11px] text-blue-600 font-semibold">
+                                  {isRevealed ? 'Hide' : 'Reveal'}
+                                </span>
+                              </button>
+                              {isRevealed && (
+                                <div className={`p-3 border-t text-xs leading-relaxed font-mono ${
+                                  isDarkMode ? 'bg-slate-900/90 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-800'
+                                }`}>
+                                  {hint}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

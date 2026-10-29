@@ -7,7 +7,7 @@ import {
   ArrowUpRight, Flame, BarChart3, RefreshCw, X, GripVertical, GripHorizontal,
   Send, FileText, CheckCircle, Settings, Sliders, AlignLeft, EyeOff, LayoutGrid,
   Columns, GitCompare, CheckCheck, CircleAlert, Monitor, Smartphone, Tablet, Target,
-  Shuffle, Gauge, Zap
+  Shuffle, Gauge, Zap, Lock, AlertCircle
 } from 'lucide-react';
 import { SQL_CHALLENGES } from '../data/sqlChallenges';
 import { executeSqlQuery, validateChallengeWithTestcases, getTablesPreview } from '../services/sqlEngine';
@@ -715,15 +715,17 @@ export default function SqlPracticeView({
   }, [studentAccount?.email, user?.email]);
 
   const handleOpenHints = () => {
-    if (!activeChallenge) return;
-    if (!viewedHints[activeChallenge.id]) {
-      setViewedHints(prev => {
-        const next = { ...prev, [activeChallenge.id]: true };
-        try { localStorage.setItem('msc_sql_viewed_hints', JSON.stringify(next)); } catch (_) {}
-        return next;
-      });
-    }
     setSolveTab('hints');
+  };
+
+  const handleUnlockHints = (challengeId) => {
+    const id = challengeId || activeChallenge?.id;
+    if (!id) return;
+    setViewedHints(prev => {
+      const next = { ...prev, [id]: true };
+      try { localStorage.setItem('msc_sql_viewed_hints', JSON.stringify(next)); } catch (_) {}
+      return next;
+    });
   };
 
   // Extract unique short category names from challenges
@@ -2396,14 +2398,14 @@ export default function SqlPracticeView({
                 onClick={handleOpenHints}
                 className={`px-3 py-1.5 rounded-lg flex items-center space-x-1.5 transition-all cursor-pointer ${
                   solveTab === 'hints'
-                    ? 'bg-white text-amber-700 font-black shadow-2xs border border-slate-200/80'
+                    ? 'bg-white text-slate-900 font-black shadow-2xs border border-slate-200/80'
                     : 'hover:bg-slate-100 text-slate-600'
                 }`}
               >
-                <Lightbulb size={13} className="text-amber-500" />
+                <Lightbulb size={13} className="text-slate-500" />
                 <span>Hints</span>
                 {viewedHints[activeChallenge.id] && (
-                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full font-bold">
+                  <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded-full font-bold">
                     Viewed
                   </span>
                 )}
@@ -2569,32 +2571,57 @@ export default function SqlPracticeView({
             )}
 
             {!settings.hideHints && solveTab === 'hints' && (
-              <div className="space-y-3">
-                <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 text-xs space-y-1.5 text-amber-950 shadow-2xs">
-                  <div className="flex items-center space-x-2 font-black text-amber-900">
-                    <Lightbulb size={15} className="text-amber-600" />
-                    <span>Hint Mode Activated • 0 Leaderboard Points</span>
+              <div className="space-y-4">
+                {!viewedHints[activeChallenge.id] ? (
+                  <div className="p-5 bg-white border border-slate-200 rounded-2xl text-center space-y-3.5 shadow-2xs">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mx-auto text-slate-600">
+                      <Lock size={20} />
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <p className="font-bold text-red-600 flex items-center justify-center gap-1.5">
+                        <AlertCircle size={14} />
+                        <span>Warning: No points will be allotted</span>
+                      </p>
+                      <p className="text-slate-600 leading-relaxed">
+                        If you use hints, <strong>no points will be allotted</strong> for this challenge. Try to think and solve it on your own!
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleUnlockHints(activeChallenge.id)}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 mx-auto cursor-pointer"
+                    >
+                      <Lock size={13} />
+                      <span>Reveal Hint (No Points Will Be Allotted)</span>
+                    </button>
                   </div>
-                  <p className="leading-relaxed text-amber-900/90 font-medium">
-                    Hints are unlocked to guide you. When hints are used, 0 leaderboard points are awarded. Solve cleanly without hints to earn +{getSqlChallengePoints(activeChallenge?.difficulty, true).basePoints} pt(s) for the leaderboard!
-                  </p>
-                  <p className="text-[11px] text-amber-800/80">
-                    💡 Tip: Switch ON <strong>Hide Hints (Strict Mode)</strong> in Settings ⚙️ to practice under strict interview conditions!
-                  </p>
-                </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-1 text-slate-700">
+                      <div className="flex items-center space-x-2 font-bold text-slate-800">
+                        <AlertCircle size={14} className="text-red-500" />
+                        <span>Hint Mode Activated • 0 Leaderboard Points</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        Hints are unlocked. When hints are used, 0 leaderboard points are awarded. Solve cleanly on future attempts without hints to earn +{getSqlChallengePoints(activeChallenge?.difficulty, true).basePoints} pt(s) for the leaderboard!
+                      </p>
+                    </div>
 
-                <div className="text-xs font-black text-slate-900 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center space-x-1.5">
-                  <Lightbulb size={14} className="text-amber-500" />
-                  <span>Challenge Hints ({activeChallenge?.hints?.length || 0})</span>
-                </div>
-                {activeChallenge?.hints?.map((h, i) => (
-                  <div key={i} className="bg-amber-50/80 border border-amber-200/90 rounded-xl p-3.5 text-xs text-amber-950 font-medium flex items-start space-x-2">
-                    <span className="w-5 h-5 rounded-full bg-amber-200/80 text-amber-900 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
-                      {i + 1}
-                    </span>
-                    <div className="flex-1 leading-relaxed">{parseInline(h)}</div>
+                    <div className="text-xs font-bold text-slate-700 uppercase tracking-wider pb-1 border-b border-slate-100 flex items-center space-x-1.5">
+                      <Lightbulb size={13} className="text-slate-500" />
+                      <span>Challenge Hints ({activeChallenge?.hints?.length || 0})</span>
+                    </div>
+
+                    {activeChallenge?.hints?.map((h, i) => (
+                      <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 font-medium flex items-start space-x-2.5">
+                        <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 leading-relaxed">{parseInline(h)}</div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             )}
 

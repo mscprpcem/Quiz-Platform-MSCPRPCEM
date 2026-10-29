@@ -879,55 +879,55 @@ export default function GitPractice() {
             {activeTab === 'hints' && (
               <div className="space-y-4">
                 {!viewedHints[activeChallenge.id] ? (
-                  <div className="p-5 rounded-2xl border border-amber-300 bg-amber-50/90 text-amber-900 space-y-4 shadow-sm animate-fade-in">
-                    <div className="flex items-center space-x-2 text-amber-900 font-extrabold text-sm">
-                      <AlertTriangle size={18} className="text-amber-600 shrink-0" />
-                      <span>Hint Policy Notice</span>
+                  <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-center space-y-3.5 shadow-2xs">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-600 dark:text-slate-400">
+                      <Lock size={20} />
                     </div>
-                    <div className="p-3.5 bg-white/90 rounded-xl border border-amber-200 text-xs space-y-1.5">
-                      <p className="font-bold text-red-700 flex items-center gap-1.5">
-                        <AlertCircle size={14} className="text-red-600 shrink-0" />
+                    <div className="space-y-1 text-xs">
+                      <p className="font-bold text-red-600 dark:text-red-400 flex items-center justify-center gap-1.5">
+                        <AlertCircle size={14} />
                         <span>Warning: No points will be allotted</span>
                       </p>
-                      <p className="text-slate-700 leading-relaxed">
+                      <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
                         If you use hints, <strong>no points will be allotted</strong> for this challenge. Try to think and solve it on your own!
                       </p>
                     </div>
                     <button
+                      type="button"
                       onClick={() => handleUnlockHints(activeChallenge.id)}
-                      className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center space-x-2 cursor-pointer"
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 mx-auto cursor-pointer"
                     >
-                      <Lock size={14} />
+                      <Lock size={13} />
                       <span>Reveal Hint (No Points Will Be Allotted)</span>
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-4 animate-fade-in">
-                    <div className="flex items-center justify-between p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 font-medium">
+                    <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 font-medium">
                       <span className="flex items-center gap-1.5 font-bold">
-                        <AlertTriangle size={14} className="text-amber-600" />
+                        <AlertCircle size={14} className="text-red-500" />
                         <span>Hint Used — No Points Will Be Allotted</span>
                       </span>
-                      <span className="text-[11px] text-amber-700 font-mono">
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                         Step {activeHintIndex + 1} of {activeChallenge.hints?.length || 0}
                       </span>
                     </div>
                     <div className="flex items-center justify-between pb-1">
-                      <span className="text-xs font-extrabold text-amber-700 flex items-center gap-1.5">
-                        <Lightbulb size={14} className="text-amber-500" />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Lightbulb size={14} className="text-slate-500" />
                         Progressive Guidance Clues
                       </span>
                     </div>
 
                     {activeChallenge.hints && activeChallenge.hints.length > 0 ? (
                       <div className="space-y-4">
-                        <div className="p-4 bg-slate-50 border border-amber-300 rounded-xl space-y-2.5 shadow-2xs">
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2.5 shadow-2xs">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded border border-amber-200">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-700 px-2.5 py-0.5 rounded border border-slate-300 dark:border-slate-600">
                               Step {activeHintIndex + 1}
                             </span>
                           </div>
-                          <p className="text-xs font-mono text-slate-800 leading-relaxed">
+                          <p className="text-xs font-mono text-slate-800 dark:text-slate-200 leading-relaxed">
                             {activeChallenge.hints[activeHintIndex]}
                           </p>
                         </div>

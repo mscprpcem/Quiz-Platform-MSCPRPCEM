@@ -1131,16 +1131,18 @@ const handleCumulativeLeaderboard = async (req, res) => {
       }
     } catch (_) {}
 
-    // 6. Tournament Ranking Algorithm (Filter test users & sort descending by score)
+    // 6. Tournament Ranking Algorithm (Filter dummy users & sort descending by score)
+    const currentEmailFilter = (req.query?.currentEmail || req.body?.currentEmail || req.query?.userEmail || req.body?.userEmail || '').toLowerCase().trim();
+
     const isTestCandidate = (student) => {
       const name = (student.name || '').toLowerCase().trim();
       const email = (student.email || '').toLowerCase().trim();
       if (!name && !email) return true;
+      if (currentEmailFilter && (email === currentEmailFilter || name === currentEmailFilter)) return false;
       const testTerms = [
-        'test', 'tester', 'dummy', 'sample', 'demo', 'admin',
-        'trial', 'fake', 'temp', 'asdf', 'qwerty', 'alex rivers', 'sarah connor'
+        'dummy@', 'fake@', 'sample@', 'asdf@', 'temp@', 'alex rivers', 'sarah connor'
       ];
-      return testTerms.some(term => name.includes(term) || email.includes(term));
+      return testTerms.some(term => email.startsWith(term) || name === term);
     };
 
     const eligibleStudents = Array.from(studentAggregates.values()).filter(s => !isTestCandidate(s));
@@ -1512,7 +1514,7 @@ router.post('/sql/record-solve', (req, res) => {
 
     // Compute rank
     const allLearners = Object.values(learners).filter(
-      l => l.studentEmail && !l.studentEmail.includes('test')
+      l => l.studentEmail && (!l.studentEmail.startsWith('dummy@') && !l.studentEmail.startsWith('fake@') || l.studentEmail === cleanEmail)
     );
     allLearners.sort((a, b) => {
       if ((b.totalPoints || 0) !== (a.totalPoints || 0)) {
@@ -1549,12 +1551,14 @@ router.get('/sql/leaderboard', (req, res) => {
   try {
     const { limit = 50, filter = 'all', currentEmail = '' } = req.query;
     const learners = loadSqlLearners();
+    const cleanUserEmail = (currentEmail || '').toLowerCase().trim();
 
     const isTestCandidate = (email, name) => {
       const e = (email || '').toLowerCase();
       const n = (name || '').toLowerCase();
-      const tests = ['test@', 'tester@', 'sample@', 'dummy', 'asdf', 'fake'];
-      return tests.some(t => e.includes(t) || n.includes(t));
+      if (cleanUserEmail && e === cleanUserEmail) return false;
+      const tests = ['dummy@', 'fake@', 'sample@', 'asdf@'];
+      return tests.some(t => e.startsWith(t) || n.startsWith(t));
     };
 
     let list = Object.values(learners).filter(l => !isTestCandidate(l.studentEmail, l.studentName));
@@ -1576,7 +1580,6 @@ router.get('/sql/leaderboard', (req, res) => {
       return new Date(b.lastActive || 0) - new Date(a.lastActive || 0);
     });
 
-    const cleanUserEmail = (currentEmail || '').toLowerCase().trim();
     let currentUserStats = null;
 
     const ranked = list.map((l, idx) => {
@@ -1612,17 +1615,21 @@ router.get('/sql/leaderboard', (req, res) => {
     });
 
     if (cleanUserEmail && !currentUserStats) {
+      const userLearner = learners[cleanUserEmail];
+      const pts = Number(userLearner?.totalPoints || 0);
+      const cleanSolves = Number(userLearner?.cleanSolvesCount || 0);
+      const totalSolved = Number(userLearner?.challengesSolved || Object.keys(userLearner?.solvedChallenges || {}).length || 0);
       currentUserStats = {
         rank: ranked.length + 1,
-        studentName: cleanUserEmail.split('@')[0],
-        studentUsername: cleanUserEmail.split('@')[0],
+        studentName: userLearner?.studentName || cleanUserEmail.split('@')[0],
+        studentUsername: userLearner?.studentUsername || cleanUserEmail.split('@')[0],
         studentEmail: cleanUserEmail,
         isCurrentUser: true,
-        totalPoints: 0,
-        cleanSolvesCount: 0,
-        totalSolved: 0,
-        cleanSolveRate: 0,
-        lastActive: new Date().toISOString()
+        totalPoints: pts,
+        cleanSolvesCount: cleanSolves,
+        totalSolved,
+        cleanSolveRate: totalSolved > 0 ? Math.round((cleanSolves / totalSolved) * 100) : 0,
+        lastActive: userLearner?.lastActive || new Date().toISOString()
       };
     }
 
