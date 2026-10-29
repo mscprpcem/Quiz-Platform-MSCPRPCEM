@@ -41,7 +41,7 @@ export default function ProblemStatementView({ challenge, isDarkMode = false, sh
               <div className="bg-slate-900 px-3 py-1.5 border-b border-slate-800 flex items-center justify-between text-[11px] text-slate-400 font-mono">
                 <span className="flex items-center gap-1.5">
                   <Terminal size={12} className="text-emerald-400" />
-                  <span>Schema / Example Table</span>
+                  <span>{item.language === 'sql' ? 'SQL Schema / Table' : (item.language === 'output' || item.language === 'terminal' || item.language === 'bash') ? 'Terminal / Output Format' : item.language ? `${item.language.toUpperCase()} Output` : 'Terminal / Output Format'}</span>
                 </span>
               </div>
               <pre className="p-3.5 bg-slate-950 text-emerald-400 font-mono text-xs overflow-x-auto leading-relaxed">
@@ -389,7 +389,7 @@ function parseMarkdownDocument(text) {
         i++;
       }
       i++;
-      pushItem({ type: 'code', content: codeLines.join('\n') });
+      pushItem({ type: 'code', language: trimmed.slice(3).trim(), content: codeLines.join('\n') });
       continue;
     }
 
