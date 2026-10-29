@@ -8,6 +8,7 @@ import {
 import { GIT_CHEATSHEET } from '../data/gitCurriculumData';
 import GitLearningView from './GitLearningView';
 import GitRoadmapView from './GitRoadmapView';
+import GitPracticeDashboard from './GitPracticeDashboard';
 
 export default function GitCourseHub() {
   const navigate = useNavigate();
@@ -42,13 +43,15 @@ export default function GitCourseHub() {
     } catch (_) {}
   };
 
-  // Check current view mode: 'learn' | 'roadmap' | 'cheatsheet' | 'overview'
+  // Check current view mode: 'learn' | 'practice' | 'roadmap' | 'cheatsheet' | 'overview'
   const currentView = useMemo(() => {
     if (urlTab === 'learn') return 'learn';
+    if (urlTab === 'practice') return 'practice';
     if (urlTab === 'roadmap') return 'roadmap';
     if (urlTab === 'cheatsheet') return 'cheatsheet';
     const path = location.pathname.toLowerCase();
     if (path.endsWith('/learn') || path === '/git/learn' || path === '/courses/git/learn') return 'learn';
+    if (path.endsWith('/practice') || path === '/git/practice' || path === '/courses/git/practice' || path === '/practice/git') return 'practice';
     if (path.endsWith('/roadmap') || path === '/git/roadmap' || path === '/courses/git/roadmap') return 'roadmap';
     if (path.endsWith('/cheatsheet') || path === '/git/cheatsheet' || path === '/courses/git/cheatsheet') return 'cheatsheet';
     return 'overview';
@@ -59,12 +62,21 @@ export default function GitCourseHub() {
     return (
       <GitLearningView
         onBackToOverview={() => navigate('/courses/git')}
-        onJumpToPractice={() => navigate('/practice/git/lab')}
+        onJumpToPractice={() => navigate('/courses/git/practice')}
       />
     );
   }
 
-  // 2. ROADMAP VIEW (Dedicated 30-Day Interactive Plan)
+  // 2. PRACTICE VIEW (Dedicated 70-Challenge Problemset Dashboard)
+  if (currentView === 'practice') {
+    return (
+      <GitPracticeDashboard
+        onJumpToLearn={() => navigate('/courses/git/learn')}
+      />
+    );
+  }
+
+  // 3. ROADMAP VIEW (Dedicated 30-Day Interactive Plan)
   if (currentView === 'roadmap') {
     return (
       <GitRoadmapView
@@ -278,7 +290,7 @@ export default function GitCourseHub() {
 
               {/* Step 2 */}
               <div
-                onClick={() => navigate('/practice/git/lab')}
+                onClick={() => navigate('/courses/git/practice')}
                 className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 transition-all cursor-pointer space-y-2 group"
               >
                 <div className="flex items-center justify-between">
@@ -288,10 +300,10 @@ export default function GitCourseHub() {
                   <ArrowRight size={13} className="text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <h3 className="text-xs font-black text-slate-900 group-hover:text-emerald-600 transition-colors">
-                  Practice in Lab
+                  Practice Problemset
                 </h3>
                 <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                  Run live commands in the browser terminal simulator and watch the commit graph render.
+                  Solve 70 interactive challenges across Terminal foundations, Git architecture, and branch mechanics.
                 </p>
               </div>
 
@@ -375,7 +387,7 @@ export default function GitCourseHub() {
 
           {/* CARD 2: PRACTICE */}
           <div
-            onClick={() => navigate('/practice/git/lab')}
+            onClick={() => navigate('/courses/git/practice')}
             className="group bg-white hover:bg-gradient-to-b hover:from-emerald-50/40 hover:to-white border-2 border-emerald-100/90 hover:border-emerald-400 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-9 flex flex-col items-center text-center shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden"
           >
             <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-600 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -385,22 +397,22 @@ export default function GitCourseHub() {
             </div>
 
             <h2 className="text-xl sm:text-2xl lg:text-[26px] font-black text-emerald-600 tracking-tight mb-2 sm:mb-2.5">
-              Practice Lab
+              Practice Problemset
             </h2>
 
             <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed mb-5 sm:mb-6 max-w-sm">
-              Hands-on in-browser simulated Git terminal sandbox. Run commands, inspect trees, and manipulate branches live with real-time commit graphs.
+              70 hands-on in-browser simulated Git terminal challenges. Master POSIX shell commands, commits, tree navigation, and branching strategies.
             </p>
 
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate('/practice/git/lab');
+                navigate('/courses/git/practice');
               }}
               className="w-full sm:max-w-[220px] py-3 sm:py-3.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-md shadow-emerald-500/20 group-hover:shadow-emerald-500/35 transition-all cursor-pointer mt-auto"
             >
-              <span>Start Practice</span>
+              <span>Explore 70 Labs</span>
               <ArrowRight size={15} />
             </button>
           </div>

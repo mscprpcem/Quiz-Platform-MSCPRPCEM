@@ -599,9 +599,9 @@ export default function GitPractice() {
         {/* Left: Back Link, Challenge Title (Unboxed), Difficulty & Solved */}
         <div className="flex items-center space-x-1.5 sm:space-x-3 overflow-hidden">
           <Link
-            to="/courses/git"
+            to="/courses/git/practice"
             className="text-slate-500 hover:text-slate-900 transition-colors p-1 rounded-lg hover:bg-slate-100 shrink-0"
-            title="Return to Git Course Hub"
+            title="Return to Git Practice Problemset"
           >
             <ArrowLeft size={16} />
           </Link>
