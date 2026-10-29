@@ -781,7 +781,7 @@ export default function GitPractice() {
             {activeTab === 'brief' && (
               <div className="space-y-5 flex flex-col">
                 
-                {/* LeetCode & SQL-Grade Problem Statement */}
+                {/* Problem Statement View */}
                 <ProblemStatementView challenge={activeChallenge} isDarkMode={isDarkMode} showTags={labSettings.showTags} />
 
                 {/* Live Interactive Objectives Checklist */}
@@ -890,7 +890,7 @@ export default function GitPractice() {
                         <span>Warning: No points will be allotted</span>
                       </p>
                       <p className="text-slate-700 leading-relaxed">
-                        If you use hints, <strong>no points will be allotted</strong> for this challenge. Try to think and solve it on your own like LeetCode!
+                        If you use hints, <strong>no points will be allotted</strong> for this challenge. Try to think and solve it on your own!
                       </p>
                     </div>
                     <button
@@ -902,7 +902,7 @@ export default function GitPractice() {
                     </button>
                   </div>
                 ) : (
-                  <>
+                  <div className="space-y-4 animate-fade-in">
                     <div className="flex items-center justify-between p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 font-medium">
                       <span className="flex items-center gap-1.5 font-bold">
                         <AlertTriangle size={14} className="text-amber-600" />
@@ -918,41 +918,41 @@ export default function GitPractice() {
                         Progressive Guidance Clues
                       </span>
                     </div>
-                  </>
-                )}
 
-                {activeChallenge.hints && activeChallenge.hints.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-slate-50 border border-amber-300 rounded-xl space-y-2.5 shadow-2xs animate-fade-in">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded border border-amber-200">
-                          Step {activeHintIndex + 1}
-                        </span>
+                    {activeChallenge.hints && activeChallenge.hints.length > 0 ? (
+                      <div className="space-y-4">
+                        <div className="p-4 bg-slate-50 border border-amber-300 rounded-xl space-y-2.5 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded border border-amber-200">
+                              Step {activeHintIndex + 1}
+                            </span>
+                          </div>
+                          <p className="text-xs font-mono text-slate-800 leading-relaxed">
+                            {activeChallenge.hints[activeHintIndex]}
+                          </p>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-1 text-xs">
+                          <button
+                            disabled={activeHintIndex === 0}
+                            onClick={() => setActiveHintIndex(prev => Math.max(0, prev - 1))}
+                            className="text-slate-700 hover:bg-slate-100 disabled:opacity-30 cursor-pointer font-bold px-3 py-1.5 rounded-xl bg-white border border-slate-200 transition-colors shadow-2xs"
+                          >
+                            ← Previous Hint
+                          </button>
+                          <button
+                            disabled={activeHintIndex === (activeChallenge.hints?.length || 1) - 1}
+                            onClick={() => setActiveHintIndex(prev => Math.min((activeChallenge.hints?.length || 1) - 1, prev + 1))}
+                            className="text-blue-700 hover:bg-blue-100 disabled:opacity-30 cursor-pointer font-bold px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 transition-colors shadow-2xs"
+                          >
+                            Next Hint →
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-xs font-mono text-slate-800 leading-relaxed">
-                        {activeChallenge.hints[activeHintIndex]}
-                      </p>
-                    </div>
-
-                    <div className="flex justify-between items-center pt-1 text-xs">
-                      <button
-                        disabled={activeHintIndex === 0}
-                        onClick={() => setActiveHintIndex(prev => Math.max(0, prev - 1))}
-                        className="text-slate-700 hover:bg-slate-100 disabled:opacity-30 cursor-pointer font-bold px-3 py-1.5 rounded-xl bg-white border border-slate-200 transition-colors shadow-2xs"
-                      >
-                        ← Previous Hint
-                      </button>
-                      <button
-                        disabled={activeHintIndex === (activeChallenge.hints?.length || 1) - 1}
-                        onClick={() => setActiveHintIndex(prev => Math.min((activeChallenge.hints?.length || 1) - 1, prev + 1))}
-                        className="text-blue-700 hover:bg-blue-100 disabled:opacity-30 cursor-pointer font-bold px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 transition-colors shadow-2xs"
-                      >
-                        Next Hint →
-                      </button>
-                    </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 italic p-4 text-center">No hints provided for this lab.</p>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-xs text-slate-500 italic p-4 text-center">No hints provided for this lab.</p>
                 )}
               </div>
             )}
