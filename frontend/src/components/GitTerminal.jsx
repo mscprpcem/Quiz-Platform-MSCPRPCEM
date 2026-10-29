@@ -221,7 +221,11 @@ export default function GitTerminal({
     }
 
     // Add prompt line
-    const promptEntry = { type: 'prompt', branch: currentBranch, cmd: trimmed, isCmdMode };
+    const promptPath = isCmdMode
+      ? (engine?.getCwdWindows ? engine.getCwdWindows() : 'C:\\Users\\student\\project')
+      : (engine?.getCwdShort ? engine.getCwdShort() : '~/project');
+    const isRepo = engine?.isInitialized ? engine.isInitialized() : true;
+    const promptEntry = { type: 'prompt', branch: currentBranch, cmd: trimmed, isCmdMode, promptPath, isRepo };
 
     if (!engine) {
       setHistory(prev => [...prev, promptEntry, { type: 'error', text: 'Virtual engine not ready.' }]);
@@ -495,9 +499,9 @@ export default function GitTerminal({
               return (
                 <div key={idx} className="flex items-center flex-wrap gap-1.5 pt-0.5 font-mono">
                   {item.isCmdMode ? (
-                    <span className="text-sky-400 font-bold select-none">C:\Users\student\project&gt;</span>
+                    <span className="text-sky-400 font-bold select-none">{item.promptPath || 'C:\\Users\\student\\project'}&gt;</span>
                   ) : (
-                    <span className="text-emerald-400 font-bold select-none">$</span>
+                    <span className="text-emerald-400 font-bold select-none inline-flex items-center gap-1"><span className="text-sky-400">student@msc-box</span><span className="text-slate-500">:</span><span className="text-amber-300">{item.promptPath || '~/project'}</span>{item.branch && item.isRepo !== false && (<span className="text-purple-400 text-[11px] font-normal">({item.branch})</span>)}<span>$</span></span>
                   )}
                   <span className="text-white font-bold ml-1">{item.cmd}</span>
                 </div>
@@ -548,9 +552,9 @@ export default function GitTerminal({
           {/* Genuine Terminal Style Inline Prompt Line (No Extra Space Box!) */}
           <div className="flex items-center flex-wrap gap-1.5 pt-1 font-mono">
             {terminalMode === 'cmd' ? (
-              <span className="text-sky-400 font-bold select-none">C:\Users\student\project&gt;</span>
+              <span className="text-sky-400 font-bold select-none">{engine?.getCwdWindows ? engine.getCwdWindows() : 'C:\\Users\\student\\project'}&gt;</span>
             ) : (
-              <span className="text-emerald-400 font-bold select-none">$</span>
+              <span className="text-emerald-400 font-bold select-none inline-flex items-center gap-1"><span className="text-sky-400">student@msc-box</span><span className="text-slate-500">:</span><span className="text-amber-300">{engine?.getCwdShort ? engine.getCwdShort() : '~/project'}</span>{engine?.isInitialized && engine.isInitialized() && (<span className="text-purple-400 text-[11px] font-normal">({currentBranch})</span>)}<span>$</span></span>
             )}
             <input
               ref={inputRef}

@@ -173,9 +173,9 @@ function App() {
                 <Route path="/git/roadmap" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
                 <Route path="/git/cheatsheet" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
                 <Route path="/git/:tab" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
-                <Route path="/practice/git" element={<RequireAuth><GitCourseHub /></RequireAuth>} />
-                <Route path="/practice/git/lab" element={<RequireAuth><GitPractice /></RequireAuth>} />
-                <Route path="/practice/git/:challengeId" element={<RequireAuth><GitPractice /></RequireAuth>} />
+                <Route path="/practice/git" element={<GitCourseHub />} />
+                <Route path="/practice/git/lab" element={<GitPractice />} />
+                <Route path="/practice/git/:challengeId" element={<GitPractice />} />
                 <Route path="/practice" element={<RequireAuth><PracticeQuiz /></RequireAuth>} />
                 <Route path="/practice/:category" element={<RequireAuth><PracticeQuiz /></RequireAuth>} />
                 <Route path="/courses" element={<RequireAuth><Courses /></RequireAuth>} />

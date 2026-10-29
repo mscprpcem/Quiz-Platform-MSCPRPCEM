@@ -16,10 +16,21 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getDifficultyTheme } from '../utils/difficulty';
 import LabSettingsDropdown, { getSavedSettings } from '../components/LabSettingsDropdown';
+import ProblemStatementView from '../components/ProblemStatementView';
 
 // Helper to determine live objective progress for each challenge
 function getChallengeObjectives(challenge, engine) {
   if (!challenge || !engine) return [];
+
+  if (typeof challenge.getObjectives === 'function') {
+    return challenge.getObjectives(engine);
+  }
+  if (Array.isArray(challenge.objectives) && challenge.objectives.length > 0) {
+    return challenge.objectives.map(obj => ({
+      label: obj.label,
+      done: typeof obj.done === 'function' ? Boolean(obj.done(engine)) : Boolean(obj.done)
+    }));
+  }
 
   const isInit = engine.isInitialized();
   const branch = engine.getHeadBranch();
@@ -731,20 +742,8 @@ export default function GitPractice() {
             {activeTab === 'brief' && (
               <div className="space-y-5 flex flex-col">
                 
-                {/* Challenge Header Card */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1.5 shadow-2xs">
-                  {labSettings.showTags && activeChallenge.category && (
-                    <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded border border-blue-200">
-                      {activeChallenge.category}
-                    </span>
-                  )}
-                  <h1 className="text-base font-extrabold text-slate-900 tracking-tight">
-                    {activeChallenge.title}
-                  </h1>
-                  <p className="text-xs text-slate-600 leading-relaxed font-normal">
-                    {activeChallenge.scenario}
-                  </p>
-                </div>
+                {/* LeetCode & SQL-Grade Problem Statement */}
+                <ProblemStatementView challenge={activeChallenge} isDarkMode={isDarkMode} showTags={labSettings.showTags} />
 
                 {/* Live Interactive Objectives Checklist */}
                 {labSettings.showObjectives && (
@@ -1157,9 +1156,45 @@ export default function GitPractice() {
               </button>
             </div>
 
+            {/* Drawer Search & Track Filters */}
+            <div className="p-3 border-b border-slate-200 bg-slate-50 space-y-2 shrink-0">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={drawerSearch}
+                  onChange={(e) => setDrawerSearch(e.target.value)}
+                  placeholder="Search labs by command or title..."
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-500 font-medium"
+                />
+              </div>
+              <div className="flex flex-wrap gap-1 text-[11px]">
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'terminal', label: 'Day 0 CLI' },
+                  { id: 'foundations', label: 'Day 1 Git' },
+                  { id: 'basics', label: 'Basics' },
+                  { id: 'branching', label: 'Branching' },
+                  { id: 'advanced', label: 'Advanced' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setDrawerCategory(tab.id)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer transition-colors ${
+                      drawerCategory === tab.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Challenge List in Drawer (Clean, No Curves) */}
             <div className="flex-1 overflow-y-auto divide-y divide-slate-100 bg-white">
-              {GIT_CHALLENGES.map((c, idx) => {
+              {filteredChallenges.map((c, idx) => {
                 const isSelected = c.id === activeChallenge.id;
                 const completed = solvedChallenges.includes(c.id);
                 const diffTheme = getDifficultyTheme(c.difficulty, isSelected);

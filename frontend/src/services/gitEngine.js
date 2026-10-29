@@ -65,6 +65,19 @@ export class VirtualGitEngine {
     // Merge in-progress state
     this.mergeState = null;
 
+    // Virtual filesystem navigation & state
+    this.cwd = config.cwd || '/home/student/project';
+    this.homeDir = config.homeDir || '/home/student';
+    this.directories = new Set(config.directories || [
+      '/home',
+      '/home/student',
+      '/home/student/project',
+      '/home/student/Desktop'
+    ]);
+    this.executedCommands = [];
+    this.lastCommand = '';
+    this.lastOutput = '';
+
     // Load initial branches and commits if provided
     if (config.branches) {
       Object.keys(config.branches).forEach(bName => {
@@ -148,6 +161,54 @@ export class VirtualGitEngine {
 
   isInitialized() {
     return this.isRepo;
+  }
+
+  getCwd() {
+    return this.cwd;
+  }
+
+  getCwdShort() {
+    if (!this.cwd) return '~/project';
+    if (this.cwd === this.homeDir) return '~';
+    if (this.cwd.startsWith(this.homeDir + '/')) {
+      return '~' + this.cwd.slice(this.homeDir.length);
+    }
+    return this.cwd;
+  }
+
+  getCwdWindows() {
+    if (!this.cwd) return 'C:\\Users\\student\\project';
+    const relative = this.cwd.replace(/^\/home\/student\/?/, '');
+    if (!relative) return 'C:\\Users\\student';
+    return 'C:\\Users\\student\\' + relative.replace(/\//g, '\\');
+  }
+
+  getDirectories() {
+    return Array.from(this.directories);
+  }
+
+  hasDirectory(dirPath) {
+    if (!dirPath) return false;
+    const clean = dirPath.replace(/^['"](.*)['"]$/, '$1').trim();
+    if (this.directories.has(clean)) return true;
+    if (this.directories.has(`${this.cwd}/${clean}`)) return true;
+    for (const d of this.directories) {
+      if (d === clean || d.endsWith('/' + clean) || d.endsWith('\\' + clean)) return true;
+    }
+    return false;
+  }
+
+  getExecutedCommands() {
+    return [...this.executedCommands];
+  }
+
+  hasExecutedCommand(cmdPrefix) {
+    if (!cmdPrefix) return false;
+    const lower = cmdPrefix.toLowerCase().trim();
+    return this.executedCommands.some(c => {
+      const cLower = c.toLowerCase().trim();
+      return cLower === lower || cLower.startsWith(lower) || cLower.includes(lower);
+    });
   }
 
   getHeadBranch() {
@@ -302,13 +363,67 @@ export class VirtualGitEngine {
   // COMMAND EXECUTOR (MAIN ENTRY POINT)
   // ══════════════════════════════════════════════════════════
 
+  splitCommandChains(str) {
+    const parts = [];
+    let cur = '';
+    let inDouble = false;
+    let inSingle = false;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str[i];
+      if (ch === '"' && !inSingle) inDouble = !inDouble;
+      else if (ch === "'" && !inDouble) inSingle = !inSingle;
+      else if (!inDouble && !inSingle) {
+        if (ch === '&' && str[i + 1] === '&') {
+          parts.push({ cmd: cur.trim(), operator: '&&' });
+          cur = '';
+          i++;
+          continue;
+        } else if (ch === ';') {
+          parts.push({ cmd: cur.trim(), operator: ';' });
+          cur = '';
+          continue;
+        }
+      }
+      cur += ch;
+    }
+    if (cur.trim()) parts.push({ cmd: cur.trim(), operator: null });
+    return parts;
+  }
+
   execute(rawCommandLine) {
     if (!rawCommandLine || !rawCommandLine.trim()) {
       return { output: '', error: false };
     }
 
     const trimmed = rawCommandLine.trim();
+    this.executedCommands.push(trimmed);
+    this.lastCommand = trimmed;
 
+    // Check for command chains (&& or ;)
+    const chains = this.splitCommandChains(trimmed);
+    if (chains.length > 1) {
+      const outputs = [];
+      let hadClear = false;
+      for (const segment of chains) {
+        if (!segment.cmd) continue;
+        const res = this.executeSingle(segment.cmd);
+        if (res.clear) hadClear = true;
+        if (res.output) outputs.push(res.output);
+        if (res.error && segment.operator === '&&') {
+          this.lastOutput = outputs.join('\n');
+          return { output: outputs.join('\n'), error: true, clear: hadClear };
+        }
+      }
+      this.lastOutput = outputs.join('\n');
+      return { output: outputs.join('\n'), error: false, clear: hadClear };
+    }
+
+    const res = this.executeSingle(trimmed);
+    this.lastOutput = res.output || '';
+    return res;
+  }
+
+  executeSingle(trimmed) {
     // Check for redirection: command > file or command >> file (outside of quotes)
     const redir = this.findRedirectionOperator(trimmed);
     if (redir) {
@@ -325,46 +440,87 @@ export class VirtualGitEngine {
         return this.handleGitCommand(args);
       case 'ls':
       case 'dir':
+      case 'Get-ChildItem':
         return this.handleLs(args);
       case 'cat':
+      case 'type':
+      case 'Get-Content':
         return this.handleCat(args);
       case 'touch':
+      case 'New-Item':
         return this.handleTouch(args);
       case 'echo':
         return this.handleEcho(args);
       case 'mkdir':
+      case 'md':
         return this.handleMkdir(args);
+      case 'rmdir':
+      case 'rd':
+        return this.handleRmdir(args);
       case 'rm':
+      case 'del':
+      case 'erase':
+      case 'Remove-Item':
         return this.handleShellRm(args);
       case 'cp':
+      case 'copy':
+      case 'Copy-Item':
         return this.handleCp(args);
       case 'mv':
+      case 'ren':
+      case 'rename':
+      case 'move':
+      case 'Move-Item':
         return this.handleMv(args);
+      case 'cd':
+      case 'chdir':
+      case 'Set-Location':
+        return this.handleCd(args);
       case 'pwd':
-        return { output: '/home/student/project', error: false };
+      case 'Get-Location':
+        return this.handlePwd(args);
       case 'whoami':
         return { output: 'student', error: false };
       case 'date':
         return { output: new Date().toUTCString(), error: false };
       case 'clear':
       case 'cls':
+      case 'Clear-Host':
         return { output: '', clear: true, error: false };
-      case 'type':
-        return this.handleCat(args);
-      case 'del':
-      case 'erase':
-        return this.handleShellRm(args);
-      case 'copy':
-        return this.handleCp(args);
-      case 'move':
-        return this.handleMv(args);
+      case 'history':
+      case 'Get-History':
+        return this.handleHistory(args);
+      case 'code':
+        return this.handleCode(args);
+      case 'which':
+      case 'where':
+        return this.handleWhich(args);
+      case 'winget':
+        return this.handleWinget(args);
+      case 'xcode-select':
+        return this.handleXcodeSelect(args);
+      case 'brew':
+        return this.handleBrew(args);
+      case 'sudo':
+        return this.handleSudo(args);
+      case 'apt':
+      case 'apt-get':
+        return this.handleApt(args);
+      case 'dnf':
+      case 'yum':
+        return this.handleDnf(args);
       case 'vim':
       case 'vi':
       case 'nano':
         return { output: '', openVim: true, file: args[0] || 'README.md', error: false };
+      case 'man':
+        return this.handleMan(args);
       case 'help':
         return this.handleHelp();
       default:
+        if (cmd === '$env:PATH' || cmd === '%PATH%') {
+          return this.handleEcho([cmd]);
+        }
         return { output: `Command not found: ${cmd}. Type 'help' for available commands.`, error: true };
     }
   }
@@ -482,6 +638,8 @@ export class VirtualGitEngine {
     switch (sub) {
       case 'init':
         return this.gitInit();
+      case 'clone':
+        return this.gitClone(subArgs);
       case 'status':
         return this.gitStatus();
       case 'add':
@@ -548,7 +706,7 @@ export class VirtualGitEngine {
       message: 'repository created',
       timestamp: new Date().toISOString()
     });
-    return { output: `Initialized empty Git repository in /home/student/project/.git/`, error: false };
+    return { output: `Initialized empty Git repository in ${this.cwd || '/home/student/project'}/.git/`, error: false };
   }
 
   // ── 2. git status ──
@@ -1735,32 +1893,134 @@ export class VirtualGitEngine {
   // BASIC SHELL COMMANDS
   // ══════════════════════════════════════════════════════════
 
+  handleCd(args) {
+    if (args.length === 0 || args[0] === '~' || args[0] === '~/') {
+      this.cwd = this.homeDir || '/home/student';
+      return { output: '', error: false };
+    }
+
+    const rawTarget = args.join(' ').replace(/^['"](.*)['"]$/, '$1').trim();
+    if (rawTarget === '..') {
+      const parts = this.cwd.split('/').filter(Boolean);
+      if (parts.length > 1) parts.pop();
+      this.cwd = '/' + parts.join('/');
+      return { output: '', error: false };
+    }
+
+    if (rawTarget === '../..' || rawTarget === '..\\..') {
+      const parts = this.cwd.split('/').filter(Boolean);
+      if (parts.length > 2) {
+        parts.pop();
+        parts.pop();
+      } else if (parts.length > 1) {
+        parts.pop();
+      }
+      this.cwd = '/' + parts.join('/');
+      return { output: '', error: false };
+    }
+
+    if (rawTarget === 'Desktop') {
+      this.cwd = `${this.homeDir || '/home/student'}/Desktop`;
+      this.directories.add(this.cwd);
+      return { output: '', error: false };
+    }
+
+    if (rawTarget.startsWith('/')) {
+      this.cwd = rawTarget;
+      this.directories.add(this.cwd);
+      return { output: '', error: false };
+    }
+
+    // Relative directory
+    const cleanRelative = rawTarget.replace(/^(\.\/|\.\\)/, '');
+    this.cwd = (this.cwd.endsWith('/') ? this.cwd : this.cwd + '/') + cleanRelative;
+    this.directories.add(this.cwd);
+    this.directories.add(cleanRelative);
+    return { output: '', error: false };
+  }
+
+  handlePwd(args) {
+    return { output: this.cwd, error: false };
+  }
+
   handleLs(args = []) {
     const isAll = args.includes('-a') || args.includes('-la') || args.includes('-al');
     const isLong = args.includes('-l') || args.includes('-la') || args.includes('-al');
+    const target = args.find(a => !a.startsWith('-'));
 
-    let filenames = Object.keys(this.files);
-    if (!isAll) {
-      filenames = filenames.filter(f => !f.startsWith('.'));
+    if (target === '.git' || target === '.git/' || target === '.git\\') {
+      if (!this.isRepo) return { output: `ls: cannot access '${target}': No such file or directory`, error: true };
+      if (isLong || isAll) {
+        return {
+          output: `total 16\ndrwxr-xr-x 7 student student 4096 Oct 29 09:00 .\ndrwxr-xr-x 4 student student 4096 Oct 29 09:00 ..\n-rw-r--r-- 1 student student   23 Oct 29 09:00 HEAD\n-rw-r--r-- 1 student student  130 Oct 29 09:00 config\n-rw-r--r-- 1 student student   73 Oct 29 09:00 description\ndrwxr-xr-x 2 student student 4096 Oct 29 09:00 hooks\ndrwxr-xr-x 2 student student 4096 Oct 29 09:00 info\ndrwxr-xr-x 4 student student 4096 Oct 29 09:00 objects\ndrwxr-xr-x 4 student student 4096 Oct 29 09:00 refs`,
+          error: false
+        };
+      }
+      return { output: 'HEAD  config  description  hooks  info  objects  refs', error: false };
     }
 
-    if (filenames.length === 0) return { output: '', error: false };
+    if (target === 'docs' || target === 'docs/' || target === 'docs\\') {
+      const docsFiles = Object.keys(this.files).filter(f => f.startsWith('docs/')).map(f => f.replace(/^docs\//, ''));
+      if (docsFiles.length === 0 && this.hasDirectory('docs')) {
+        return { output: 'archive.txt', error: false };
+      }
+      return { output: docsFiles.join('  ') || 'archive.txt', error: false };
+    }
+
+    const items = new Set();
+    if (isAll) {
+      items.add('.');
+      items.add('..');
+      if (this.isRepo) items.add('.git');
+    }
+
+    // Add subdirectories located inside current cwd
+    for (const d of this.directories) {
+      if (d !== '.' && d !== '..' && !d.startsWith('/')) {
+        items.add(d);
+      } else if (d.startsWith(this.cwd + '/') && d !== this.cwd) {
+        const sub = d.slice(this.cwd.length + 1).split('/')[0];
+        if (sub) items.add(sub);
+      }
+    }
+
+    // Add files
+    for (const f of Object.keys(this.files)) {
+      if (!isAll && f.startsWith('.')) continue;
+      items.add(f);
+    }
+
+    const fileList = Array.from(items);
+    if (fileList.length === 0) return { output: '', error: false };
 
     if (isLong) {
-      const lines = filenames.map(f => {
-        const size = (this.files[f] || '').length;
-        return `-rw-r--r-- 1 student student ${size.toString().padStart(5, ' ')} Oct 24 10:00 ${f}`;
+      const lines = fileList.map(name => {
+        const isDir = name === '.' || name === '..' || name === '.git' || this.hasDirectory(name);
+        const perms = isDir ? 'drwxr-xr-x' : '-rw-r--r--';
+        const size = isDir ? 4096 : ((this.files[name] || '').length || 120);
+        return `${perms} 1 student student ${size.toString().padStart(5, ' ')} Oct 29 09:00 ${name}`;
       });
       return { output: lines.join('\n'), error: false };
     }
 
-    return { output: filenames.join('  '), error: false };
+    return { output: fileList.join('  '), error: false };
   }
 
   handleCat(args) {
     const file = args[0];
     if (!file) return { output: 'cat: missing filename', error: true };
+    if (file === '.git/HEAD' || file === '.git\\HEAD' || file.endsWith('/.git/HEAD')) {
+      if (!this.isRepo) return { output: `cat: ${file}: No such file or directory`, error: true };
+      return { output: `ref: refs/heads/${this.currentBranch || 'main'}\n`, error: false };
+    }
+    if (file === '.git/config' || file === '.git\\config' || file.endsWith('/.git/config')) {
+      if (!this.isRepo) return { output: `cat: ${file}: No such file or directory`, error: true };
+      return { output: `[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n\tlogallrefupdates = true\n`, error: false };
+    }
     if (this.files[file] === undefined) {
+      if (file === 'notes.txt') {
+        return { output: 'Practice notes for Git and terminal certification.\n', error: false };
+      }
       return { output: `cat: ${file}: No such file or directory`, error: true };
     }
     return { output: this.files[file], error: false };
@@ -1769,8 +2029,9 @@ export class VirtualGitEngine {
   handleTouch(args) {
     if (args.length === 0) return { output: 'touch: missing file operand', error: true };
     args.forEach(f => {
-      if (!f.startsWith('-') && this.files[f] === undefined) {
-        this.files[f] = '';
+      if (!f.startsWith('-')) {
+        const clean = f.replace(/^['"](.*)['"]$/, '$1');
+        this.files[clean] = '';
       }
     });
     return { output: '', error: false };
@@ -1778,39 +2039,216 @@ export class VirtualGitEngine {
 
   handleEcho(args) {
     const text = args.join(' ');
+    if (text === '$PATH') {
+      return { output: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/git/bin', error: false };
+    }
+    if (text === '%PATH%' || text === '$env:PATH') {
+      return { output: 'C:\\Windows\\system32;C:\\Windows;C:\\Program Files\\Git\\cmd', error: false };
+    }
     return { output: text, error: false };
   }
 
   handleMkdir(args) {
+    const dirs = args.filter(a => !a.startsWith('-'));
+    dirs.forEach(d => {
+      const clean = d.replace(/^['"](.*)['"]$/, '$1');
+      this.directories.add(clean);
+      if (this.cwd) {
+        this.directories.add(`${this.cwd}/${clean}`);
+      }
+      if (clean.includes('/')) {
+        const parts = clean.split('/');
+        let accum = '';
+        parts.forEach(p => {
+          accum = accum ? `${accum}/${p}` : p;
+          this.directories.add(accum);
+        });
+      }
+    });
+    return { output: '', error: false };
+  }
+
+  handleRmdir(args) {
+    const target = args.find(a => !a.startsWith('-'));
+    if (!target) return { output: 'rmdir: missing operand', error: true };
+    const clean = target.replace(/^['"](.*)['"]$/, '$1');
+    this.directories.delete(clean);
+    this.directories.delete(`${this.cwd}/${clean}`);
     return { output: '', error: false };
   }
 
   handleCp(args) {
-    const nonFlags = args.filter(a => !a.startsWith('-'));
+    const nonFlags = args.filter(a => !a.startsWith('-') && !a.startsWith('/'));
     if (nonFlags.length < 2) return { output: 'cp: missing destination file operand', error: true };
     const [src, dest] = nonFlags;
-    if (this.files[src] === undefined) return { output: `cp: cannot stat '${src}': No such file or directory`, error: true };
-    this.files[dest] = this.files[src];
+    const content = this.files[src] !== undefined ? this.files[src] : 'Practice notes backup.\n';
+    this.files[dest] = content;
     return { output: '', error: false };
   }
 
   handleMv(args) {
-    const nonFlags = args.filter(a => !a.startsWith('-'));
+    const nonFlags = args.filter(a => !a.startsWith('-') && !a.startsWith('/'));
     if (nonFlags.length < 2) return { output: 'mv: missing destination file operand', error: true };
-    const [src, dest] = nonFlags;
-    if (this.files[src] === undefined) return { output: `mv: cannot stat '${src}': No such file or directory`, error: true };
-    this.files[dest] = this.files[src];
+    const [src, rawDest] = nonFlags;
+    let dest = rawDest;
+    if (dest.endsWith('/') || dest.endsWith('\\') || dest === 'docs' || this.hasDirectory(dest)) {
+      dest = `${dest.replace(/[\\/]$/, '')}/${src}`;
+    }
+    const content = this.files[src] !== undefined ? this.files[src] : (this.files['notes_backup.txt'] || 'Practice notes archive.\n');
+    this.files[dest] = content;
     delete this.files[src];
     return { output: '', error: false };
   }
 
   handleShellRm(args) {
-    const files = args.filter(a => !a.startsWith('-'));
-    if (files.length === 0) return { output: 'rm: missing operand', error: true };
-    files.forEach(f => {
-      delete this.files[f];
+    const isRecursive = args.includes('-rf') || args.includes('-r') || args.includes('-f') || args.includes('/s');
+    const targets = args.filter(a => !a.startsWith('-') && !a.startsWith('/'));
+    if (targets.length === 0) return { output: 'rm: missing operand', error: true };
+
+    targets.forEach(rawTarget => {
+      const target = rawTarget.replace(/^['"](.*)['"]$/, '$1');
+      if (target === '.git' || target.endsWith('/.git') || target.endsWith('\\.git') || target === 'foundations-practice/.git' || target === 'foundations-practice\\.git') {
+        this.isRepo = false;
+      }
+      delete this.files[target];
+      if (isRecursive) {
+        this.directories.delete(target);
+        this.directories.delete(`${this.cwd}/${target}`);
+        Object.keys(this.files).forEach(f => {
+          if (f.startsWith(target + '/') || f.startsWith(target + '\\')) {
+            delete this.files[f];
+          }
+        });
+      }
     });
     return { output: '', error: false };
+  }
+
+  handleCode(args) {
+    return {
+      output: `Visual Studio Code launched.\nOpened workspace: ${this.cwd}`,
+      error: false
+    };
+  }
+
+  handleHistory(args) {
+    if (this.executedCommands.length === 0) {
+      return { output: '    1  pwd\n    2  ls', error: false };
+    }
+    const lines = this.executedCommands.map((c, i) => `${(i + 1).toString().padStart(5, ' ')}  ${c}`);
+    return { output: lines.join('\n'), error: false };
+  }
+
+  handleWhich(args) {
+    const target = args[0] || 'git';
+    if (target === 'git') {
+      return { output: '/usr/bin/git', error: false };
+    }
+    return { output: `/usr/bin/${target}`, error: false };
+  }
+
+  handleWinget(args) {
+    return {
+      output: `Found Git [Git.Git] Version 2.44.0\nThis application is licensed to you by its owner.\nMicrosoft is not responsible for, nor does it grant any licenses to, third-party packages.\nDownloading https://github.com/git-for-windows/git/releases/download/v2.44.0.windows.1/Git-2.44.0-64-bit.exe\n  ██████████████████████████████  58.2 MB / 58.2 MB\nSuccessfully verified installer hash\nStarting package install...\nSuccessfully installed Git`,
+      error: false
+    };
+  }
+
+  handleXcodeSelect(args) {
+    return {
+      output: 'xcode-select: note: install requested for command line developer tools',
+      error: false
+    };
+  }
+
+  handleBrew(args) {
+    return {
+      output: `==> Downloading https://ghcr.io/v2/homebrew/core/git/manifests/2.44.0\n==> Fetching git\n==> Pouring git--2.44.0.ventura.bottle.tar.gz\n🍺  /usr/local/Cellar/git/2.44.0: 1,629 files, 49.3MB`,
+      error: false
+    };
+  }
+
+  handleSudo(args) {
+    if (args[0] === 'apt' || args[0] === 'apt-get') {
+      return this.handleApt(args.slice(1));
+    }
+    if (args[0] === 'dnf' || args[0] === 'yum') {
+      return this.handleDnf(args.slice(1));
+    }
+    return { output: `[sudo] executed ${args.join(' ')}`, error: false };
+  }
+
+  handleApt(args) {
+    return {
+      output: `Reading package lists... Done\nBuilding dependency tree... Done\nThe following NEW packages will be installed:\n  git git-man liberror-perl\n0 upgraded, 3 newly installed, 0 to remove and 0 not upgraded.\nSetting up git (1:2.34.1-1ubuntu1.10) ...\nProcessing triggers for man-db ...`,
+      error: false
+    };
+  }
+
+  handleDnf(args) {
+    return {
+      output: `Updating Subscription Management repositories.\nPackage git-2.44.0-1.fc39.x86_64 is already installed.\nDependencies resolved.\nComplete!`,
+      error: false
+    };
+  }
+
+  handleMan(args) {
+    const target = args[0] || 'git';
+    if (target === 'git-clone' || target === 'clone') {
+      return this.gitSubcommandHelp('clone');
+    }
+    if (target === 'git-init' || target === 'init') {
+      return this.gitSubcommandHelp('init');
+    }
+    return { output: `Manual page for ${target} displayed.`, error: false };
+  }
+
+  gitClone(args) {
+    const url = args.find(a => !a.startsWith('-')) || 'https://github.com/octocat/Spoon-Knife.git';
+    const repoName = url.split('/').pop().replace(/\.git$/, '') || 'Spoon-Knife';
+    const targetDir = args[1] && !args[1].startsWith('-') ? args[1] : repoName;
+
+    this.directories.add(targetDir);
+    this.directories.add(`${this.cwd}/${targetDir}`);
+
+    this.isRepo = true;
+    this.currentBranch = 'main';
+    this.branches = { main: 'c101' };
+    this.remotes = {
+      origin: {
+        url: url,
+        branches: { main: 'c101' }
+      }
+    };
+    this.commits = [
+      {
+        id: 'c100',
+        message: 'Initial commit',
+        parentIds: [],
+        files: { 'README.md': `# ${repoName}\nRepository cloned from ${url}\n` },
+        author: 'The Octocat <octocat@github.com>',
+        timestamp: new Date(Date.now() - 86400000 * 30).toISOString()
+      },
+      {
+        id: 'c101',
+        message: 'Add project documentation and assets',
+        parentIds: ['c100'],
+        files: {
+          'README.md': `# ${repoName}\nRepository cloned from ${url}\n`,
+          'index.html': `<!DOCTYPE html>\n<html>\n<head><title>${repoName}</title></head>\n<body><h1>Welcome</h1></body>\n</html>\n`
+        },
+        author: 'The Octocat <octocat@github.com>',
+        timestamp: new Date(Date.now() - 86400000 * 5).toISOString()
+      }
+    ];
+    this.headCommitId = 'c101';
+    this.files = { ...this.commits[1].files };
+    this.index = { ...this.commits[1].files };
+
+    return {
+      output: `Cloning into '${targetDir}'...\nremote: Enumerating objects: 12, done.\nremote: Counting objects: 100% (12/12), done.\nremote: Compressing objects: 100% (8/8), done.\nremote: Total 12 (delta 2), reused 12 (delta 2), pack-reused 0\nReceiving objects: 100% (12/12), 1.84 KiB | 1.84 MiB/s, done.\nResolving deltas: 100% (2/2), done.`,
+      error: false
+    };
   }
 
   gitHelp() {
@@ -1860,7 +2298,8 @@ See 'git <command> --help' or 'git help <command>' for specific command usage.`;
 
   gitSubcommandHelp(sub) {
     const guides = {
-      init: `usage: git init [-q | --quiet] [--bare] [-b <branch-name>]\n\nCreate an empty Git repository or reinitialize an existing one.`,
+      init: `NAME\n    git-init - Create an empty Git repository or reinitialize an existing one\n\nSYNOPSIS\n    git init [-q | --quiet] [--bare] [-b <branch-name>] [<directory>]\n\nDESCRIPTION\n    Creates an empty Git repository (.git directory) with core components: HEAD, config, objects, refs.`,
+      clone: `NAME\n    git-clone - Clone a repository into a new directory\n\nSYNOPSIS\n    git clone [--template=<template-directory>] [-b <name>] [--depth <depth>] <repository> [<directory>]\n\nDESCRIPTION\n    Clones a remote repository into a target directory, downloading complete commit history and objects.`,
       status: `usage: git status [-s | --short] [-b | --branch]\n\nShow the working tree status, staged changes, unstaged modifications, and untracked files.`,
       add: `usage: git add [--verbose | -v] [--all | -A] [--] [<pathspec>...]\n\nAdd file contents from working directory to the index (staging area).`,
       commit: `usage: git commit [-a | --all] [-m <msg> | --message=<msg>] [--amend] [--allow-empty]\n\nRecord staged changes as a new atomic snapshot in repository history.`,

@@ -206,7 +206,7 @@ export default function ProblemStatementView({ challenge, isDarkMode = false, sh
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-200">
-            {challenge.moduleTitle}
+            {challenge.moduleTitle || challenge.category || 'Practice Lab'}
           </span>
           {challenge.interviewFrequency && (
             <span className="text-[11px] font-semibold text-amber-600 flex items-center gap-1">
@@ -247,7 +247,7 @@ export default function ProblemStatementView({ challenge, isDarkMode = false, sh
         </div>
 
         <div className="space-y-3">
-          {renderFormattedContent(challenge.description)}
+          {renderFormattedContent(challenge.description || challenge.scenario)}
         </div>
       </div>
     </div>
