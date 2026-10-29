@@ -97,16 +97,40 @@ export default function Home() {
 
   const handleHomeLookupSubmit = (e) => {
     e.preventDefault();
-    const clean = (homeLookupQuery || '').trim().replace(/^@+/, '');
+    const raw = (homeLookupQuery || '').trim();
+    if (!raw) {
+      window.open(verificationPortalUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // Direct URL support
+    if (/^https?:\/\//i.test(raw)) {
+      window.open(raw, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const isExplicitHandle = raw.startsWith('@');
+    const clean = raw.replace(/^@+/, '').trim();
     if (!clean) {
       window.open(verificationPortalUrl, '_blank', 'noopener,noreferrer');
       return;
     }
-    // If credential ID format
-    if (clean.toUpperCase().startsWith('MSC-') || clean.length >= 10) {
+
+    // Credential IDs follow recognized formats:
+    // e.g. MSC-..., CERT-..., SYS-..., or standard UUID
+    const isCredentialId = !isExplicitHandle && (
+      /^msc[-_]/i.test(clean) ||
+      /^cert[-_]/i.test(clean) ||
+      /^sys[-_]/i.test(clean) ||
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clean)
+    );
+
+    if (isCredentialId) {
       window.open(`${verificationPortalUrl}/verify?id=${encodeURIComponent(clean)}`, '_blank', 'noopener,noreferrer');
     } else {
-      window.open(`${verificationPortalUrl}/u/${encodeURIComponent(clean.toLowerCase())}`, '_blank', 'noopener,noreferrer');
+      // Student handles/usernames (e.g. amityadav1, amityadav, pradnyabharsakale)
+      const handle = clean.includes('@') ? clean.split('@')[0] : clean;
+      window.open(`${verificationPortalUrl}/u/${encodeURIComponent(handle.toLowerCase())}`, '_blank', 'noopener,noreferrer');
     }
   };
 
