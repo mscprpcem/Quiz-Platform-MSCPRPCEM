@@ -183,21 +183,6 @@ function getChallengeObjectives(challenge, engine) {
 }
 
 
-/**
- * Git Challenge Scoring Helper
- * Basic: 10 pts, Medium/Intermediate: 20 pts, Advanced/Hard: 30 pts
- * If hints were unlocked, 0 leaderboard points are awarded.
- */
-export function getGitChallengePoints(difficulty, cleanSolve = true) {
-  const d = String(difficulty || '').toLowerCase();
-  let base = 10;
-  if (d === 'intermediate' || d === 'medium' || d === 'easy') base = 20;
-  if (d === 'advanced' || d === 'hard' || d === 'extreme') base = 30;
-  return {
-    basePoints: base,
-    totalPoints: cleanSolve ? base : 0
-  };
-}
 
 export default function GitPractice() {
   const { challengeId } = useParams();
@@ -251,16 +236,6 @@ export default function GitPractice() {
     }
   });
 
-  // Cumulative git leaderboard points
-  const [gitPoints, setGitPoints] = useState(() => {
-    try {
-      const saved = localStorage.getItem('msc_git_points');
-      return saved ? Number(saved) : 0;
-    } catch {
-      return 0;
-    }
-  });
-
   const handleUnlockHints = (cId) => {
     setViewedHints(prev => {
       const next = { ...prev, [cId]: true };
@@ -269,7 +244,7 @@ export default function GitPractice() {
       } catch (_) {}
       return next;
     });
-    addToast('Hints revealed. 0 leaderboard points will be awarded for this challenge.', 'info');
+    addToast('Hints revealed. No points will be allotted for this challenge.', 'info');
   };
 
   const [solvedChallenges, setSolvedChallenges] = useState(() => {
@@ -473,17 +448,7 @@ export default function GitPractice() {
       if (result.passed) {
         setShowCelebration(true);
         const updated = Array.from(new Set([...solvedChallenges, activeChallenge.id]));
-        const isClean = !viewedHints[activeChallenge.id];
-        const ptsInfo = getGitChallengePoints(activeChallenge.difficulty, isClean);
-
-        const alreadySolved = solvedChallenges.includes(activeChallenge.id);
-        if (!alreadySolved) {
-          const newTotal = gitPoints + ptsInfo.totalPoints;
-          setGitPoints(newTotal);
-          try {
-            localStorage.setItem('msc_git_points', newTotal.toString());
-          } catch (_) {}
-        }
+        const hintWasUsed = Boolean(viewedHints[activeChallenge.id]);
 
         setSolvedChallenges(updated);
         localStorage.setItem('msc_git_solved_challenges', JSON.stringify(updated));
@@ -494,18 +459,17 @@ export default function GitPractice() {
             await api.post('/git/progress/challenge', {
               challengeId: activeChallenge.id,
               email: user.email,
-              points: ptsInfo.totalPoints,
-              isClean
+              isClean: !hintWasUsed
             });
           } catch (syncErr) {
             console.warn('Could not sync git progress to server, saved locally:', syncErr.message);
           }
         }
 
-        if (isClean) {
-          addToast(`🎉 Clean Solve! +${ptsInfo.totalPoints} Points added to your score!`, 'success');
+        if (hintWasUsed) {
+          addToast('✓ Challenge Completed! (No points allotted because hints were used)', 'info');
         } else {
-          addToast('✓ Challenge Solved! (0 points added because hints were viewed).', 'info');
+          addToast('🎉 Challenge Solved Successfully!', 'success');
         }
       } else {
         addToast(result.message || 'Solution did not pass validation.', 'error');
@@ -670,11 +634,7 @@ export default function GitPractice() {
             <span className="font-mono text-slate-600">{GIT_CHALLENGES.length}</span>
           </div>
 
-          {/* Leaderboard Points Badge */}
-          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold shadow-2xs select-none" title="Total Points Earned">
-            <Trophy size={13} className="text-amber-600" />
-            <span>{gitPoints} Pts</span>
-          </div>
+
 
           <div className="hidden lg:block h-4 w-px bg-slate-200" />
 
@@ -789,11 +749,11 @@ export default function GitPractice() {
                 <span>Step Hints</span>
                 {viewedHints[activeChallenge.id] ? (
                   <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-300 font-bold">
-                    Hints Used (0 pts)
+                    No Points
                   </span>
                 ) : (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">
-                    Clean (+{getGitChallengePoints(activeChallenge.difficulty, true).basePoints} pts)
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                    {activeChallenge.hints?.length || 0}
                   </span>
                 )}
               </button>
@@ -922,18 +882,15 @@ export default function GitPractice() {
                   <div className="p-5 rounded-2xl border border-amber-300 bg-amber-50/90 text-amber-900 space-y-4 shadow-sm animate-fade-in">
                     <div className="flex items-center space-x-2 text-amber-900 font-extrabold text-sm">
                       <AlertTriangle size={18} className="text-amber-600 shrink-0" />
-                      <span>Hint Policy & Point Deduction Notice</span>
+                      <span>Hint Policy Notice</span>
                     </div>
-                    <p className="text-xs text-amber-950 leading-relaxed">
-                      Solving this challenge cleanly without viewing hints awards full leaderboard credit (<strong>+{getGitChallengePoints(activeChallenge.difficulty, true).basePoints} pts</strong>).
-                    </p>
                     <div className="p-3.5 bg-white/90 rounded-xl border border-amber-200 text-xs space-y-1.5">
                       <p className="font-bold text-red-700 flex items-center gap-1.5">
                         <AlertCircle size={14} className="text-red-600 shrink-0" />
-                        <span>0-Point Deduction Policy:</span>
+                        <span>Warning: No points will be allotted</span>
                       </p>
                       <p className="text-slate-700 leading-relaxed">
-                        If you reveal the hints for this challenge, <strong>0 points</strong> will be allotted upon successful completion. Let yourself think and explore commands like LeetCode!
+                        If you use hints, <strong>no points will be allotted</strong> for this challenge. Try to think and solve it on your own like LeetCode!
                       </p>
                     </div>
                     <button
@@ -941,7 +898,7 @@ export default function GitPractice() {
                       className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center space-x-2 cursor-pointer"
                     >
                       <Lock size={14} />
-                      <span>Reveal Hints (Forfeit {getGitChallengePoints(activeChallenge.difficulty, true).basePoints} Points)</span>
+                      <span>Reveal Hint (No Points Will Be Allotted)</span>
                     </button>
                   </div>
                 ) : (
@@ -949,7 +906,7 @@ export default function GitPractice() {
                     <div className="flex items-center justify-between p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 font-medium">
                       <span className="flex items-center gap-1.5 font-bold">
                         <AlertTriangle size={14} className="text-amber-600" />
-                        <span>Hints Unlocked — 0 Points Will Be Allotted</span>
+                        <span>Hint Used — No Points Will Be Allotted</span>
                       </span>
                       <span className="text-[11px] text-amber-700 font-mono">
                         Step {activeHintIndex + 1} of {activeChallenge.hints?.length || 0}
