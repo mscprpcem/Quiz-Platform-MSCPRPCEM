@@ -29,53 +29,20 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 ## Detailed Changelog
 
 ### Version 1.9.0 (Current Release)
-*Theme: Dedicated Git & GitHub Interactive Learning Track, 30-Day Developer Roadmap, Command Cheat Sheet Reference, First-Time Onboarding Tutor Guide, Responsive Media Queries & Clean Leaderboard Engine*
+*Theme: Dedicated Git & GitHub Interactive Learning Track, 30-Day Roadmap, Cheat Sheet Reference & Responsive Platform Polish*
 
-- **Dedicated Git & GitHub Learning Curriculum (`GitLearningView.jsx`)**:
-  - Implemented 34 comprehensive lessons across 5 progressive tiers (Novice Foundations, Branching & History, GitHub Collaboration, Power Tools, and Production Workflows).
-  - Modeled after `SqlLearningView` with full-height distraction-free workspace, linear next/prev navigation, reading progress tracking, and collapsible syllabus tiers.
-  - Removed disruptive knowledge checks and quiz popups to provide a clean, focused reading experience.
-  - Interactive terminal command blocks featuring macOS/Linux window controls, syntax-highlighted tokens (`git`, commands, flags, arguments), one-click clipboard copying, and ASCII commit graph diagrams.
-  - Embedded developer mental models (ELI5), critical production warnings, architectural takeaways, and direct "Try in Lab" shortcuts.
-- **First-Time Student Onboarding Tutor Guide**:
-  - Engineered an interactive 5-step guided walkthrough introducing core workspace features:
-    1. Instant Lesson Search
-    2. Live Reading Progress Tracker
-    3. 5 Curriculum Tiers
-    4. Mark Completed Action
-    5. Virtual Git Terminal Simulator Lab
-  - Tooltip card is dynamically anchored to the side of target elements (search bar, syllabus, header actions) with a directional pointer arrow, avoiding center-screen blocking modals.
-  - Automatically runs exclusively for first-time learners, persisting dismissal in `localStorage` (`msc_git_learn_tour_done`) without cluttering the header with permanent buttons.
-- **Dedicated 30-Day Developer Roadmap (`GitRoadmapView.jsx` at `/courses/git/roadmap`)**:
-  - Dedicated interactive study schedule guiding students through 30 daily goals from basic repo initialization to CI/CD and emergency production hotfixes.
-  - Interactive week-by-week selector pills (All 30 Days, Week 1-4), live roadmap search filter, and individual day completion toggle checkboxes.
-  - Added modular **Day 1: Version Control Fundamentals & Local Installation** ([day1Fundamentals.js](file:///d:/Quiz-platform/frontend/src/data/gitDays/day1Fundamentals.js)), comprehensive curriculum integration, and custom light-theme educational infographics for What/Why VCS, Centralized vs Distributed architectures, cross-platform setup (Windows, macOS, Linux), and verification.
-  - Added modular **Day 2: Git Configuration (`git config`, Local vs. Global)** ([day2Configuration.js](file:///d:/Quiz-platform/frontend/src/data/gitDays/day2Configuration.js)), scopes hierarchy and precedence rules, author identity embedding, essential behavioral defaults, and clean UI vector diagrams matching the platform aesthetic.
-  - Added modular **Day 3: Repository Basics & The Three Trees** ([day3RepositoryBasics.js](file:///d:/Quiz-platform/frontend/src/data/gitDays/day3RepositoryBasics.js)), detailing standard directory vs repository, Three-Stage Tree workflow, untracked vs tracked file lifecycle, `git init`, and `.git` internal database anatomy with custom website-theme vector diagrams.
-  - Added modular **Day 4: Basic Git Commands (`git add`, `git commit`, `git log`, `.gitignore`)** ([day4BasicCommands.js](file:///d:/Quiz-platform/frontend/src/data/gitDays/day4BasicCommands.js)), status diagnostics, precise staging, Conventional Commits, log history navigation, and `.gitignore` configuration.
-  - Added modular **Day 5: GitHub Essentials (Account, Interface, Profile & Profile README)** ([day5GitHubEssentials.js](file:///d:/Quiz-platform/frontend/src/data/gitDays/day5GitHubEssentials.js)), remote repository hosting, 2FA security, global dashboard navigation, developer portfolio customization, and the special secret Profile README repository (`username/username`) with custom high-resolution educational infographics.
-- **Dedicated Git Command Cheat Sheet (`/courses/git/cheatsheet`)**:
-  - Dedicated reference page categorizing essential commands: Setup & Config, Basic Snapshotting, Branching & Merging, Inspection & History, Remote Repositories, Stashing & Recovery, and Advanced Plumbing.
-  - Instant live search filter and one-click copyable command cards with responsive text wrapping.
-- **Light Theme Git Course Hub (`GitCourseHub.jsx` at `/courses/git`)**:
-  - Rebuilt in MSC signature light theme (`#F5FAFF`), removing all loaders, tracking progress bars, dumped cheatsheets, and excessive content.
-  - Clean primary action cards for **Learning** (`/courses/git/learn`) and **Practice Lab** (`/practice/git/lab`), with dedicated secondary link cards for the **30-Day Roadmap** and **Cheat Sheet**.
-- **Enterprise 30-Day SQL Mastery Roadmap (`30_DAY_SQL_ROADMAP.md`)**:
-  - Authored a comprehensive, production-grade 30-day SQL curriculum spanning 4 structured phases: Relational Foundations & DDL (Week 1), Joins, Aggregations & Subqueries (Week 2), Functions, Views, Indexes & Transactions (Week 3), and Window Functions, CTEs, Security & Optimization with Capstone (Week 4).
-  - Outlined daily routine (60–90 mins), hands-on practice tasks, expected deliverables, and multi-engine compatibility matrices for PostgreSQL, MySQL 8.0+, and Microsoft SQL Server.
-- **Comprehensive Responsive Media Queries Across All Git Views**:
-  - **Learning View**: Adaptive breadcrumb truncation on mobile (`max-w-[130px] xs:max-w-[180px] sm:max-w-[260px] md:max-w-xs`), compact mobile completion toggle (`Mark` / `Done`), responsive lab button, mobile slide-over drawer with integrated live search, and full-width navigation footers on small screens.
-  - **Course Hub**: Adaptive hero headers, responsive 1/2/4-column tutor grids, and touch-optimized action buttons.
-  - **Roadmap View**: Compact sticky header on mobile, responsive week filter pills, and title text clamping.
-- **Leaderboard UX & Data Clean-up**:
-  - Removed confusing `(25/page)` debug suffix from the homepage leaderboard button.
-  - Removed `pts` suffix on the tournament standings page (`/leaderboard`), displaying clean numeric scores.
-  - Enforced strict score sorting from highest to lowest (descending) with clean sequential rank badges (🥇, 🥈, 🥉, #4, #5...).
-  - Filtered out test, dummy, and demo accounts (`test`, `dummy`, `demo`, `admin`, `alex rivers`, `sarah connor`) across both frontend (`TournamentStandings.jsx`, `Home.jsx`) and backend (`analytics.js`).
-- **Backend Stability & Environment Optimization**:
-  - Fixed Sequelize `Op` import omission in `backend/src/server.js` preventing `.edu` admin cleanup warnings.
-  - Terminated orphaned Node processes causing port 5000 `EADDRINUSE` (`errno: -4091`) conflicts on startup.
-  - Validated hybrid database architecture: Neon Serverless PostgreSQL in cloud deployment vs. zero-config local SQLite.
+- **Git & GitHub Learning Platform**:
+  - 34-lesson interactive curriculum across 5 tiers with terminal command blocks and commit graph visualizations.
+  - First-time student onboarding walkthrough with anchored contextual tooltips.
+  - Interactive 30-Day Developer Roadmap (`/courses/git/roadmap`) with week filters and daily progress tracking.
+  - Quick-reference Git Command Cheat Sheet (`/courses/git/cheatsheet`) with live search and copyable snippets.
+  - Modernized Light Theme Course Hub (`/courses/git`) with streamlined action cards.
+- **Enterprise SQL Roadmap**:
+  - 30-Day structured SQL curriculum (`30_DAY_SQL_ROADMAP.md`) covering DDL, DML, Joins, Window Functions, and Capstone.
+- **UI & System Polish**:
+  - Responsive media query optimizations across mobile, tablet, and desktop views for all course pages.
+  - Clean leaderboard rankings with descending score sorting and test account filtering.
+  - Backend stability fixes and environment optimizations for SQLite/Postgres.
 
 ---
 
