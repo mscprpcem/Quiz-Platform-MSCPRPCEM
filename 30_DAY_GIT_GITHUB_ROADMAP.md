@@ -837,6 +837,443 @@ nothing to commit (create/copy files and use "git add" to track)
 
 ---
 
+## ⚡ Day 4: Basic Git Commands (git add, git commit, git log, .gitignore)
+
+> [!NOTE]
+> According to your 30-Day Roadmap, Day 4 transitions from passive repository inspection to recording snapshots and managing file tracking:
+> - **Learning Module:** Basic Git Commands
+> - **Topics to Cover:** `git add`, `git commit`, viewing commit history (`git log`), `.gitignore`
+> - **Practical Task:** Make commits and ignore unnecessary files
+
+<div align="center">
+  <img src="docs/assets/git-commit-lifecycle.jpg" alt="The Git Commit Lifecycle & Daily Development Loop" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 4.1: The Git Commit Lifecycle: Working Directory, Staging Area (Index), and Local Repo Commit Object.</em></p>
+</div>
+
+---
+
+### 1. The Core Lifecycle of a Commit
+
+In Git, saving changes is an explicit two-step operation:
+
+* **Staging (`git add`):** Selecting exactly which modified or new files belong in the upcoming milestone snapshot.
+* **Committing (`git commit`):** Freezing that staged bundle into an immutable, cryptographically hashed record in the repository's permanent history.
+
+```
+Working Directory               Staging Area (Index)              Local Repo (Commit Object)
+┌──────────────────────┐        ┌──────────────────────┐        ┌───────────────────────────────┐
+│ Edit/Create files    │        │ Staged files ready   │        │ Permanent Snapshot            │
+│ app.py, notes.txt    │ ─────> │ for inclusion        │ ─────> │ SHA: 7b3e9a1                  │
+│                      │ git add│ app.py               │ git    │ Author, Timestamp, Message    │
+└──────────────────────┘        └──────────────────────┘ commit └───────────────────────────────┘
+```
+
+---
+
+### 2. Staging Files with `git add`
+
+The `git add` command moves changes from the Working Directory to the Staging Area (also referred to as the Index).
+
+#### Essential Staging Commands:
+* **Stage a specific file:**
+  ```bash
+  git add <filename>
+  ```
+* **Stage multiple specific files:**
+  ```bash
+  git add app.js styles.css index.html
+  ```
+* **Stage all changes across the repository (new, modified, and deleted files):**
+  ```bash
+  git add .
+  ```
+  *(Or: `git add -A` / `git add --all`)*
+* **Interactive staging (stage partial hunks/lines of code within a file):**
+  ```bash
+  git add -p <filename>
+  ```
+
+#### Unstaging Files
+If a file was staged accidentally, pull it back to the Working Directory without discarding your written code:
+```bash
+git restore --staged <filename>
+```
+*(Legacy syntax: `git reset HEAD <filename>`)*
+
+---
+
+### 3. Creating Snapshots with `git commit`
+
+A commit is an immutable point-in-time snapshot of the staged files. Every commit generates a unique 40-character SHA-1 hash (or SHA-256 in modern setups) containing author metadata, the parent commit reference, and the tree structure.
+
+#### Standard Inline Commit:
+```bash
+git commit -m "feat: implement user authentication flow"
+```
+
+#### Writing Detailed Multi-Line Commit Messages
+Executing `git commit` without the `-m` flag opens your configured text editor (e.g., VS Code or Nano) to write a detailed log:
+
+```bash
+git commit
+```
+
+**Standard Commit Format:**
+```plaintext
+Short summary (50 characters or less)
+
+More detailed explanatory text wrapping at 72 characters.
+Explain the problem this commit solves, why the change was made,
+and any side effects or gotchas.
+
+- Bullet points are acceptable
+- Closes #104
+```
+
+#### Staging and Committing Tracked Files Simultaneously (`-am`)
+To stage all modified tracked files and commit them in a single command:
+```bash
+git commit -am "fix: correct typo in hero banner"
+```
+
+> **Notice:** The `-am` shortcut does not pick up newly created untracked files. New files must first be staged with `git add <filename>`.
+
+---
+
+### 4. Inspecting History with `git log`
+
+The `git log` command prints the repository's chronological commit history starting from the most recent commit back to the initial root commit.
+
+| Command Flag | Output Style / Purpose |
+| :--- | :--- |
+| `git log` | Default view: 40-character SHA, Author, Date, and full message. |
+| `git log --oneline` | Compact view: 7-character abbreviated hash and commit title. |
+| `git log -n <number>` | Limits output to the last N commits (e.g., `git log -n 3` or `git log -3`). |
+| `git log --stat` | Displays file modification stats along with additions (+) and deletions (-). |
+| `git log -p` | Shows the patch diff (exact line additions and deletions) for each commit. |
+| `git log --graph --oneline --all` | ASCII graph displaying branch divergence, merges, and topology. |
+
+#### Navigating the Git Pager
+When logs exceed the terminal window, Git opens a terminal pager (usually `less`):
+* **Down Arrow / j:** Scroll down one line.
+* **Up Arrow / k:** Scroll up one line.
+* **Spacebar:** Scroll down one full page.
+* **q:** Exit the log viewer and return to the prompt.
+
+---
+
+### 5. Ignoring Files with `.gitignore`
+
+A `.gitignore` file is a plain-text configuration file placed in the repository root that directs Git to disregard untracked files and directories so they never show up under `git status` or get committed.
+
+#### Primary Use Cases:
+* **Security:** Prevents committing secrets, access tokens, and environment configurations (`.env`).
+* **Noise Reduction:** Excludes build artifacts, machine caches (`__pycache__`), and compiled binaries (`.class`, `.o`).
+* **Repository Bloat:** Excludes third-party package dependencies (`node_modules/`, `.venv/`).
+
+#### Pattern Syntax & Matching Rules:
+```gitignore
+# 1. Ignore a specific file
+.env
+secret_key.pem
+
+# 2. Wildcard pattern to ignore files by extension
+*.log
+*.tmp
+*.bak
+
+# 3. Ignore an entire directory (must end with a slash /)
+node_modules/
+dist/
+build/
+.venv/
+
+# 4. Negation rule (track this file even if the extension rule matches)
+!important.log
+
+# 5. Wildcard pattern for directory sub-paths
+**/cache/
+```
+
+#### Handling Previously Committed Files
+`.gitignore` only affects untracked files. If a sensitive or unwanted file was already committed previously, adding it to `.gitignore` will not remove it from Git's tracking tree. You must remove it from the staging index while retaining it on your physical drive:
+```bash
+git rm --cached <filename>
+git commit -m "chore: remove tracked file from index"
+```
+
+---
+
+### 6. Hands-On Practical Task Walkthrough
+
+#### Step 1: Navigate to Your Practice Repository
+```bash
+cd day3-repo-practice
+git status
+```
+
+#### Step 2: Create Project Source Files
+```bash
+touch app.js styles.css
+```
+
+#### Step 3: Stage and Commit the New Files
+```bash
+# Stage the files
+git add app.js styles.css
+
+# Verify they appear green under 'Changes to be committed'
+git status
+
+# Record the snapshot
+git commit -m "feat: initialize app and stylesheet"
+```
+
+#### Step 4: Create Files That Should Be Excluded
+```bash
+touch .env app.log
+```
+Run `git status` to see `.env` and `app.log` listed in red under Untracked files.
+
+#### Step 5: Configure `.gitignore`
+```bash
+# Append rules to .gitignore
+echo ".env" >> .gitignore
+echo "*.log" >> .gitignore
+
+# Verify status
+git status
+```
+**Expected Result:** `.env` and `app.log` disappear completely from the untracked file list. Only `.gitignore` appears as an untracked file.
+
+#### Step 6: Commit the `.gitignore` File
+```bash
+git add .gitignore
+git commit -m "chore: configure .gitignore to exclude env and log files"
+```
+
+#### Step 7: Inspect History
+```bash
+git log --oneline
+```
+**Expected Output:**
+```plaintext
+a1b2c3d chore: configure .gitignore to exclude env and log files
+e4f5g6h feat: initialize app and stylesheet
+```
+
+---
+
+### 📋 Quick Reference Summary
+
+| Command / Syntax | Action |
+| :--- | :--- |
+| `git add <file>` | Moves specific changes from Working Directory to Staging Area. |
+| `git add .` | Stages all current additions, modifications, and deletions. |
+| `git commit -m "<msg>"` | Records staged snapshot into permanent repository history. |
+| `git commit -am "<msg>"` | Stages tracked changes and commits them in one step. |
+| `git restore --staged <file>` | Removes a staged file from the Index back to Working Directory. |
+| `git log --oneline` | Displays compact, single-line commit history with abbreviated hashes. |
+| `git log --stat` | Lists historical commits alongside file modification metrics. |
+| `.gitignore` | Configuration file specifying untracked file patterns Git must ignore. |
+| `git rm --cached <file>` | Untracks a file from Git without deleting it from physical storage. |
+
+---
+
+## 🌐 Day 5: GitHub Essentials (Account, Interface, Profile & Profile README)
+
+> [!NOTE]
+> Day 5 shifts focus from local Git operations to GitHub's remote collaboration platform:
+> - **Learning Module:** GitHub Essentials
+> - **Topics to Cover:** Creating a GitHub account, GitHub interface navigation, profile setup, profile README
+> - **Practical Task:** Set up your GitHub profile with MSC PRPCEM standards
+
+---
+
+### 1. What is GitHub & Why Does It Matter?
+
+While Git runs locally on your machine without an internet connection, GitHub is a cloud-hosted platform built around Git. It serves three primary functions:
+
+* **Remote Repository Host:** Acts as a centralized off-site backup for your local Git repositories.
+* **Collaboration & Review Platform:** Provides code review tools (Pull Requests), task tracking (Issues, Projects), and discussion forums.
+* **Developer Portfolio:** Functions as a public technical identity showcasing open-source contributions, code quality, and consistency via the contribution heatmap.
+
+<div align="center">
+  <img src="docs/assets/git-github-architecture.jpg" alt="Git vs GitHub Architecture: Local Engine on Laptop vs Cloud Collaboration Hub on GitHub Server" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 5.1: Git (Local Machine) vs. GitHub (Cloud & Team Collaboration with Push and Pull).</em></p>
+</div>
+
+---
+
+### 2. Account Creation & Security Essentials
+
+* **Navigate to GitHub:** Go to [github.com](https://github.com/) and sign up.
+* **Username Selection:** Choose a clean, professional handle (e.g., `firstname-lastname`, `alex-dev`, or institutional handles like `mscprpcem`). This handle forms your permanent URL: `https://github.com/<username>`.
+* **Primary Email:** Use the exact email address configured locally during Day 2 (`git config --global user.email "msc@prpcem.ac.in"`). GitHub uses this email address to link your local commit hashes to your online GitHub account.
+* **Two-Factor Authentication (2FA):** GitHub mandates 2FA for all active contributors. Enable it under **Settings > Password and authentication** using a mobile authenticator app (such as Google Authenticator, 1Password, or Microsoft Authenticator) and save your backup recovery codes securely.
+
+---
+
+### 3. GitHub Web Interface Navigation
+
+When logged in, GitHub is organized into two primary scopes: the **Global Dashboard** and the **User Profile**.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Top Nav: [Search or jump to...] [Pull requests] [Issues] [Codespaces] [🔔] [Avatar]│
+├───────────────────────────────┬─────────────────────────────────────────────┤
+│ Left Column:                  │ Center Feed:                                │
+│ • Top Repositories            │ • Activity feed of followed developers/repos│
+│ • "New" Repo Button           │ • Release updates, stars, and recommendations│
+│ • Recent projects             │                                             │
+└───────────────────────────────┴─────────────────────────────────────────────┘
+```
+
+<div align="center">
+  <img src="docs/assets/github-profile-anatomy.jpg" alt="GitHub Web Interface Navigation and Public Developer Profile Anatomy" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 5.2: GitHub Web Interface Navigation & Public Developer Profile Anatomy.</em></p>
+</div>
+
+#### Core Interface Terminology
+* **Global Search (`/` shortcut):** Allows searching across repositories, code snippets, commits, issues, and users.
+* **Notification Inbox (`🔔`):** Aggregates mentions (`@mscprpcem`), review requests, CI/CD pipeline failures, and thread assignments.
+* **Command Palette (`Ctrl+K` or `Cmd+K`):** Fast navigation across organizations, repositories, settings, and pull requests.
+
+---
+
+### 4. Customizing Your Public Profile (MSC PRPCEM Example)
+
+Your public profile (`https://github.com/mscprpcem`) introduces you to recruiters, hiring managers, and open-source collaborators worldwide.
+
+<div align="center">
+  <img src="docs/assets/github-mscprpcem-profile.jpg" alt="MSC PRPCEM Official GitHub Profile & Secret Repository Overview" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 5.3: MSC PRPCEM Developer Profile, Pinned Repositories, Secret Repository Banner & Heatmap.</em></p>
+</div>
+
+#### Profile Components
+* **Avatar & Profile Picture:** Official club emblem or clean personal professional photo.
+* **Name & Pronouns:** `MSC PRPCEM (Microsoft Student Club)` or your real name.
+* **Bio:** e.g., *"Microsoft Student Club @ PRPCEM | Empowering student developers with Git, open source & cloud."* (up to 160 characters).
+* **Location & Time Zone:** `Amravati, Maharashtra, India`. Helps international open-source teams coordinate review times.
+* **Website / Social Links:** `https://mscprpcem.tech` and `https://linkedin.com/company/mscprpcem`.
+* **Pinned Repositories:** Up to 6 public repositories to highlight your best work (e.g., `Quiz-platform`, `30-Day-Git-Curriculum`, `sql-lab`).
+* **Contribution Heatmap (Activity Graph):** A visual grid documenting commits, opened PRs, and issues over the past 52 weeks in green squares.
+
+---
+
+### 5. The Special "Profile README" (Secret Repository)
+
+GitHub has a feature that allows you to display custom Markdown content directly at the top of your personal profile page.
+
+<div align="center">
+  <img src="docs/assets/github-profile-readme-workflow.jpg" alt="The Special GitHub Profile README Secret Repository 4-Step Workflow" width="850" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;" />
+  <p><em>Figure 5.4: The Special Profile README 4-Step Setup Workflow (mscprpcem/mscprpcem).</em></p>
+</div>
+
+#### The 4 Strict Requirements for a Profile README
+GitHub triggers the profile README card only if all four conditions are met:
+1. **The repository name matches your GitHub username exactly (case-sensitive)** (e.g., username `mscprpcem` requires repo `mscprpcem`).
+2. **The repository visibility is set to Public** (it will not display if set to Private).
+3. **The root of the repository contains a file named `README.md`**.
+4. **The `README.md` file contains text content**.
+
+*(When creating this repository on GitHub, a special banner will appear: "You found a secret! mscprpcem/mscprpcem is a special repository that you can use to add a README.md to your GitHub profile.")*
+
+---
+
+### 6. Markdown Essentials for Profile READMEs
+
+Markdown (`.md`) is the standard formatting language for GitHub documentation.
+
+| Markdown Syntax | Rendered Output | Use Case |
+| :--- | :--- | :--- |
+| `# Heading 1` | Main page title | Primary title / greeting |
+| `## Heading 2` | Section subtitle | Major sections (About Me, Tech Stack) |
+| `### Heading 3` | Sub-section header | Section sub-groupings |
+| `**Bold text**` | **Bold text** | Emphasizing key tools or achievements |
+| `*Italic text*` | *Italic text* | Subtle notes or quotes |
+| `[Link text](https://url.com)` | [Link text](https://url.com/) | Portfolio, LinkedIn, and social links |
+| `- Item` or `* Item` | Bulleted list item | Tech stack and project highlights |
+| `1. First item` | Numbered list item | Ordered accomplishments or goals |
+| `` `inline code` `` | Code styling block | Tools, package names, command tags |
+| `- [x] Task complete` | Checked interactive checkbox | Completed roadmap milestones |
+| `- [ ] Task incomplete` | Unchecked checkbox | In-progress learning goals |
+| `> Quoted note` | Blockquote callout box | Developer motto or featured quote |
+
+---
+
+### 7. Practical Task Walkthrough: Step-by-Step (MSC PRPCEM Example)
+
+#### Step 1: Complete Account Metadata
+1. Click your profile avatar in the upper right corner > **Settings**.
+2. Under **Public profile**, configure:
+   * **Name:** `MSC PRPCEM (Microsoft Student Club)`
+   * **Bio:** *"Microsoft Student Club @ PRPCEM | Empowering student developers through Git, GitHub, open source & software engineering."*
+   * **Location & URL:** Add `Amravati, Maharashtra, India` and `https://mscprpcem.tech`.
+3. Click **Update profile**.
+
+#### Step 2: Create the Special Profile Repository
+1. In the upper right corner, click the **`+`** icon > select **New repository**.
+2. In the **Repository name** input box, enter your exact GitHub handle: `mscprpcem`.
+3. Verify that the special green box appears stating: *"You found a secret! mscprpcem/mscprpcem is a special repository that you can use to add a README.md to your GitHub profile."*
+4. Ensure **Public** is selected.
+5. Check the box **"Add a README file"**.
+6. Click **Create repository**.
+
+#### Step 3: Edit and Customize Your README.md
+Click the pencil icon (**Edit**) on the `README.md` file inside the repository and paste the following official template:
+
+```markdown
+# Hi there, we are MSC PRPCEM 👋
+
+<p align="left">
+  <img src="https://img.shields.io/badge/Club-Microsoft_Student_Club-0078D4?style=for-the-badge&logo=microsoft&logoColor=white" />
+  <img src="https://img.shields.io/badge/Campus-PRPCEM_Amravati-FFB900?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Community-Open_Source-107C41?style=for-the-badge&logo=github&logoColor=white" />
+</p>
+
+### 👨‍💻 About MSC PRPCEM
+- 🔭 **What we're building:** Open-source projects, coding platforms, interactive technical workshops, and student mentorship programs.
+- 🎯 **30-Day Goal:** Master Git & GitHub collaborative workflows across the PRPCEM engineering cohort.
+- 💬 **Ask us about:** Web Development, Cloud Computing, Git/GitHub, SQL, and Community Hackathons.
+- 🌐 **Official Portal:** [mscprpcem.tech](https://mscprpcem.tech)
+- 📫 **Contact & Socials:** [LinkedIn](https://linkedin.com/company/mscprpcem) | [msc@prpcem.ac.in](mailto:msc@prpcem.ac.in)
+
+---
+
+### 🛠️ Tech Stack & Ecosystem
+- **Version Control:** Git, GitHub, GitHub Actions, GitHub Pages
+- **Frontend & Backend:** React, Node.js, Express, TailwindCSS, PostgreSQL, SQLite
+- **Tools & Environments:** VS Code, Git Bash, Terminal, Docker
+
+---
+
+### 📈 GitHub Community & Contributor Stats
+![MSC PRPCEM GitHub Stats](https://github-readme-stats.vercel.app/api?username=mscprpcem&show_icons=true&theme=radical)
+![Top Languages](https://github-readme-stats.vercel.app/api/top-langs/?username=mscprpcem&layout=compact&theme=radical)
+```
+
+#### Step 4: Commit Changes & Verify Profile
+1. Scroll down to the bottom of the editor.
+2. In the commit message box, enter: `docs: initialize custom profile README`.
+3. Select **Commit changes**.
+4. Navigate to `https://github.com/mscprpcem`. Your custom profile README is now displayed at the top of your landing page!
+
+---
+
+### 📋 Quick Reference Summary
+
+| Feature / Concept | Rule / Behavior | MSC PRPCEM Reference |
+| :--- | :--- | :--- |
+| **Email Attribution** | GitHub profile email must match `git config user.email` to credit commits. | `msc@prpcem.ac.in` |
+| **Special Repo Name** | Must be `<username>/<username>` to render on your profile. | `mscprpcem/mscprpcem` |
+| **Visibility Requirement** | Must be Public; setting it to Private immediately hides the profile README. | Public |
+| **Pinned Items** | Maximum of 6 items (Repositories or Gists) can be pinned to the profile. | `Quiz-platform`, `30-Day-Git-Curriculum` |
+| **Contribution Graph** | Tracks commits to default/gh-pages branches, opening PRs, and filing issues. | 52-week green activity heatmap |
+| **Profile URL** | Permanent public portfolio address. | `https://github.com/mscprpcem` |
+
+---
+
 ## 📚 Detailed Weekly Breakdown
 
 ### 🎯 Week 1: Git & GitHub Foundations (Days 1–7)

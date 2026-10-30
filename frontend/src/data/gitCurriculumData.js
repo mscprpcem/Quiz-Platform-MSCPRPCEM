@@ -1,4 +1,4 @@
-import { DAY_0_TOPIC, DAY_1_TOPIC, DAY_2_TOPIC, DAY_3_TOPIC } from './gitDays/index.js';
+import { DAY_0_TOPIC, DAY_1_TOPIC, DAY_2_TOPIC, DAY_3_TOPIC, DAY_4_TOPIC, DAY_5_TOPIC } from './gitDays/index.js';
 
 export const GIT_CURRICULUM = [
   {
@@ -23,120 +23,8 @@ export const GIT_CURRICULUM = [
       DAY_1_TOPIC,
       DAY_2_TOPIC,
       DAY_3_TOPIC,
-      {
-        slug: 'three-trees',
-        title: '3. The Three Trees: Working Directory, Staging & Repository',
-        summary: 'Git’s core architectural foundation: Working Directory vs Staging Area (Index) vs HEAD commit.',
-        readTime: '7 min read',
-        content: `
-### Git's Core Architecture: The Three Trees
-
-Understanding Git requires understanding where files live in the 3 states:
-
-\`\`\`
-┌────────────────────┐       git add       ┌────────────────────┐      git commit      ┌────────────────────┐
-│ Working Directory  │ ──────────────────► │    Staging Area    │ ───────────────────► │  Git Repository    │
-│  (Sandbox on Disk) │                     │      (Index)       │                      │     (History)      │
-└────────────────────┘ ◄────────────────── └────────────────────┘ ◄─────────────────── └────────────────────┘
-                          git restore              git restore --staged / git reset
-\`\`\`
-
-#### 1. The Working Directory (Sandbox)
-* The actual files you see and edit on your disk in VS Code or your IDE.
-* Changes here are untracked or modified until you explicitly stage them.
-
-#### 2. The Staging Area / Index (The Cache)
-* A temporary holding area that defines **what will go into your next commit**.
-* Allows you to craft granular, atomic commits: you can edit 10 files, but stage and commit only 2 of them together.
-
-#### 3. The Repository (\`HEAD\`)
-* The permanent history of committed snapshots. \`HEAD\` is the pointer to the latest commit on your current branch.
-        `
-      },
-      {
-        slug: 'git-status-add',
-        title: '4. Checking Status & Staging Changes (git status, git add)',
-        summary: 'Inspect changes, understand untracked vs modified vs staged states, and learn stage best practices.',
-        readTime: '5 min read',
-        content: `
-### Checking Repository Status
-
-\`git status\` is the single most important command in Git. Always run it before and after state transitions:
-
-\`\`\`bash
-git status
-\`\`\`
-
-#### Understanding Output Colors & Categories:
-* **Untracked files (Red)**: Files newly created that Git has never seen before.
-* **Changes not staged for commit (Red)**: Tracked files that you modified since the last commit.
-* **Changes to be committed (Green)**: Files added to the staging area, ready for snapshotting.
-
----
-
-### Staging Files (\`git add\`)
-
-\`\`\`bash
-# Stage a specific file
-git add index.html
-
-# Stage multiple specific files
-git add app.js styles.css
-
-# Stage all tracked & untracked changes in the current directory
-git add .
-
-# Stage all changes across the entire repository
-git add -A
-\`\`\`
-
->  **Professional Tip**: Avoid blindly running \`git add .\` without running \`git status\` first. You might accidentally stage credentials, build logs, or temporary files!
-        `
-      },
-      {
-        slug: 'git-commit',
-        title: '5. Recording Snapshots (git commit & Commit Hygiene)',
-        summary: 'Create permanent snapshots with git commit, understand atomic commits, and write professional commit messages.',
-        readTime: '6 min read',
-        content: `
-### Creating Commits
-
-Once files are staged (green in \`git status\`), record them permanently:
-
-\`\`\`bash
-git commit -m "feat(auth): add JWT token verification middleware"
-\`\`\`
-
----
-
-### What is an "Atomic Commit"?
-An atomic commit is a commit that solves **one single logical task**:
-* If you implemented a feature AND fixed a typo in a completely unrelated page, **split them into two commits**.
-* Why? Because if the feature breaks production, you can cleanly revert the feature commit without undoing your typo fix!
-
----
-
-### Writing Good Commit Messages (Conventional Commits)
-Industry teams use the **Conventional Commits** specification:
-
-\`\`\`
-<type>(<scope>): <short imperative description>
-
-[optional longer body explaining WHY, not WHAT]
-\`\`\`
-
-* **feat**: A new user-facing feature.
-* **fix**: A bug fix.
-* **docs**: Documentation changes only.
-* **refactor**: Code change that neither fixes a bug nor adds a feature.
-* **test**: Adding missing unit or integration tests.
-* **chore**: Build tools, package.json dependencies.
-
-#### Examples:
-* \`feat(cart): implement coupon code discount calculation\`
-* \`fix(login): handle null pointer when student email is empty\`
-        `
-      },
+      DAY_4_TOPIC,
+      DAY_5_TOPIC,
       {
         slug: 'git-log',
         title: '6. History Inspection (git log, formatting & filtering)',
@@ -1132,10 +1020,10 @@ export const GIT_ROADMAP = [
       { day: 1, title: 'Day 1: Version Control Fundamentals & Local Installation', topic: 'git-basics' },
       { day: 2, title: 'Day 2: Git Configuration (git config, Local vs. Global)', topic: 'git-config' },
       { day: 3, title: 'Day 3: Repository Basics & The Three Trees', topic: 'git-init' },
-      { day: 4, title: 'Inspecting Status & Staging Changes', topic: 'git-status-add' },
-      { day: 5, title: 'Crafting Atomic Commits & Semantics', topic: 'git-commit' },
-      { day: 6, title: 'Navigating History with git log', topic: 'git-log' },
-      { day: 7, title: 'Inspecting Diffs & Mastering .gitignore', topic: 'gitignore' }
+      { day: 4, title: 'Day 4: Basic Git Commands (add, commit, log, .gitignore)', topic: 'git-status-add' },
+      { day: 5, title: 'Day 5: GitHub Essentials (Account, Interface, Profile & Profile README)', topic: 'github-essentials' },
+      { day: 6, title: 'Day 6: Repositories & Documentation', topic: 'git-log' },
+      { day: 7, title: 'Day 7: Git Remotes & Cloud Sync', topic: 'gitignore' }
     ]
   },
   {
