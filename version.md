@@ -7,8 +7,8 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 ## Release History Overview
 
 | Version | Release Type | Key Highlights | Status |
-| :--- | :--- | :--- | :--- |
-| **v1.9.0** | **Minor (Current)** | Dedicated Git & GitHub 34-lesson curriculum, 30-Day Roadmap, Cheat Sheet, first-time tutor guide, responsive media queries, clean leaderboard scoring | **Active Production** |
+| **v1.9.1** | **Patch (Current)** | Universal Zero-Attachment Email Standard & Azure Blob CDN Asset Integration across all mscprpcem platforms, instant image loading without file attachments | **Active Production** |
+| **v1.9.0** | Minor | Dedicated Git & GitHub 34-lesson curriculum, 30-Day Roadmap, Cheat Sheet, first-time tutor guide, responsive media queries, clean leaderboard scoring | Stable |
 | **v1.8.5** | Patch | Verification Platform Badge Sys ID integration, Live & Scheduled Quiz credentialing, Admin permission controls ("Issue Now" vs "Save for Later"), real-time attendee sync | Stable |
 | **v1.8.4** | Patch | Standard MSC PRPCEM email template, simplified centered header, dynamic content wireframe, rich laptop/mobile preview, admin dispatch formatting toolbar, official link standardization | Stable |
 | **v1.8.3** | Patch | Enterprise SQL grading engine, DDL entity & constraint verification, DML post-mutation table state diffing, qrcode bundle integrity | Stable |
@@ -28,7 +28,24 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 ## Detailed Changelog
 
-### Version 1.9.0 (Current Release)
+### Version 1.9.1 (Current Release)
+*Theme: Universal Zero-Attachment Email Standard & Azure Blob CDN Asset Integration*
+
+- **Zero-Attachment Email Standard**:
+  - Eliminated CID inline file attachments (`attachments: []`) across all platform email services (`sendOtpEmail`, `sendQuizReminderEmail`, `sendEventRegistrationEmail`, `sendCustomBroadcastEmail`, `sendTestEmail`).
+  - Solved recipient inbox attachment clutter and paperclip icons in Gmail, Outlook, Apple Mail, and mobile mail clients.
+  - Forwarded and shared emails no longer re-attach template graphic assets.
+- **Hosted Azure Blob Storage Assets**:
+  - Integrated official high-resolution assets directly into email templates:
+    - **Upper Banner (626×218)**: `https://mscprpcem.blob.core.windows.net/email-template/upper%20banner.png`
+    - **MSC PRPCEM Logo (400×400)**: `https://mscprpcem.blob.core.windows.net/email-template/mscprpcemlogo.png`
+    - **Lower Banner (264×155)**: `https://mscprpcem.blob.core.windows.net/email-template/lower%20banner.png`
+    - **Social Icons**: Verified high-resolution circular badges on `https://www.mscprpcem.tech/assets/email/`.
+- **Admin Email Dispatch & Preview Hub**:
+  - Updated live interactive preview in `AdminEmailDispatch.jsx` to render direct Azure Blob CDN assets.
+  - Synchronized public preview tools and local asset directories across the repository.
+
+### Version 1.9.0
 *Theme: Dedicated Git & GitHub Interactive Learning Track, 30-Day Roadmap, Cheat Sheet Reference & Responsive Platform Polish*
 
 - **Git & GitHub Learning Platform**:

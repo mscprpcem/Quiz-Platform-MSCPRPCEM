@@ -172,13 +172,13 @@ export const renderHtmlWrapper = ({
   preheader = '',
   recipientName = '',
   content = '',
-  useCid = true,
+  useCid = false,
   baseUrl = ''
 }) => {
   const prefix = baseUrl ? baseUrl.replace(/\\/+$/, '') : '';
-  const mscLogoSrc = useCid ? 'cid:msc_logo' : \`\${prefix}/assets/email/msc_logo.png\`;
-  const heroBannerSrc = useCid ? 'cid:msc_hero_banner' : \`\${prefix}/assets/email/email_hero_banner.png\`;
-  const forceForGoodSrc = useCid ? 'cid:msc_force_for_good' : \`\${prefix}/assets/email/email_force_for_good.png\`;
+  const mscLogoSrc = useCid ? 'cid:msc_logo' : \`\https://mscprpcem.blob.core.windows.net/email-template/mscprpcemlogo.png\`;
+  const heroBannerSrc = useCid ? 'cid:msc_hero_banner' : \`\https://mscprpcem.blob.core.windows.net/email-template/upper%20banner.png\`;
+  const forceForGoodSrc = useCid ? 'cid:msc_force_for_good' : \`\https://mscprpcem.blob.core.windows.net/email-template/lower%20banner.png\`;
   const iconInstagramSrc = useCid ? 'cid:msc_icon_instagram' : \`\${prefix}/assets/email/icon_instagram.png\`;
   const iconLinkedinSrc = useCid ? 'cid:msc_icon_linkedin' : \`\${prefix}/assets/email/icon_linkedin.png\`;
   const iconYoutubeSrc = useCid ? 'cid:msc_icon_youtube' : \`\${prefix}/assets/email/icon_youtube.png\`;
@@ -428,7 +428,7 @@ export const sendCustomBroadcastEmail = async ({
     subject: subject || \`\${eventName} Announcement\`,
     text: plainText,
     html,
-    attachments: getEmailAttachments(),
+    attachments: [],
     messageId: generateMessageId(fromAddr),
     headers: {
       'X-Mailer': 'PRPCEM-EventPlatform',
@@ -565,7 +565,7 @@ export const sendTeamInviteEmail = async ({
     subject: \`Team Invitation: Assigned as \${roleTitle || role} for \${eventName}\`,
     text: plainText,
     html,
-    attachments: getEmailAttachments(),
+    attachments: [],
     messageId: generateMessageId(fromAddr),
   });
 };
@@ -621,7 +621,7 @@ export const sendTeamRoleUpdatedEmail = async ({
     subject: \`Permissions Updated: Assigned as \${roleTitle || role} for \${eventName}\`,
     text: \`Hi \${userName},\\n\\nYour role for "\${eventName}" has been updated to \${roleTitle || role}.\\n\\nAccess your workspace here: \${setupUrl}\\n\\n—\\nBest Regards,\\nTeam MSC PRPCEM\\nMicrosoft Student Club PRPCEM\\nP. R. Pote (Patil) College of Engineering & Management, Amravati\\nSupport: \${replyToAddr}\`,
     html,
-    attachments: getEmailAttachments(),
+    attachments: [],
     messageId: generateMessageId(fromAddr),
   });
 };
@@ -716,7 +716,7 @@ export const sendEventRegistrationEmail = async ({
     subject: \`Registration Confirmed: \${targetEventName} — MSC PRPCEM\`,
     text: plainText,
     html,
-    attachments: getEmailAttachments(),
+    attachments: [],
     messageId: generateMessageId(fromAddr),
     headers: {
       'X-Mailer': 'PRPCEM-EventPlatform',
@@ -766,7 +766,7 @@ export const sendTestEmail = async ({ to = 'mlsc@prpotepatilengg.ac.in', name = 
     subject: 'PRPCEM Events — Official Platform Email Template Test',
     text: \`Test email to \${to}\`,
     html,
-    attachments: getEmailAttachments(),
+    attachments: [],
     messageId: generateMessageId(fromAddr),
   });
 };
@@ -911,13 +911,13 @@ const renderHtmlWrapper = ({
   preheader = '',
   recipientName = '',
   content = '',
-  useCid = true,
+  useCid = false,
   baseUrl = ''
 }) => {
   const prefix = baseUrl ? baseUrl.replace(/\\/+$/, '') : '';
-  const mscLogoSrc = useCid ? 'cid:msc_logo' : \`\${prefix}/assets/email/msc_logo.png\`;
-  const heroBannerSrc = useCid ? 'cid:msc_hero_banner' : \`\${prefix}/assets/email/email_hero_banner.png\`;
-  const forceForGoodSrc = useCid ? 'cid:msc_force_for_good' : \`\${prefix}/assets/email/email_force_for_good.png\`;
+  const mscLogoSrc = useCid ? 'cid:msc_logo' : \`\https://mscprpcem.blob.core.windows.net/email-template/mscprpcemlogo.png\`;
+  const heroBannerSrc = useCid ? 'cid:msc_hero_banner' : \`\https://mscprpcem.blob.core.windows.net/email-template/upper%20banner.png\`;
+  const forceForGoodSrc = useCid ? 'cid:msc_force_for_good' : \`\https://mscprpcem.blob.core.windows.net/email-template/lower%20banner.png\`;
   const iconInstagramSrc = useCid ? 'cid:msc_icon_instagram' : \`\${prefix}/assets/email/icon_instagram.png\`;
   const iconLinkedinSrc = useCid ? 'cid:msc_icon_linkedin' : \`\${prefix}/assets/email/icon_linkedin.png\`;
   const iconYoutubeSrc = useCid ? 'cid:msc_icon_youtube' : \`\${prefix}/assets/email/icon_youtube.png\`;
@@ -1169,7 +1169,7 @@ async function sendVerificationOTP(email, pendingUserData = null) {
       subject: \`\${otp} is your verification code — MSC PRPCEM\`,
       text: textContent,
       html: htmlContent,
-      attachments: getEmailAttachments(),
+      attachments: [],
       messageId: generateMessageId(fromAddr),
       headers: {
         'X-Priority': '1',
@@ -1319,7 +1319,7 @@ async function sendCredentialIssuedNotification({
       subject: \`🏆 You've earned a verified \${typeLabel}: \${title} — MSC PRPCEM\`,
       text: plainText,
       html: htmlContent,
-      attachments: getEmailAttachments(),
+      attachments: [],
       messageId: generateMessageId(fromAddr),
       headers: {
         'X-Mailer': 'MSC-PRPCEM-VerificationPlatform'
@@ -1372,7 +1372,7 @@ async function sendTestEmail({ to = 'mlsc@prpotepatilengg.ac.in', name = 'Team M
     subject: 'MSC PRPCEM — Verification Platform Email Template Test',
     text: \`Test email to \${to}\`,
     html,
-    attachments: getEmailAttachments(),
+    attachments: [],
     messageId: generateMessageId(fromAddr),
   });
 }
@@ -1836,7 +1836,7 @@ class EmailDispatchService {
           subject: rendered.subject,
           text: plainText,
           html: dispatchHtml,
-          attachments: getEmailAttachments(),
+          attachments: [],
           headers: {
             'X-Mailer': 'MSC-PRPCEM-VerificationPlatform',
             'List-Unsubscribe': \`<mailto:\${replyToAddr}?subject=unsubscribe>\`

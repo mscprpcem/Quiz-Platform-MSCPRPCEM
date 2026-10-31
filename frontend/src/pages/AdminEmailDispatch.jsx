@@ -1847,7 +1847,7 @@ export default function AdminEmailDispatch() {
                       <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between">
                         <a href="https://www.mscprpcem.tech" target="_blank" rel="noreferrer" className="flex items-center space-x-3 text-left no-underline">
                           <img
-                            src="/assets/email/msc_logo.png"
+                            src="https://mscprpcem.blob.core.windows.net/email-template/mscprpcemlogo.png"
                             alt="MSC PRPCEM Logo"
                             className="w-10 h-10 object-contain block flex-shrink-0"
                           />
@@ -1868,7 +1868,7 @@ export default function AdminEmailDispatch() {
                       <div className="w-full bg-white leading-none">
                         <a href="https://www.mscprpcem.tech" target="_blank" rel="noreferrer" className="block">
                           <img
-                            src="/assets/email/email_hero_banner.png"
+                            src="https://mscprpcem.blob.core.windows.net/email-template/upper%20banner.png"
                             alt="Microsoft Student Club PRPCEM - Be a Force for Good."
                             className="w-full h-auto block"
                           />
@@ -1930,7 +1930,7 @@ export default function AdminEmailDispatch() {
                           </div>
                           <div className="sm:self-end flex-shrink-0">
                             <img
-                              src="/assets/email/email_force_for_good.png"
+                              src="https://mscprpcem.blob.core.windows.net/email-template/lower%20banner.png"
                               alt="Be a Force for Good."
                               className="w-36 h-auto"
                             />
@@ -1943,16 +1943,16 @@ export default function AdminEmailDispatch() {
                       <div className="bg-[#081630] px-5 py-3.5 flex items-center justify-between text-left">
                         <div className="flex items-center gap-2">
                           <a href="https://www.instagram.com/mscprpcem/" target="_blank" rel="noreferrer" title="Instagram">
-                            <img src="/assets/email/icon_instagram.png" alt="Instagram" className="w-7 h-7 rounded block" />
+                            <img src="https://www.mscprpcem.tech/assets/email/icon_instagram.png" alt="Instagram" className="w-7 h-7 rounded block" />
                           </a>
                           <a href="https://www.linkedin.com/company/mscprpcem/" target="_blank" rel="noreferrer" title="LinkedIn">
-                            <img src="/assets/email/icon_linkedin.png" alt="LinkedIn" className="w-7 h-7 rounded block" />
+                            <img src="https://www.mscprpcem.tech/assets/email/icon_linkedin.png" alt="LinkedIn" className="w-7 h-7 rounded block" />
                           </a>
                           <a href="https://youtube.com/@mscprpcem" target="_blank" rel="noreferrer" title="YouTube">
-                            <img src="/assets/email/icon_youtube.png" alt="YouTube" className="w-7 h-7 rounded block" />
+                            <img src="https://www.mscprpcem.tech/assets/email/icon_youtube.png" alt="YouTube" className="w-7 h-7 rounded block" />
                           </a>
                           <a href="https://www.mscprpcem.tech" target="_blank" rel="noreferrer" title="Website">
-                            <img src="/assets/email/icon_website.png" alt="Website" className="w-7 h-7 rounded block" />
+                            <img src="https://www.mscprpcem.tech/assets/email/icon_website.png" alt="Website" className="w-7 h-7 rounded block" />
                           </a>
                           <div className="h-5 w-px bg-white/20 mx-1" />
                         </div>

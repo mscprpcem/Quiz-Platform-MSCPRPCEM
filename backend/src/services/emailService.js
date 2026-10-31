@@ -178,18 +178,18 @@ const renderHtmlWrapper = ({
   preheader = '',
   recipientName = '',
   content = '',
-  useCid = true,
+  useCid = false,
   baseUrl = '',
   includeGreeting = true
 }) => {
   const prefix = baseUrl ? baseUrl.replace(/\/+$/, '') : '';
-  const mscLogoSrc = useCid ? 'cid:msc_logo' : `${prefix}/assets/email/msc_logo.png`;
-  const heroBannerSrc = useCid ? 'cid:msc_hero_banner' : `${prefix}/assets/email/email_hero_banner.png`;
-  const forceForGoodSrc = useCid ? 'cid:msc_force_for_good' : `${prefix}/assets/email/email_force_for_good.png`;
-  const iconInstagramSrc = useCid ? 'cid:msc_icon_instagram' : `${prefix}/assets/email/icon_instagram.png`;
-  const iconLinkedinSrc = useCid ? 'cid:msc_icon_linkedin' : `${prefix}/assets/email/icon_linkedin.png`;
-  const iconYoutubeSrc = useCid ? 'cid:msc_icon_youtube' : `${prefix}/assets/email/icon_youtube.png`;
-  const iconWebsiteSrc = useCid ? 'cid:msc_icon_website' : `${prefix}/assets/email/icon_website.png`;
+  const mscLogoSrc = useCid ? 'cid:msc_logo' : 'https://mscprpcem.blob.core.windows.net/email-template/mscprpcemlogo.png';
+  const heroBannerSrc = useCid ? 'cid:msc_hero_banner' : 'https://mscprpcem.blob.core.windows.net/email-template/upper%20banner.png';
+  const forceForGoodSrc = useCid ? 'cid:msc_force_for_good' : 'https://mscprpcem.blob.core.windows.net/email-template/lower%20banner.png';
+  const iconInstagramSrc = useCid ? 'cid:msc_icon_instagram' : (prefix ? `${prefix}/assets/email/icon_instagram.png` : 'https://www.mscprpcem.tech/assets/email/icon_instagram.png');
+  const iconLinkedinSrc = useCid ? 'cid:msc_icon_linkedin' : (prefix ? `${prefix}/assets/email/icon_linkedin.png` : 'https://www.mscprpcem.tech/assets/email/icon_linkedin.png');
+  const iconYoutubeSrc = useCid ? 'cid:msc_icon_youtube' : (prefix ? `${prefix}/assets/email/icon_youtube.png` : 'https://www.mscprpcem.tech/assets/email/icon_youtube.png');
+  const iconWebsiteSrc = useCid ? 'cid:msc_icon_website' : (prefix ? `${prefix}/assets/email/icon_website.png` : 'https://www.mscprpcem.tech/assets/email/icon_website.png');
 
   const cleanGreeting = recipientName ? recipientName.trim() : 'Student';
 
@@ -439,7 +439,7 @@ const sendOtpEmail = async ({ to, name, otp, type = 'registration' }) => {
     subject,
     text: plainText,
     html,
-    attachments: getEmailAttachments(),
+    attachments: [],
     messageId: generateMessageId(fromAddr),
     headers: {
       'X-Priority': '1', // High priority for OTP
@@ -511,7 +511,7 @@ const sendQuizReminderEmail = async ({ to, name, quizTitle, eventName, startTime
     subject: `Reminder: ${targetQuizTitle} — Starting ${dateStr}`,
     text: plainText,
     html,
-    attachments: getEmailAttachments(),
+    attachments: [],
     messageId: generateMessageId(fromAddr),
     headers: {
       'X-Mailer': 'MSC-PRPCEM-Platform',
@@ -654,7 +654,7 @@ const sendEventRegistrationEmail = async ({
     subject: `Registration Confirmed: ${targetEventName} — MSC PRPCEM`,
     text: plainText,
     html,
-    attachments: getEmailAttachments(),
+    attachments: [],
     messageId: generateMessageId(fromAddr),
     headers: {
       'X-Mailer': 'MSC-PRPCEM-Platform',
@@ -716,7 +716,7 @@ const sendCustomBroadcastEmail = async ({ to, recipientName, subject, heading, m
     subject: subject || 'MSC PRPCEM Announcement',
     text: plainText,
     html,
-    attachments: getEmailAttachments(),
+    attachments: [],
     messageId: generateMessageId(fromAddr),
     headers: {
       'X-Mailer': 'MSC-PRPCEM-Platform',
@@ -802,7 +802,7 @@ const sendTestEmail = async ({ to = 'mlsc@prpotepatilengg.ac.in', name = 'Team M
     subject: 'MSC PRPCEM — Official Platform Email Template Test',
     text: plainText,
     html,
-    attachments: getEmailAttachments(),
+    attachments: [],
     messageId: generateMessageId(fromAddr),
     headers: {
       'X-Priority': '1',
