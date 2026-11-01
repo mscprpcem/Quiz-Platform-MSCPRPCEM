@@ -7,7 +7,9 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 ## Release History Overview
 
 | Version | Release Type | Key Highlights | Status |
-| **v1.9.1** | **Patch (Current)** | Universal Zero-Attachment Email Standard & Azure Blob CDN Asset Integration across all mscprpcem platforms, instant image loading without file attachments | **Active Production** |
+| :--- | :--- | :--- | :--- |
+| **v1.9.2** | **Patch (Current)** | Navbar student login signature fix, student Bearer token persistence, Rollup manual chunk sanitization, and dual-action ErrorBoundary recovery | **Active Production** |
+| **v1.9.1** | Patch | Universal Zero-Attachment Email Standard & Azure Blob CDN Asset Integration across all mscprpcem platforms, instant image loading without file attachments | Stable |
 | **v1.9.0** | Minor | Dedicated Git & GitHub 34-lesson curriculum, 30-Day Roadmap, Cheat Sheet, first-time tutor guide, responsive media queries, clean leaderboard scoring | Stable |
 | **v1.8.5** | Patch | Verification Platform Badge Sys ID integration, Live & Scheduled Quiz credentialing, Admin permission controls ("Issue Now" vs "Save for Later"), real-time attendee sync | Stable |
 | **v1.8.4** | Patch | Standard MSC PRPCEM email template, simplified centered header, dynamic content wireframe, rich laptop/mobile preview, admin dispatch formatting toolbar, official link standardization | Stable |
@@ -28,7 +30,20 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 ## Detailed Changelog
 
-### Version 1.9.1 (Current Release)
+### Version 1.9.2 (Current Release)
+*Theme: Authentication Guardrails, Chunk Sanitization & ErrorBoundary Resilience*
+
+- **Navbar Student Login Call Fix**:
+  - Corrected `handleStudentSubmit` in `Navbar.jsx` to pass `(studentEmailInput, studentPasswordInput)`, eliminating failed authentication attempts caused by passing 3 arguments.
+- **Student Bearer Token Persistence**:
+  - Updated `studentLogin` in `AuthContext.jsx` to store `res.data.token` as `msc_student_token` in `localStorage` for authenticated student API queries.
+  - Added multi-signature support in `studentLogin` to handle both 2-argument and 3-argument invocations cleanly.
+- **Vite/Rollup Chunk Sanitization**:
+  - Renamed `'vendor-[#qrcode]'` to `'vendor-qrcode'` in `vite.config.js` to eliminate hash `#` fragment characters in bundled asset filenames.
+- **Dual-Action ErrorBoundary Recovery**:
+  - Enhanced top-level `ErrorBoundary` in `App.jsx` with **Reload Application** alongside **Return to Homepage** to resolve temporal dead zone and cached routing states gracefully.
+
+### Version 1.9.1
 *Theme: Universal Zero-Attachment Email Standard & Azure Blob CDN Asset Integration*
 
 - **Zero-Attachment Email Standard**:

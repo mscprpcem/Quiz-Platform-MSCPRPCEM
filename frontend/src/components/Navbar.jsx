@@ -37,7 +37,7 @@ export default function Navbar() {
     e.preventDefault();
     if (!studentEmailInput || !studentPasswordInput) return;
     setLoadingLogin(true);
-    await studentLogin(studentEmailInput, studentEmailInput.split('@')[0], studentPasswordInput);
+    await studentLogin(studentEmailInput, studentPasswordInput);
     setLoadingLogin(false);
     setShowStudentModal(false);
   };

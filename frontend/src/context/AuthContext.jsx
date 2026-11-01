@@ -153,7 +153,16 @@ export const AuthProvider = ({ children }) => {
     setStudentAccount(null);
   };
 
-  const studentLogin = async (email, password) => {
+  const studentLogin = async (param1, param2, param3) => {
+    let email, password;
+    if (param3 !== undefined) {
+      email = param1;
+      password = param3;
+    } else {
+      email = param1;
+      password = param2;
+    }
+
     const cleanEmail = email ? email.toLowerCase().trim() : '';
     if (!cleanEmail || !password) {
       return { success: false, error: 'Email Address and Password are both required.' };
@@ -164,7 +173,10 @@ export const AuthProvider = ({ children }) => {
       if (res.data && res.data.user) {
         setStudentAccount(res.data.user);
         localStorage.setItem('msc_student_account', JSON.stringify(res.data.user));
-        return { success: true, user: res.data.user };
+        if (res.data.token) {
+          localStorage.setItem('msc_student_token', res.data.token);
+        }
+        return { success: true, user: res.data.user, token: res.data.token };
       }
       return { success: false, error: res.data?.error || 'Login failed.' };
     } catch (err) {

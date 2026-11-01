@@ -11,7 +11,7 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-icons': ['lucide-react'],
           'vendor-socket': ['socket.io-client'],
-          'vendor-[#qrcode]': ['html5-qrcode', 'qrcode.react']
+          'vendor-qrcode': ['html5-qrcode', 'qrcode.react']
         }
       }
     }

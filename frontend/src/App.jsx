@@ -84,15 +84,26 @@ class ErrorBoundary extends React.Component {
                 {this.state.error?.message || "An issue occurred while loading this view."}
               </p>
             </div>
-            <button
-              onClick={() => {
-                this.setState({ hasError: false, error: null });
-                window.location.href = '/';
-              }}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all cursor-pointer"
-            >
-              Return to Quiz Portal Homepage
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <button
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  window.location.reload();
+                }}
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all cursor-pointer"
+              >
+                Reload Application
+              </button>
+              <button
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  window.location.href = '/';
+                }}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-xl text-xs transition-all cursor-pointer border border-slate-200"
+              >
+                Return to Homepage
+              </button>
+            </div>
           </div>
         </div>
       );
