@@ -46,21 +46,11 @@ const generateMessageId = (senderEmail) => {
 };
 
 /**
- * Returns inline CID attachments for all email templates.
- * Email clients render CID images without external image blocking warnings.
+ * Returns inline attachments for email templates.
+ * Enforces zero attachments: all images load automatically via hosted Azure Blob CDN.
  */
 const getEmailAttachments = () => {
-  const assetsDir = path.join(__dirname, '../assets/email');
-  const files = [
-    { filename: 'msc_logo.png', cid: 'msc_logo', path: path.join(assetsDir, 'msc_logo.png') },
-    { filename: 'email_hero_banner.png', cid: 'msc_hero_banner', path: path.join(assetsDir, 'email_hero_banner.png') },
-    { filename: 'email_force_for_good.png', cid: 'msc_force_for_good', path: path.join(assetsDir, 'email_force_for_good.png') },
-    { filename: 'icon_instagram.png', cid: 'msc_icon_instagram', path: path.join(assetsDir, 'icon_instagram.png') },
-    { filename: 'icon_linkedin.png', cid: 'msc_icon_linkedin', path: path.join(assetsDir, 'icon_linkedin.png') },
-    { filename: 'icon_youtube.png', cid: 'msc_icon_youtube', path: path.join(assetsDir, 'icon_youtube.png') },
-    { filename: 'icon_website.png', cid: 'msc_icon_website', path: path.join(assetsDir, 'icon_website.png') }
-  ];
-  return files.filter(f => fs.existsSync(f.path));
+  return [];
 };
 
 /**
@@ -182,14 +172,13 @@ const renderHtmlWrapper = ({
   baseUrl = '',
   includeGreeting = true
 }) => {
-  const prefix = baseUrl ? baseUrl.replace(/\/+$/, '') : '';
-  const mscLogoSrc = useCid ? 'cid:msc_logo' : 'https://mscprpcem.blob.core.windows.net/email-template/mscprpcemlogo.png';
-  const heroBannerSrc = useCid ? 'cid:msc_hero_banner' : 'https://mscprpcem.blob.core.windows.net/email-template/upper%20banner.png';
-  const forceForGoodSrc = useCid ? 'cid:msc_force_for_good' : 'https://mscprpcem.blob.core.windows.net/email-template/lower%20banner.png';
-  const iconInstagramSrc = useCid ? 'cid:msc_icon_instagram' : (prefix ? `${prefix}/assets/email/icon_instagram.png` : 'https://www.mscprpcem.tech/assets/email/icon_instagram.png');
-  const iconLinkedinSrc = useCid ? 'cid:msc_icon_linkedin' : (prefix ? `${prefix}/assets/email/icon_linkedin.png` : 'https://www.mscprpcem.tech/assets/email/icon_linkedin.png');
-  const iconYoutubeSrc = useCid ? 'cid:msc_icon_youtube' : (prefix ? `${prefix}/assets/email/icon_youtube.png` : 'https://www.mscprpcem.tech/assets/email/icon_youtube.png');
-  const iconWebsiteSrc = useCid ? 'cid:msc_icon_website' : (prefix ? `${prefix}/assets/email/icon_website.png` : 'https://www.mscprpcem.tech/assets/email/icon_website.png');
+  const mscLogoSrc = 'https://mscprpcem.blob.core.windows.net/email-template/mscprpcemlogo.png';
+  const heroBannerSrc = 'https://mscprpcem.blob.core.windows.net/email-template/upper%20banner.png';
+  const forceForGoodSrc = 'https://mscprpcem.blob.core.windows.net/email-template/lower%20banner.png';
+  const iconInstagramSrc = 'https://www.mscprpcem.tech/assets/email/icon_instagram.png';
+  const iconLinkedinSrc = 'https://www.mscprpcem.tech/assets/email/icon_linkedin.png';
+  const iconYoutubeSrc = 'https://www.mscprpcem.tech/assets/email/icon_youtube.png';
+  const iconWebsiteSrc = 'https://www.mscprpcem.tech/assets/email/icon_website.png';
 
   const cleanGreeting = recipientName ? recipientName.trim() : 'Student';
 
