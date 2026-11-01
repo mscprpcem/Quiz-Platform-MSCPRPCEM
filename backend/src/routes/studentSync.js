@@ -753,68 +753,10 @@ router.post('/login', async (req, res) => {
 
     const verificationPortalUrl = getVerificationPortalUrl();
 
-    // 1. Try Remote Verification Portal API first (best-effort)
-    try {
-      if (axios && typeof axios.post === 'function') {
-        const response = await axios.post(`${verificationPortalUrl}/api/auth/login`, {
-          email: cleanEmail,
-          password: password
-        }, {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 3500
-        });
-
-        if (response.data && (response.data.user || response.data.token || response.data.success)) {
-          const portalUser = response.data.user || {};
-          const studentData = {
-            id: portalUser.id || portalUser._id || `STU-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '')}`,
-            email: cleanEmail,
-            name: portalUser.name || cleanEmail.split('@')[0],
-            username: portalUser.username || cleanEmail.split('@')[0],
-            role: 'student',
-            joinedAt: portalUser.createdAt || new Date().toISOString()
-          };
-
-          // Also sync user locally in background
-          if (User) {
-            User.findOne({ where: { email: cleanEmail } }).then(async (found) => {
-              if (!found) {
-                await User.create({
-                  name: studentData.name,
-                  email: cleanEmail,
-                  username: studentData.username,
-                  password: password,
-                  is_verified: true
-                }).catch(() => {});
-              } else {
-                found.password = password;
-                await found.save().catch(() => {});
-              }
-            }).catch(() => {});
-          }
-
-          const token = response.data.token || jwt.sign(
-            { id: studentData.id, email: cleanEmail, name: studentData.name, role: 'student' },
-            process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
-            { expiresIn: '30d' }
-          );
-
-          return res.json({
-            success: true,
-            message: 'Authenticated successfully via Verification Portal!',
-            user: studentData,
-            token,
-            verificationPortalUrl
-          });
-        }
-      }
-    } catch (portalErr) {
-      console.warn('Portal auth fallback to local DB:', portalErr.message);
-    }
-
-    // 2. Fallback to Local Database (User model)
+    // 1. Check Local Database (User model) FIRST - Fast-path (5-20ms)
+    let localUser = null;
     if (User) {
-      const localUser = await User.findOne({
+      localUser = await User.findOne({
         where: {
           [Op.or]: [
             { email: cleanEmail },
@@ -863,10 +805,72 @@ router.post('/login', async (req, res) => {
             user: studentData,
             token
           });
-        } else {
-          return res.status(401).json({ error: 'Invalid password. Please check your password or reset it.' });
         }
       }
+    }
+
+    // 2. Fallback to Remote Verification Portal API (if not found locally or local password did not match)
+    // Fast 2.5s timeout prevents hanging on network drops or portal restarts
+    try {
+      if (axios && typeof axios.post === 'function') {
+        const response = await axios.post(`${verificationPortalUrl}/api/auth/login`, {
+          email: cleanEmail,
+          password: password
+        }, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 2500
+        });
+
+        if (response.data && (response.data.user || response.data.token || response.data.success)) {
+          const portalUser = response.data.user || {};
+          const studentData = {
+            id: portalUser.id || portalUser._id || `STU-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '')}`,
+            email: cleanEmail,
+            name: portalUser.name || cleanEmail.split('@')[0],
+            username: portalUser.username || cleanEmail.split('@')[0],
+            role: 'student',
+            joinedAt: portalUser.createdAt || new Date().toISOString()
+          };
+
+          // Also sync user locally in background
+          if (User) {
+            User.findOne({ where: { email: cleanEmail } }).then(async (found) => {
+              if (!found) {
+                await User.create({
+                  name: studentData.name,
+                  email: cleanEmail,
+                  username: studentData.username,
+                  password: password,
+                  is_verified: true
+                }).catch(() => {});
+              } else {
+                found.password = password;
+                await found.save().catch(() => {});
+              }
+            }).catch(() => {});
+          }
+
+          const token = response.data.token || jwt.sign(
+            { id: studentData.id, email: cleanEmail, name: studentData.name, role: 'student' },
+            process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
+            { expiresIn: '30d' }
+          );
+
+          return res.json({
+            success: true,
+            message: 'Authenticated successfully via Verification Portal!',
+            user: studentData,
+            token,
+            verificationPortalUrl
+          });
+        }
+      }
+    } catch (portalErr) {
+      console.warn('Verification portal auth fallback notice:', portalErr.message);
+    }
+
+    if (localUser) {
+      return res.status(401).json({ error: 'Invalid password. Please check your password or reset it.' });
     }
 
     return res.status(404).json({ error: 'No verified account found with this email. Please register and verify your email.' });

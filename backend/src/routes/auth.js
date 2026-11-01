@@ -110,101 +110,101 @@ router.post('/login', async (req, res) => {
     const verificationPortalUrl = getVerificationPortalUrl();
     const configuredAdmin = (process.env.ADMIN_EMAIL || 'admin@mscprpcem.tech').toLowerCase().trim();
 
-    // 1. Authenticate with the Verification Website first (same email & password)
-    try {
-      if (axios && typeof axios.post === 'function') {
-        const verifyEndpoint = `${verificationPortalUrl}/api/auth/login`;
-        const response = await axios.post(verifyEndpoint, {
-          email: cleanEmail,
-          password: password
-        }, {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 4500
-        });
-
-        if (response.data && (response.data.user || response.data.token || response.data.success)) {
-          const portalUser = response.data.user || {};
-          const isPortalAdmin = portalUser.role === 'admin' ||
-            portalUser.isAdmin === true ||
-            response.data.role === 'admin' ||
-            cleanEmail === configuredAdmin;
-
-          if (isPortalAdmin) {
-            // Keep local Admin table perfectly in sync with the Verification Portal
-            let localAdmin = await Admin.findOne({
-              where: {
-                [Op.or]: [
-                  { email: cleanEmail },
-                  sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), cleanEmail)
-                ]
-              }
-            });
-
-            if (!localAdmin) {
-              localAdmin = await Admin.create({
-                name: portalUser.name || cleanEmail.split('@')[0],
-                email: cleanEmail,
-                password: password, // will be hashed by beforeCreate hook
-                role: 'admin'
-              }).catch(() => null);
-            } else {
-              // Update local password and profile so local fallback always has newest password
-              localAdmin.password = password;
-              if (portalUser.name) localAdmin.name = portalUser.name;
-              localAdmin.role = 'admin';
-              await localAdmin.save().catch(() => null);
-            }
-
-            authenticatedAdmin = {
-              id: localAdmin?.id || portalUser.id || portalUser._id || 'admin-' + Date.now(),
-              name: portalUser.name || localAdmin?.name || cleanEmail.split('@')[0],
-              email: cleanEmail,
-              role: 'admin'
-            };
+    // 1. Check Local Synchronized Database FIRST - Fast-path (5-20ms)
+    const localAdmin = await Admin.findOne({
+      where: {
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { email: cleanEmail },
+              sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), cleanEmail)
+            ]
+          },
+          {
+            email: { [Op.notLike]: '%.edu%' }
           }
-        }
+        ]
       }
-    } catch (portalErr) {
-      console.warn('[Verification Portal Auth] Attempt notice:', portalErr.message);
+    });
+
+    if (localAdmin) {
+      let isMatch = false;
+      try {
+        isMatch = await localAdmin.comparePassword(password);
+      } catch (e) {
+        console.warn('bcrypt compare warning:', e.message);
+      }
+
+      if (isMatch) {
+        authenticatedAdmin = {
+          id: localAdmin.id,
+          name: localAdmin.name,
+          email: localAdmin.email,
+          role: localAdmin.role
+        };
+
+        // Synchronize to Verification Portal in background without blocking login
+        syncAdminToVerificationPortal(cleanEmail, password, localAdmin.name).catch(() => {});
+      }
     }
 
-    // 2. Fallback to Local Synchronized Database (if Verification Website is down or has connection issues)
+    // 2. Fallback to Verification Website (if admin account is not yet in local DB or password updated remotely)
     if (!authenticatedAdmin) {
-      const admin = await Admin.findOne({
-        where: {
-          [Op.and]: [
-            {
-              [Op.or]: [
-                { email: cleanEmail },
-                sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), cleanEmail)
-              ]
-            },
-            {
-              email: { [Op.notLike]: '%.edu%' }
+      try {
+        if (axios && typeof axios.post === 'function') {
+          const verifyEndpoint = `${verificationPortalUrl}/api/auth/login`;
+          const response = await axios.post(verifyEndpoint, {
+            email: cleanEmail,
+            password: password
+          }, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 2500
+          });
+
+          if (response.data && (response.data.user || response.data.token || response.data.success)) {
+            const portalUser = response.data.user || {};
+            const isPortalAdmin = portalUser.role === 'admin' ||
+              portalUser.isAdmin === true ||
+              response.data.role === 'admin' ||
+              cleanEmail === configuredAdmin;
+
+            if (isPortalAdmin) {
+              // Keep local Admin table perfectly in sync with the Verification Portal
+              let syncedAdmin = localAdmin || await Admin.findOne({
+                where: {
+                  [Op.or]: [
+                    { email: cleanEmail },
+                    sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), cleanEmail)
+                  ]
+                }
+              });
+
+              if (!syncedAdmin) {
+                syncedAdmin = await Admin.create({
+                  name: portalUser.name || cleanEmail.split('@')[0],
+                  email: cleanEmail,
+                  password: password, // will be hashed by beforeCreate hook
+                  role: 'admin'
+                }).catch(() => null);
+              } else {
+                // Update local password and profile so local fallback always has newest password
+                syncedAdmin.password = password;
+                if (portalUser.name) syncedAdmin.name = portalUser.name;
+                syncedAdmin.role = 'admin';
+                await syncedAdmin.save().catch(() => null);
+              }
+
+              authenticatedAdmin = {
+                id: syncedAdmin?.id || portalUser.id || portalUser._id || 'admin-' + Date.now(),
+                name: portalUser.name || syncedAdmin?.name || cleanEmail.split('@')[0],
+                email: cleanEmail,
+                role: 'admin'
+              };
             }
-          ]
+          }
         }
-      });
-
-      if (admin) {
-        let isMatch = false;
-        try {
-          isMatch = await admin.comparePassword(password);
-        } catch (e) {
-          console.warn('bcrypt compare warning:', e.message);
-        }
-
-        if (isMatch) {
-          authenticatedAdmin = {
-            id: admin.id,
-            name: admin.name,
-            email: admin.email,
-            role: admin.role
-          };
-
-          // Synchronize to Verification Portal in background if issue resolved
-          syncAdminToVerificationPortal(cleanEmail, password, admin.name).catch(() => {});
-        }
+      } catch (portalErr) {
+        console.warn('[Verification Portal Auth] Attempt notice:', portalErr.message);
       }
     }
 
