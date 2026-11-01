@@ -31,17 +31,23 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   : [
       "http://localhost:3000",
       "http://localhost:5173",
+      "http://localhost:5174",
       "http://127.0.0.1:3000",
       "http://127.0.0.1:5173",
+      "http://127.0.0.1:5174",
       "https://quiz.mscprpcem.tech",
+      "https://verify.mscprpcem.tech",
+      "https://portal.mscprpcem.tech",
       "https://www.mscprpcem.tech"
     ];
 
 const corsOriginFn = (origin, callback) => {
   if (!origin) return callback(null, true);
 
+  const cleanOrigin = origin.replace(/\/+$/, '');
+
   // Exact configured origins
-  if (allowedOrigins.includes(origin)) {
+  if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes(origin)) {
     return callback(null, true);
   }
 
@@ -54,13 +60,28 @@ const corsOriginFn = (origin, callback) => {
       return callback(null, true);
     }
 
-    // Official MSC domain and legitimate subdomains only (e.g. quiz.mscprpcem.tech)
-    if (parsed.protocol === 'https:' && (host === 'mscprpcem.tech' || host.endsWith('.mscprpcem.tech'))) {
+    // Official MSC & university domains and subdomains
+    if (
+      host === 'mscprpcem.tech' || host.endsWith('.mscprpcem.tech') ||
+      host === 'prpcem.ac.in' || host.endsWith('.prpcem.ac.in') ||
+      host === 'microsoftclub.tech' || host.endsWith('.microsoftclub.tech')
+    ) {
+      return callback(null, true);
+    }
+
+    // Azure cloud domains (App Service & Static Web Apps)
+    if (host.endsWith('.azurewebsites.net') || host.endsWith('.azurestaticapps.net')) {
+      return callback(null, true);
+    }
+
+    // Private LAN IPs for local mobile/device testing
+    if (/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host)) {
       return callback(null, true);
     }
   } catch (e) {}
 
-  callback(new Error('CORS origin denied by security policy'), false);
+  // Safe fail-closed without throwing 500 uncaught error
+  callback(null, false);
 };
 
 // =======================
@@ -89,14 +110,27 @@ app.use(
   })
 );
 
-app.use(
-  cors({
-    origin: corsOriginFn,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
-  })
-);
+const corsOptions = {
+  origin: corsOriginFn,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+    "X-API-Key",
+    "x-api-key",
+    "Cache-Control",
+    "Pragma"
+  ],
+  exposedHeaders: ["Set-Cookie"],
+  maxAge: 86400
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
