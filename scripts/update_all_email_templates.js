@@ -225,15 +225,15 @@ if (fs.existsSync(dncCodeGsPath)) {
   let content = fs.readFileSync(dncCodeGsPath, 'utf8');
 
   content = content.replaceAll(
-    'https://www.mscprpcem.tech/assets/email/msc_logo.png',
+    'https://www.mscprpcem.techhttps://mscprpcem.blob.core.windows.net/email-template/mscprpcemlogo.png',
     LOGO_URL
   );
   content = content.replaceAll(
-    'https://www.mscprpcem.tech/assets/email/email_hero_banner.png',
+    'https://www.mscprpcem.techhttps://mscprpcem.blob.core.windows.net/email-template/upper%20banner.png',
     UPPER_BANNER_URL
   );
   content = content.replaceAll(
-    'https://www.mscprpcem.tech/assets/email/email_force_for_good.png',
+    'https://www.mscprpcem.techhttps://mscprpcem.blob.core.windows.net/email-template/lower%20banner.png',
     LOWER_BANNER_URL
   );
 
@@ -275,12 +275,12 @@ const previewFiles = [
 previewFiles.forEach(pf => {
   if (fs.existsSync(pf)) {
     let content = fs.readFileSync(pf, 'utf8');
-    content = content.replaceAll('/assets/email/msc_logo.png', LOGO_URL);
-    content = content.replaceAll('https://www.mscprpcem.tech/assets/email/msc_logo.png', LOGO_URL);
-    content = content.replaceAll('/assets/email/email_hero_banner.png', UPPER_BANNER_URL);
-    content = content.replaceAll('https://www.mscprpcem.tech/assets/email/email_hero_banner.png', UPPER_BANNER_URL);
-    content = content.replaceAll('/assets/email/email_force_for_good.png', LOWER_BANNER_URL);
-    content = content.replaceAll('https://www.mscprpcem.tech/assets/email/email_force_for_good.png', LOWER_BANNER_URL);
+    content = content.replaceAll('https://mscprpcem.blob.core.windows.net/email-template/mscprpcemlogo.png', LOGO_URL);
+    content = content.replaceAll('https://www.mscprpcem.techhttps://mscprpcem.blob.core.windows.net/email-template/mscprpcemlogo.png', LOGO_URL);
+    content = content.replaceAll('https://mscprpcem.blob.core.windows.net/email-template/upper%20banner.png', UPPER_BANNER_URL);
+    content = content.replaceAll('https://www.mscprpcem.techhttps://mscprpcem.blob.core.windows.net/email-template/upper%20banner.png', UPPER_BANNER_URL);
+    content = content.replaceAll('https://mscprpcem.blob.core.windows.net/email-template/lower%20banner.png', LOWER_BANNER_URL);
+    content = content.replaceAll('https://www.mscprpcem.techhttps://mscprpcem.blob.core.windows.net/email-template/lower%20banner.png', LOWER_BANNER_URL);
     fs.writeFileSync(pf, content, 'utf8');
     console.log('✅ Updated preview file:', pf);
   }
@@ -294,9 +294,9 @@ if (fs.existsSync(masterScriptPath)) {
   let content = fs.readFileSync(masterScriptPath, 'utf8');
   content = content.replaceAll('useCid = true,', 'useCid = false,');
   content = content.replaceAll('attachments: getEmailAttachments(),', 'attachments: [],');
-  content = content.replaceAll(`${'${prefix}'}/assets/email/msc_logo.png`, LOGO_URL);
-  content = content.replaceAll(`${'${prefix}'}/assets/email/email_hero_banner.png`, UPPER_BANNER_URL);
-  content = content.replaceAll(`${'${prefix}'}/assets/email/email_force_for_good.png`, LOWER_BANNER_URL);
+  content = content.replaceAll(`${'${prefix}'}https://mscprpcem.blob.core.windows.net/email-template/mscprpcemlogo.png`, LOGO_URL);
+  content = content.replaceAll(`${'${prefix}'}https://mscprpcem.blob.core.windows.net/email-template/upper%20banner.png`, UPPER_BANNER_URL);
+  content = content.replaceAll(`${'${prefix}'}https://mscprpcem.blob.core.windows.net/email-template/lower%20banner.png`, LOWER_BANNER_URL);
   fs.writeFileSync(masterScriptPath, content, 'utf8');
   console.log('✅ Updated scripts/apply_universal_email_template.js');
 }
