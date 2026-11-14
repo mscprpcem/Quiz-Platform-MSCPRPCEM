@@ -40,9 +40,9 @@ export default function GitPracticeDashboard({ onJumpToLearn }) {
   const [selectedStatus, setSelectedStatus] = useState('all'); // 'all' | 'solved' | 'unsolved'
   const [jumpInput, setJumpInput] = useState('');
 
-  // Pagination state
+  // Pagination state (strictly 50 questions per page, matching SQL)
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25); // 25 | 50 | 100
+  const itemsPerPage = 50;
 
   const totalCount = GIT_CHALLENGES.length; // 70
   const solvedCount = solvedChallenges.length;
@@ -190,49 +190,6 @@ export default function GitPracticeDashboard({ onJumpToLearn }) {
   return (
     <div className="w-full min-h-screen bg-slate-50/70 font-segoe text-slate-800 pb-20">
       
-      {/* ── SUB-HEADER NAVIGATION TABS (Overview, Learn, Practice, Roadmap, Cheatsheet) ── */}
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 sticky top-16 z-20 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-1 sm:space-x-2 py-2 overflow-x-auto scrollbar-none text-xs font-bold text-slate-600">
-            <Link
-              to="/courses/git"
-              className="px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              Overview
-            </Link>
-            <Link
-              to="/courses/git/learn"
-              className="px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              Learn
-            </Link>
-            <Link
-              to="/courses/git/practice"
-              className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 font-extrabold border border-blue-200 shadow-2xs"
-            >
-              Practice Lab ({totalCount})
-            </Link>
-            <Link
-              to="/courses/git/roadmap"
-              className="px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              30-Day Roadmap
-            </Link>
-            <Link
-              to="/courses/git/cheatsheet"
-              className="px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              Cheat Sheet
-            </Link>
-          </div>
-
-          <div className="hidden sm:flex items-center space-x-2 text-xs font-bold text-slate-500">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Interactive Terminal WASM</span>
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         {/* ── HEADER & ACTIONS ── */}
@@ -726,38 +683,16 @@ export default function GitPracticeDashboard({ onJumpToLearn }) {
             </table>
           </div>
 
-          {/* Table Footer / Pagination */}
-          <div className="px-4 py-3 bg-slate-50/70 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-            <div className="flex items-center space-x-2">
-              <span>Showing {paginatedProblems.length} of {filteredList.length} Labs</span>
-              <span className="text-slate-300">•</span>
-              <div className="flex items-center space-x-1">
-                <span>Per Page:</span>
-                {[25, 50, 70].map((num) => (
-                  <button
-                    type="button"
-                    key={num}
-                    onClick={() => setItemsPerPage(num)}
-                    className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-colors ${
-                      itemsPerPage === num
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
-                    }`}
-                  >
-                    {num === 70 ? 'All' : num}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center space-x-1">
+          {/* ── PAGINATION CONTROLS (STRICTLY 50 QUESTIONS PER PAGE, IDENTICAL TO SQL) ── */}
+          {filteredList.length > 50 && (
+            <div className="px-5 py-3.5 border-t border-slate-200/80 bg-slate-50/70 flex items-center justify-center text-xs">
+              {/* Compact Page Navigation: < 1 2 3 if 4 present then 4 or .. last > */}
+              <div className="flex items-center space-x-1.5">
                 <button
                   type="button"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={validCurrentPage === 1}
-                  className="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-white cursor-pointer transition-colors"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  className="w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center shadow-2xs"
                   title="Previous Page"
                 >
                   <ChevronLeft size={15} />
@@ -765,37 +700,42 @@ export default function GitPracticeDashboard({ onJumpToLearn }) {
 
                 {paginationItems.map((item, idx) => {
                   if (item === '...') {
-                    return <span key={`ellipsis-${idx}`} className="px-2 text-slate-400">...</span>;
+                    return (
+                      <span key={`dots-${idx}`} className="w-7 h-8 flex items-center justify-center text-slate-400 font-black select-none">
+                        ...
+                      </span>
+                    );
                   }
-                  const isCurrent = validCurrentPage === item;
+                  const pageNum = Number(item);
+                  const isActive = pageNum === validCurrentPage;
                   return (
                     <button
+                      key={pageNum}
                       type="button"
-                      key={item}
-                      onClick={() => setCurrentPage(item)}
-                      className={`w-7 h-7 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
-                        isCurrent
-                          ? 'bg-blue-600 text-white shadow-2xs font-black'
-                          : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 shadow-2xs'
                       }`}
                     >
-                      {item}
+                      {pageNum}
                     </button>
                   );
                 })}
 
                 <button
                   type="button"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={validCurrentPage === totalPages}
-                  className="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-white cursor-pointer transition-colors"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  className="w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center shadow-2xs"
                   title="Next Page"
                 >
                   <ChevronRight size={15} />
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
       </div>
