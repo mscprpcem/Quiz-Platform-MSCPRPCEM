@@ -125,6 +125,37 @@ export default function SqlCourseHub() {
     return searchParams.get('mode') || 'overview';
   }, [params.tab, location.pathname, searchParams]);
 
+  // Learn Mode Navigation
+  const [selectedModuleId, setSelectedModuleId] = useState('mod-01');
+  const [selectedTopicId, setSelectedTopicId] = useState('top-01-01');
+  const [learnSearch, setLearnSearch] = useState('');
+
+  // Practice Mode Navigation (Defaults to null so user lands on LeetCode Problemset view)
+  const [selectedChallengeIndex, setSelectedChallengeIndex] = useState(null);
+  const [practiceSearch, setPracticeSearch] = useState('');
+  const [practiceDifficulty, setPracticeDifficulty] = useState('all');
+  const [schemaViewTab, setSchemaViewTab] = useState('data'); // 'data' | 'structure'
+
+  // Interview Mode Navigation
+  const [selectedInterviewIndex, setSelectedInterviewIndex] = useState(0);
+  const [interviewSearch, setInterviewSearch] = useState('');
+  const [interviewDifficulty, setInterviewDifficulty] = useState('all');
+  const [showInterviewSolution, setShowInterviewSolution] = useState(false);
+
+  // Quiz Engine State
+  const [quizActiveModuleId, setQuizActiveModuleId] = useState('mod-01');
+  const [quizCurrentIndex, setQuizCurrentIndex] = useState(0);
+  const [quizSelectedAnswers, setQuizSelectedAnswers] = useState({});
+
+  // SQL Execution State
+  const [userSql, setUserSql] = useState('');
+  const [runningQuery, setRunningQuery] = useState(false);
+  const [queryResult, setQueryResult] = useState(null);
+  const [tableSchemas, setTableSchemas] = useState([]);
+  const [loadingSchemas, setLoadingSchemas] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  const [copiedCodeId, setCopiedCodeId] = useState(null);
+
   const setMode = (modeName) => {
     if (modeName === 'overview') {
       navigate('/courses/sql');
@@ -191,37 +222,6 @@ export default function SqlCourseHub() {
       return [];
     }
   });
-
-  // Learn Mode Navigation
-  const [selectedModuleId, setSelectedModuleId] = useState('mod-01');
-  const [selectedTopicId, setSelectedTopicId] = useState('top-01-01');
-  const [learnSearch, setLearnSearch] = useState('');
-
-  // Practice Mode Navigation (Defaults to null so user lands on LeetCode Problemset view)
-  const [selectedChallengeIndex, setSelectedChallengeIndex] = useState(null);
-  const [practiceSearch, setPracticeSearch] = useState('');
-  const [practiceDifficulty, setPracticeDifficulty] = useState('all');
-  const [schemaViewTab, setSchemaViewTab] = useState('data'); // 'data' | 'structure'
-
-  // Interview Mode Navigation
-  const [selectedInterviewIndex, setSelectedInterviewIndex] = useState(0);
-  const [interviewSearch, setInterviewSearch] = useState('');
-  const [interviewDifficulty, setInterviewDifficulty] = useState('all');
-  const [showInterviewSolution, setShowInterviewSolution] = useState(false);
-
-  // Quiz Engine State
-  const [quizActiveModuleId, setQuizActiveModuleId] = useState('mod-01');
-  const [quizCurrentIndex, setQuizCurrentIndex] = useState(0);
-  const [quizSelectedAnswers, setQuizSelectedAnswers] = useState({});
-
-  // SQL Execution State
-  const [userSql, setUserSql] = useState('');
-  const [runningQuery, setRunningQuery] = useState(false);
-  const [queryResult, setQueryResult] = useState(null);
-  const [tableSchemas, setTableSchemas] = useState([]);
-  const [loadingSchemas, setLoadingSchemas] = useState(false);
-  const [showHint, setShowHint] = useState(false);
-  const [copiedCodeId, setCopiedCodeId] = useState(null);
 
   // Active Objects
   const activeModule = useMemo(() => {

@@ -66,6 +66,8 @@ export default function DigitalBadgeCard({
     return () => { isMounted = false; };
   }, [quizTitle, eventName, score, cleanEmail, cleanName, resolvedBadgeTitle]);
 
+  const certUrl = certificate?.certificateId ? `${verificationPortalUrl}/verify/${certificate.certificateId}` : verificationPortalUrl;
+
   const handlePrint = () => {
     const badgeName = certificate?.badgeTitle || resolvedBadgeTitle;
     const certCode = certificate?.certificateId || 'CERT-MSC-PRPCEM';
@@ -319,8 +321,6 @@ export default function DigitalBadgeCard({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  const certUrl = certificate?.certificateId ? `${verificationPortalUrl}/verify/${certificate.certificateId}` : verificationPortalUrl;
 
   return (
     <div id="msc-printable-badge-card" className="w-full max-w-lg mx-auto bg-white border-2 border-amber-300/80 rounded-3xl p-6 sm:p-7 text-slate-800 shadow-xl relative overflow-hidden text-left animate-fade-in font-segoe">

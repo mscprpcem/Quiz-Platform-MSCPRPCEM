@@ -11,6 +11,7 @@ import { GIT_SUBCHAPTERS } from '../data/gitSubchapters';
 import GitLearningView, { GIT_CHAPTERS, TOPIC_SHORT_NAMES } from './GitLearningView';
 import GitRoadmapView from './GitRoadmapView';
 import GitPracticeDashboard from './GitPracticeDashboard';
+import GitLandingPage from './GitLandingPage';
 
 export default function GitCourseHub() {
   const navigate = useNavigate();
@@ -120,6 +121,23 @@ export default function GitCourseHub() {
     setTimeout(() => setCopiedCmd(null), 2000);
   };
 
+  // Mode navigation handler
+  const setMode = (modeName) => {
+    if (modeName === 'overview') {
+      navigate('/courses/git');
+    } else if (modeName === 'learn') {
+      navigate('/courses/git/learn');
+    } else if (modeName === 'practice') {
+      navigate('/courses/git/practice');
+    } else if (modeName === 'roadmap') {
+      navigate('/courses/git/roadmap');
+    } else if (modeName === 'cheatsheet') {
+      navigate('/courses/git/cheatsheet');
+    } else {
+      navigate(`/courses/git/${modeName}`);
+    }
+  };
+
   // 1. LEARN VIEW (Dedicated Curriculum Workspace)
   if (currentView === 'learn') {
     return (
@@ -169,7 +187,7 @@ export default function GitCourseHub() {
               className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs"
             >
               <ArrowLeft size={14} />
-              <span>Back to Chapters</span>
+              <span>Back to Overview</span>
             </button>
 
             <div className="relative w-full sm:w-72">
@@ -254,237 +272,18 @@ export default function GitCourseHub() {
     );
   }
 
-  const progressPercent = Math.min(100, Math.round((completedLessons.length / totalLessonsCount) * 100));
-
-  // 5. REDESIGNED CHAPTERS PAGE: Clean, Elegant, Developer-Grade Course Catalog
+  // 5. LANDING OVERVIEW PAGE (Default view when currentView === 'overview')
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-segoe pb-20 selection:bg-blue-100 selection:text-blue-900">
-      
-      {/* ═════════════════════════════════════════════════════════════════════
-          TOP HEADER: CLEAN COURSE SUMMARY & TRACK METRICS
-      ═════════════════════════════════════════════════════════════════════ */}
-      <header className="w-full bg-white border-b border-slate-200 py-6 sm:py-8 px-4 sm:px-6">
-        <div className="max-w-5xl xl:max-w-6xl mx-auto space-y-4">
-          
-          {/* Top Breadcrumb & Status */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <button
-              onClick={() => navigate('/courses')}
-              className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors cursor-pointer"
-            >
-              <ArrowLeft size={13} />
-              <span>All Courses</span>
-            </button>
-
-            <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/70">
-              Official MSC PRPCEM Curriculum
-            </span>
-          </div>
-
-          {/* Course Title & Intro */}
-          <div className="space-y-1.5">
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Git &amp; GitHub <span className="text-blue-600">Chapters</span>
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed font-normal">
-              Master version control chapter by chapter: mental models, staging architecture, branch topologies, interactive rebasing, emergency recovery, and CI/CD pipelines.
-            </p>
-          </div>
-
-          {/* Track Progress & Action Buttons */}
-          <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-slate-100">
-            <div className="space-y-1.5 sm:max-w-xs w-full">
-              <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-slate-600 flex items-center gap-1.5">
-                  <CheckCircle2 size={13} className="text-emerald-500" />
-                  Course Progress
-                </span>
-                <span className="text-blue-600 font-mono font-bold">
-                  {completedLessons.length} / {totalLessonsCount} lessons ({progressPercent}%)
-                </span>
-              </div>
-              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60">
-                <div
-                  className="h-full bg-blue-600 rounded-full transition-all duration-300"
-                  style={{ width: `${Math.max(3, progressPercent)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => navigate('/courses/git/learn')}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
-              >
-                <BookOpen size={13} />
-                <span>Continue Reading</span>
-                <ArrowRight size={13} />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/courses/git/practice')}
-                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl shadow-2xs transition-colors flex items-center space-x-1.5 cursor-pointer"
-              >
-                <Terminal size={13} className="text-emerald-600" />
-                <span>70 Labs</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/courses/git/cheatsheet')}
-                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl shadow-2xs transition-colors flex items-center space-x-1.5 cursor-pointer"
-              >
-                <FileText size={13} />
-                <span>Cheat Sheet</span>
-              </button>
-            </div>
-          </div>
-
-        </div>
-      </header>
-
-      {/* ═════════════════════════════════════════════════════════════════════
-          MAIN CHAPTERS LIST: PROPER FULL SPACE
-      ═════════════════════════════════════════════════════════════════════ */}
-      <main className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
-        
-        {/* Search & Chapter Quick Filter */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {[
-              { id: 'all', label: `All Chapters (${GIT_CHAPTERS.length})` },
-              { id: 'part-1', label: 'Part 1: Foundations (1–7)' },
-              { id: 'part-2', label: 'Part 2: Branching (8–14)' },
-              { id: 'part-3', label: 'Part 3: GitHub (15–21)' },
-              { id: 'part-4', label: 'Part 4: Power Tools (22–30)' }
-            ].map(f => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setSelectedChapterFilter(f.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  selectedChapterFilter === f.id
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative w-full sm:w-64">
-            <Search size={13} className="absolute left-3 top-2.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search lessons or topics..."
-              value={chapterSearch}
-              onChange={(e) => setChapterSearch(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-2xs"
-            />
-            {chapterSearch && (
-              <button
-                onClick={() => setChapterSearch('')}
-                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Chapters Cards List */}
-        <div className="space-y-4">
-          {chaptersData.map((chapter) => {
-            const isFinished = chapter.completedCount === chapter.totalCount && chapter.totalCount > 0;
-
-            return (
-              <div
-                key={chapter.id}
-                className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-shadow space-y-4"
-              >
-                {/* Chapter Card Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center space-x-2">
-                      <span className="w-5 h-5 rounded-md bg-blue-600 text-white text-[11px] font-mono font-bold flex items-center justify-center shrink-0">
-                        {chapter.number}
-                      </span>
-                      <h2 className="text-sm sm:text-base font-extrabold text-slate-900">
-                        {chapter.title}
-                      </h2>
-                    </div>
-                    {chapter.subtitle && (
-                      <p className="text-xs text-slate-500 font-normal pl-7">
-                        {chapter.subtitle}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center space-x-2 shrink-0 sm:self-center pl-7 sm:pl-0">
-                    <span className="text-[11px] font-mono font-semibold text-slate-500 bg-slate-50 border border-slate-200/60 px-2 py-0.5 rounded-md">
-                      {chapter.number <= 5 ? `${chapter.completedCount}/${chapter.totalCount} completed` : 'Coming Soon'}
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (chapter.number <= 5) {
-                          navigate(`/courses/git/learn?topic=${chapter.topics?.[0]?.slug || 'day-0-orientation'}`);
-                        } else {
-                          navigate(`/courses/git/learn?chapter=${chapter.id}`);
-                        }
-                      }}
-                      className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg border border-blue-200/80 transition-colors flex items-center space-x-1 cursor-pointer"
-                    >
-                      <span>{chapter.number <= 5 ? 'Start' : 'Preview'}</span>
-                      <ChevronRight size={13} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Lessons Grid inside Chapter with Short Names */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {chapter.filteredTopics.map((topic) => {
-                    const isDone = completedLessons.includes(topic.slug);
-                    const shortTitle = TOPIC_SHORT_NAMES[topic.slug] || topic.shortTitle || topic.title.replace(/^(?:Day\s*\d+:|\d+\.)\s*/, '');
-
-                    return (
-                      <button
-                        key={topic.slug}
-                        type="button"
-                        onClick={() => navigate(`/courses/git/learn?topic=${topic.slug}`)}
-                        className="text-left p-2.5 rounded-xl border border-slate-100 hover:border-blue-200 bg-slate-50/60 hover:bg-blue-50/40 transition-colors flex items-center justify-between gap-2 group cursor-pointer"
-                      >
-                        <div className="flex items-center space-x-2 truncate min-w-0">
-                          {isDone ? (
-                            <CheckCircle2 size={13} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
-                          ) : (
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-blue-600 shrink-0" />
-                          )}
-                          <span className="text-xs text-slate-700 group-hover:text-blue-700 font-medium truncate">
-                            {shortTitle}
-                          </span>
-                        </div>
-
-                        <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                          {topic.readTime ? topic.readTime.replace(' read', '') : '5m'}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-              </div>
-            );
-          })}
-        </div>
-
-      </main>
-
-    </div>
+    <GitLandingPage
+      onSelectMode={setMode}
+      completedLessonsCount={completedLessons.length}
+      totalLessonsCount={totalLessonsCount}
+      chaptersData={chaptersData}
+      selectedChapterFilter={selectedChapterFilter}
+      setSelectedChapterFilter={setSelectedChapterFilter}
+      chapterSearch={chapterSearch}
+      setChapterSearch={setChapterSearch}
+      onSelectChapter={(chapterId) => navigate(`/courses/git/learn?chapter=${chapterId}`)}
+    />
   );
 }

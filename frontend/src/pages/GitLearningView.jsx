@@ -1233,9 +1233,11 @@ export default function GitLearningView({
           <div className="flex items-center justify-between">
             <button
               onClick={onBackToOverview || (() => navigate('/courses/git'))}
-              className="text-sm font-extrabold text-slate-900 tracking-tight hover:text-blue-600 transition-colors text-left cursor-pointer"
+              className="text-sm font-extrabold text-slate-900 tracking-tight hover:text-blue-600 transition-colors text-left cursor-pointer flex items-center gap-1.5"
+              title="Back to Git Course Hub"
             >
-              Git &amp; GitHub
+              <ArrowLeft size={14} />
+              <span>Git &amp; GitHub</span>
             </button>
           </div>
 
@@ -1362,16 +1364,26 @@ export default function GitLearningView({
         
         {/* Mobile top bar (<1024px) */}
         <header className="lg:hidden h-12 border-b border-slate-100 bg-white px-3 flex items-center justify-between shrink-0">
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 flex items-center gap-1.5 text-xs font-bold cursor-pointer"
-          >
-            <Menu size={15} />
-            <span>Chapters ({GIT_CHAPTERS.length})</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onBackToOverview || (() => navigate('/courses/git'))}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 flex items-center text-xs font-bold cursor-pointer"
+              title="Back to Overview"
+            >
+              <ArrowLeft size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+            >
+              <Menu size={15} />
+              <span>Chapters ({GIT_CHAPTERS.length})</span>
+            </button>
+          </div>
 
-          <span className="text-xs font-bold text-slate-800 truncate max-w-[200px]">
+          <span className="text-xs font-bold text-slate-800 truncate max-w-[160px]">
             {isComingSoon ? activeChapter.shortTitle : (TOPIC_SHORT_NAMES[activeTopic?.slug] || activeTopic?.title || 'Lesson')}
           </span>
         </header>

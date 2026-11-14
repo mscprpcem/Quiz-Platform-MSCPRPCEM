@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Database, Play, CheckCircle2, XCircle, AlertTriangle, Lightbulb,
-  RotateCcw, Sparkles, ChevronRight, ChevronLeft, ChevronDown, ArrowRight, ArrowLeft,
+  RotateCcw, Sparkles, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, ArrowRight, ArrowLeft,
   BookOpen, Code2, Trophy, ListOrdered, Table, Layers, Clock, Eye,
   HelpCircle, Copy, Check, Terminal, Search, Filter, ShieldCheck, CheckSquare,
   ArrowUpRight, Flame, BarChart3, RefreshCw, X, GripVertical, GripHorizontal,
@@ -546,6 +546,8 @@ export default function SqlPracticeView({
     return 0;
   });
 
+  const activeChallenge = SQL_CHALLENGES[selectedChallengeIndex] || SQL_CHALLENGES[0];
+
   // Sync active challenge slug with browser URL in solve mode
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -567,6 +569,7 @@ export default function SqlPracticeView({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all'); // 'all' | 'basic' | 'medium' | 'hard'
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [isTopicsExpanded, setIsTopicsExpanded] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('all'); // 'all' | 'solved' | 'unsolved'
   const [jumpInput, setJumpInput] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -774,7 +777,11 @@ export default function SqlPracticeView({
     return Array.from(set);
   }, []);
 
-  const activeChallenge = SQL_CHALLENGES[selectedChallengeIndex] || SQL_CHALLENGES[0];
+  // Display categories with selectedCategory placed first if active so it stays visible
+  const displayCategories = useMemo(() => {
+    if (selectedCategory === 'all') return categories;
+    return [selectedCategory, ...categories.filter((c) => c !== selectedCategory)];
+  }, [categories, selectedCategory]);
 
   // User query state (Start with clean blank scaffold rather than giving the solution away)
   const [userSql, setUserSql] = useState(() => getCleanStarterSql(activeChallenge));
@@ -1555,394 +1562,343 @@ export default function SqlPracticeView({
       <div className="w-full h-full flex-1 overflow-y-auto bg-slate-50/70 font-segoe text-slate-800 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-          {/* ── TOP HERO BANNER & ACTIONS ── */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-2xs">
-            <div className="space-y-1.5">
+          {/* ── HEADER & ACTIONS ── */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-slate-200">
+            <div className="space-y-1">
               <div className="flex items-center space-x-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
-                  <Database size={19} />
+                <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
+                  <Database size={18} />
                 </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                      SQL Practice Problemset
-                    </h1>
-                    <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-black border border-blue-100">
-                      {totalCount} Challenges
-                    </span>
-                  </div>
+                <div className="flex items-center space-x-2.5">
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                    SQL Practice
+                  </h1>
+                  <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100">
+                    {totalCount} Challenges
+                  </span>
                 </div>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 max-w-2xl font-medium pt-0.5">
-                Solve real database interview challenges. Track your progress across Easy, Medium, and Hard FAANG problems.
+              <p className="text-xs text-slate-500 font-medium">
+                Interactive database challenges with in-browser SQLite execution.
               </p>
             </div>
 
-            <div className="flex items-center space-x-3 shrink-0">
+            <div className="flex items-center space-x-2.5 shrink-0">
               {onJumpToLearn && (
                 <button
                   type="button"
                   onClick={onJumpToLearn}
-                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
                 >
-                  <BookOpen size={14} />
+                  <BookOpen size={13} />
                   <span>Curriculum</span>
                 </button>
               )}
               <button
                 type="button"
-                onClick={() => setShowLeaderboardModal(true)}
-                className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
-                title="View SQL Practice Leaderboard"
-              >
-                <Trophy size={14} className="text-amber-600" />
-                <span className="hidden sm:inline">Leaderboard</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => setShowSettingsModal(true)}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+                className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
                 title="Practice Settings"
               >
-                <Settings size={14} />
-                <span className="hidden sm:inline">Settings</span>
+                <Settings size={13} />
+                <span>Settings</span>
               </button>
               <button
                 type="button"
                 onClick={handlePickRandom}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black flex items-center space-x-2 shadow-sm transition-all cursor-pointer active:scale-95"
+                className="w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center justify-center shrink-0"
+                title="Pick Random Problem"
               >
                 <Shuffle size={14} />
-                <span>Pick Random</span>
               </button>
             </div>
           </div>
 
-          {/* ── LEETCODE PROGRESS CARDS DASHBOARD ── */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+          {/* ── SQLMETER & DIFFICULTY OVERVIEW ── */}
+          <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-2xs">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
 
-            {/* CARD 1: OVERALL PROGRESS SPEEDOMETER GAUGE */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between space-y-3">
-              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <Gauge size={13} className="text-blue-600" />
-                  Overall Progress
-                </span>
-                <span className="font-mono text-[11px] font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                  {solvedCount}/{totalCount} Solved
-                </span>
-              </div>
-
-              <div className="flex items-center space-x-3 sm:space-x-4">
-                {/* Speedometer SVG Gauge (Large & Prominent) */}
-                <div className="relative w-44 sm:w-48 h-28 shrink-0 flex items-center justify-center">
-                  <svg className="w-full h-full overflow-visible" viewBox="0 0 140 82">
-                    <defs>
-                      <linearGradient id="speedoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#3b82f6" />
-                        <stop offset="50%" stopColor="#6366f1" />
-                        <stop offset="100%" stopColor="#10b981" />
-                      </linearGradient>
-                    </defs>
-                    {/* Outer Gauge Arc Track */}
-                    <path
-                      d="M 12 70 A 58 58 0 0 1 128 70"
-                      fill="none"
-                      stroke="#f1f5f9"
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                    />
-                    {/* Active Speedometer Progress Arc */}
-                    <path
-                      d="M 12 70 A 58 58 0 0 1 128 70"
-                      fill="none"
-                      stroke="url(#speedoGradient)"
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeDasharray="182.2"
-                      strokeDashoffset={182.2 - (Math.min(100, Math.max(0, overallPercent)) / 100) * 182.2}
-                      className="transition-all duration-700 ease-out"
-                    />
-                    {/* Gauge Pointer Needle */}
-                    <line
-                      x1="70"
-                      y1="70"
-                      x2={70 - 45 * Math.cos(Math.PI * (Math.min(100, Math.max(0, overallPercent)) / 100))}
-                      y2={70 - 45 * Math.sin(Math.PI * (Math.min(100, Math.max(0, overallPercent)) / 100))}
-                      stroke="#0f172a"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      className="transition-all duration-700 ease-out"
-                    />
-                    {/* Central Pivot Hub */}
-                    <circle cx="70" cy="70" r="6.5" fill="#0f172a" />
-                    <circle cx="70" cy="70" r="2.5" fill="#ffffff" />
-                    {/* Speedometer Min/Max Bounds */}
-                    <text x="12" y="80" fontSize="8.5" fontWeight="800" fill="#94a3b8" textAnchor="middle">0</text>
-                    <text x="128" y="80" fontSize="8.5" fontWeight="800" fill="#94a3b8" textAnchor="middle">{totalCount}</text>
-                    {/* Speedometer Centered Solved Metric */}
-                    <text x="70" y="55" fontSize="16" fontWeight="900" fill="#0f172a" textAnchor="middle">{overallPercent}%</text>
-                  </svg>
+              {/* Left: SQLmeter Gauge */}
+              <div className="lg:col-span-5 flex flex-col justify-between space-y-2">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Gauge size={14} className="text-blue-600" />
+                    SQLmeter
+                  </span>
+                  <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-100">
+                    {solvedCount} / {totalCount} Solved
+                  </span>
                 </div>
 
-                {/* Metrics on the Right */}
-                <div className="space-y-1.5 min-w-0 flex-1">
-                  <div>
-                    <div className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Solved</div>
-                    <div className="font-mono text-base font-black text-slate-900 leading-tight">
-                      {solvedCount} <span className="text-xs text-slate-400 font-bold">/ {totalCount}</span>
+                <div className="flex items-center space-x-4 pt-1">
+                  {/* SQLmeter SVG Gauge */}
+                  <div className="relative w-40 sm:w-44 h-24 shrink-0 flex items-center justify-center">
+                    <svg className="w-full h-full overflow-visible" viewBox="0 0 140 82">
+                      <defs>
+                        <linearGradient id="sqlMeterGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#3b82f6" />
+                          <stop offset="50%" stopColor="#6366f1" />
+                          <stop offset="100%" stopColor="#10b981" />
+                        </linearGradient>
+                      </defs>
+                      {/* Outer Gauge Track */}
+                      <path
+                        d="M 12 70 A 58 58 0 0 1 128 70"
+                        fill="none"
+                        stroke="#f1f5f9"
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                      />
+                      {/* Active SQLmeter Progress Arc */}
+                      <path
+                        d="M 12 70 A 58 58 0 0 1 128 70"
+                        fill="none"
+                        stroke="url(#sqlMeterGradient)"
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                        strokeDasharray="182.2"
+                        strokeDashoffset={182.2 - (Math.min(100, Math.max(0, overallPercent)) / 100) * 182.2}
+                        className="transition-all duration-700 ease-out"
+                      />
+                      {/* Gauge Pointer Needle */}
+                      <line
+                        x1="70"
+                        y1="70"
+                        x2={70 - 45 * Math.cos(Math.PI * (Math.min(100, Math.max(0, overallPercent)) / 100))}
+                        y2={70 - 45 * Math.sin(Math.PI * (Math.min(100, Math.max(0, overallPercent)) / 100))}
+                        stroke="#0f172a"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        className="transition-all duration-700 ease-out"
+                      />
+                      {/* Central Pivot Hub */}
+                      <circle cx="70" cy="70" r="6.5" fill="#0f172a" />
+                      <circle cx="70" cy="70" r="2.5" fill="#ffffff" />
+                      {/* Min / Max Bounds */}
+                      <text x="12" y="80" fontSize="8.5" fontWeight="700" fill="#94a3b8" textAnchor="middle">0</text>
+                      <text x="128" y="80" fontSize="8.5" fontWeight="700" fill="#94a3b8" textAnchor="middle">{totalCount}</text>
+                      {/* Centered Solved Metric */}
+                      <text x="70" y="55" fontSize="16" fontWeight="800" fill="#0f172a" textAnchor="middle">{overallPercent}%</text>
+                    </svg>
+                  </div>
+
+                  {/* Solved / Remaining details */}
+                  <div className="space-y-2 flex-1 min-w-0">
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Remaining</div>
+                      <div className="font-mono text-sm font-bold text-slate-700">
+                        {totalCount - solvedCount} <span className="text-xs text-slate-400 font-normal">problems</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SQLmeter Rate</div>
+                      <div className="font-mono text-xs font-bold text-slate-600">
+                        {overallPercent}% Completed
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Remaining</div>
-                    <div className="font-mono text-xs font-bold text-slate-600">
-                      {totalCount - solvedCount} Problems
-                    </div>
-                  </div>
-                  <div className="pt-0.5">
-                    <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 inline-block">
-                      {solvedCount > 0 ? `${solvedCount} Completed` : 'Speedometer Gauge'}
+                </div>
+              </div>
+
+              {/* Vertical Divider for LG+ screens */}
+              <div className="hidden lg:block lg:col-span-1 flex justify-center">
+                <div className="w-px h-28 bg-slate-200" />
+              </div>
+
+              {/* Right: Difficulty Breakdown */}
+              <div className="lg:col-span-6 flex flex-col justify-between space-y-2.5">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">Difficulty Distribution</span>
+                  <span className="text-[11px] font-mono text-slate-400">Target 100%</span>
+                </div>
+
+                {/* Easy / Basic */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-emerald-700 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      Easy / Basic
                     </span>
+                    <span className="font-mono text-slate-600">{solvedEasy} / {basicEasyChallenges.length}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${easyPercent}%` }} />
+                  </div>
+                </div>
+
+                {/* Medium */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-amber-700 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      Medium
+                    </span>
+                    <span className="font-mono text-slate-600">{solvedMedium} / {mediumChallenges.length}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${mediumPercent}%` }} />
+                  </div>
+                </div>
+
+                {/* Hard */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-rose-700 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-rose-500" />
+                      Hard
+                    </span>
+                    <span className="font-mono text-slate-600">{solvedHard} / {hardChallenges.length}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-rose-500 transition-all duration-500" style={{ width: `${hardPercent}%` }} />
                   </div>
                 </div>
               </div>
+
             </div>
-
-            {/* CARD 2: DIFFICULTY BREAKDOWN (LeetCode Style Bars) */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-center space-y-3">
-              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Difficulty Breakdown</span>
-                <span className="text-[11px] font-bold text-slate-400">Target 100%</span>
-              </div>
-
-              {/* Easy / Basic */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-emerald-700 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    Easy / Basic
-                  </span>
-                  <span className="font-mono text-slate-700">{solvedEasy}/{basicEasyChallenges.length}</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${easyPercent}%` }} />
-                </div>
-              </div>
-
-              {/* Medium */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-amber-700 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    Medium
-                  </span>
-                  <span className="font-mono text-slate-700">{solvedMedium}/{mediumChallenges.length}</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${mediumPercent}%` }} />
-                </div>
-              </div>
-
-              {/* Hard */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-rose-700 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-rose-500" />
-                    Hard / FAANG
-                  </span>
-                  <span className="font-mono text-slate-700">{solvedHard}/{hardChallenges.length}</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-rose-500 transition-all duration-500" style={{ width: `${hardPercent}%` }} />
-                </div>
-              </div>
-            </div>
-
-            {/* CARD 3: TECHNICAL INTERVIEW READINESS & TARGET TRACK */}
-            <div className="bg-gradient-to-br from-indigo-50/60 via-white to-blue-50/60 border border-blue-200/80 rounded-2xl p-5 shadow-2xs flex flex-col justify-between space-y-3">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded-md bg-indigo-100/80 text-indigo-800 text-[10px] font-black uppercase tracking-wide flex items-center space-x-1">
-                    <Trophy size={11} className="text-indigo-600 inline" />
-                    <span>FAANG & INTERVIEW PREP</span>
-                  </span>
-                  <span className="font-mono text-xs font-black text-indigo-700">
-                    {totalCount - solvedCount} Remaining
-                  </span>
-                </div>
-                <h3 className="text-sm font-black text-slate-900">
-                  Technical Interview Readiness
-                </h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  Master production database schemas, query optimizations, edge cases, and high-frequency company interview challenges.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <div className="w-full h-2.5 bg-slate-200/70 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500"
-                    style={{ width: `${overallPercent}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between pt-0.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedStatus('unsolved');
-                      setSelectedCategory('all');
-                      setSelectedDifficulty('all');
-                    }}
-                    className="text-xs font-extrabold text-blue-600 hover:text-blue-800 flex items-center space-x-1 cursor-pointer transition-colors"
-                  >
-                    <span>Practice Unsolved ({totalCount - solvedCount})</span>
-                    <ArrowRight size={13} />
-                  </button>
-                  <span className="text-[11px] font-mono font-bold text-slate-400">
-                    {overallPercent}% Ready
-                  </span>
-                </div>
-              </div>
-            </div>
-
           </div>
 
-          {/* ── FILTER & SEARCH TOOLBAR ── */}
-          <div className="space-y-3 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs">
-            {/* Top row: Search input & Status/Difficulty dropdowns */}
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <div className="relative flex-1 w-full">
-                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search questions by name, ID (e.g. filt-01), or tags..."
-                  className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-
-              {/* Question # Quick Jump */}
-              <div className="relative flex items-center shrink-0">
-                <input
-                  type="text"
-                  value={jumpInput}
-                  onChange={(e) => setJumpInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const raw = jumpInput.replace(/^#|^q\s*/i, '').trim();
-                      const num = parseInt(raw, 10);
-                      if (!isNaN(num) && num >= 1 && num <= totalCount) {
-                        handleOpenChallenge(num - 1);
-                      }
-                    }
-                  }}
-                  placeholder="Go to #..."
-                  className="w-24 pl-7 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-2xs"
-                  title="Type question number (e.g. 117) and press Enter"
-                />
-                <Target size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
-
-              {/* Difficulty Custom Themed Dropdown */}
-              <CustomDropdown
-                value={selectedDifficulty}
-                onChange={setSelectedDifficulty}
-                options={[
-                  { value: 'all', label: 'All Difficulties' },
-                  { value: 'basic', label: 'Basic', badgeColor: 'bg-sky-500' },
-                  { value: 'easy', label: 'Easy', badgeColor: 'bg-emerald-500' },
-                  { value: 'medium', label: 'Medium', badgeColor: 'bg-amber-500' },
-                  { value: 'hard', label: 'Hard (FAANG)', badgeColor: 'bg-rose-500' }
-                ]}
-                icon={Filter}
-              />
-
-              {/* Status Custom Themed Dropdown */}
-              <CustomDropdown
-                value={selectedStatus}
-                onChange={setSelectedStatus}
-                options={[
-                  { value: 'all', label: 'All Status' },
-                  { value: 'solved', label: 'Solved', badgeColor: 'bg-emerald-500' },
-                  { value: 'unsolved', label: 'Unsolved', badgeColor: 'bg-slate-400' }
-                ]}
-                icon={CheckCircle2}
-              />
-
-              {/* Anti-Spoiler Quick Toggle */}
-              <button
-                type="button"
-                onClick={() => updateSetting('hideTags', !settings.hideTags)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs shrink-0 ${
-                  settings.hideTags
-                    ? 'bg-amber-50 border-amber-300 text-amber-800 font-black'
-                    : 'bg-slate-50 hover:bg-white border-slate-200 text-slate-600 hover:text-slate-900'
-                }`}
-                title={settings.hideTags ? 'Tags are hidden (Anti-Spoiler Mode). Click to reveal.' : 'Click to hide tags to prevent spoilers.'}
-              >
-                {settings.hideTags ? <EyeOff size={13} className="text-amber-600" /> : <Eye size={13} className="text-slate-400" />}
-                <span className="hidden md:inline">{settings.hideTags ? 'Spoilers Hidden' : 'Hide Tags'}</span>
-              </button>
-
-              {/* Settings Button */}
-              <button
-                type="button"
-                onClick={() => setShowSettingsModal(true)}
-                className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white text-slate-600 hover:text-slate-900 transition-all cursor-pointer shadow-2xs shrink-0"
-                title="Practice Settings"
-              >
-                <Settings size={15} />
-              </button>
-            </div>
-
-            {/* Category Track Filter Pills (Hidden when hideTags Anti-Spoiler mode is active) */}
-            {!settings.hideTags && (
-              <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none pt-1">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer ${
-                    selectedCategory === 'all'
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                  }`}
-                >
-                  All Topics ({totalCount})
-                </button>
-
-                {categories.map((cat) => {
-                  const isActive = selectedCategory === cat;
-                  return (
+          {/* ── PROBLEMSET TABLE & FILTERS CONTAINER ── */}
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+            {/* Filter & Search Toolbar */}
+            <div className="p-3.5 sm:p-4 border-b border-slate-200 space-y-3 bg-slate-50/50">
+              {/* Top row: Search input & Status/Difficulty dropdowns */}
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <div className="relative flex-1 w-full">
+                  <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search questions by name, ID (e.g. filt-01), or tags..."
+                    className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-all font-medium"
+                  />
+                  {searchQuery && (
                     <button
                       type="button"
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer flex items-center space-x-1.5 ${
-                        isActive
-                          ? 'bg-blue-600 text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Question # Quick Jump */}
+                <div className="relative flex items-center shrink-0">
+                  <input
+                    type="text"
+                    value={jumpInput}
+                    onChange={(e) => setJumpInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const raw = jumpInput.replace(/^#|^q\s*/i, '').trim();
+                        const num = parseInt(raw, 10);
+                        if (!isNaN(num) && num >= 1 && num <= totalCount) {
+                          handleOpenChallenge(num - 1);
+                        }
+                      }
+                    }}
+                    placeholder="Go to #..."
+                    className="w-24 pl-7 pr-2 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-all shadow-2xs"
+                    title="Type question number (e.g. 117) and press Enter"
+                  />
+                  <Target size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+
+                {/* Difficulty Custom Themed Dropdown */}
+                <CustomDropdown
+                  value={selectedDifficulty}
+                  onChange={setSelectedDifficulty}
+                  options={[
+                    { value: 'all', label: 'All Difficulties' },
+                    { value: 'basic', label: 'Basic', badgeColor: 'bg-sky-500' },
+                    { value: 'easy', label: 'Easy', badgeColor: 'bg-emerald-500' },
+                    { value: 'medium', label: 'Medium', badgeColor: 'bg-amber-500' },
+                    { value: 'hard', label: 'Hard (FAANG)', badgeColor: 'bg-rose-500' }
+                  ]}
+                  icon={Filter}
+                />
+
+                {/* Status Custom Themed Dropdown */}
+                <CustomDropdown
+                  value={selectedStatus}
+                  onChange={setSelectedStatus}
+                  options={[
+                    { value: 'all', label: 'All Status' },
+                    { value: 'solved', label: 'Solved', badgeColor: 'bg-emerald-500' },
+                    { value: 'unsolved', label: 'Unsolved', badgeColor: 'bg-slate-400' }
+                  ]}
+                  icon={CheckCircle2}
+                />
+
+                {/* Anti-Spoiler Quick Toggle */}
+                <button
+                  type="button"
+                  onClick={() => updateSetting('hideTags', !settings.hideTags)}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs shrink-0 ${
+                    settings.hideTags
+                      ? 'bg-amber-50 border-amber-300 text-amber-800 font-black'
+                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                  }`}
+                  title={settings.hideTags ? 'Tags are hidden (Anti-Spoiler Mode). Click to reveal.' : 'Click to hide tags to prevent spoilers.'}
+                >
+                  {settings.hideTags ? <EyeOff size={13} className="text-amber-600" /> : <Eye size={13} className="text-slate-400" />}
+                  <span className="hidden md:inline">{settings.hideTags ? 'Spoilers Hidden' : 'Hide Tags'}</span>
+                </button>
+              </div>
+
+              {/* Category Track Filter Pills (Hidden when hideTags Anti-Spoiler mode is active) */}
+              {!settings.hideTags && (
+                <div className="flex items-start justify-between gap-2 pt-0.5">
+                  <div
+                    className={`flex flex-wrap items-center gap-1.5 flex-1 min-w-0 transition-all ${
+                      isTopicsExpanded ? '' : 'max-h-8 overflow-hidden'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory('all')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                        selectedCategory === 'all'
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                       }`}
                     >
-                      <span>{cat}</span>
+                      All Topics ({totalCount})
                     </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
-          {/* ── LEETCODE QUESTIONS TABLE ── */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+                    {displayCategories.map((cat) => {
+                      const isActive = selectedCategory === cat;
+                      return (
+                        <button
+                          type="button"
+                          key={cat}
+                          onClick={() => setSelectedCategory(cat)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center space-x-1.5 ${
+                            isActive
+                              ? 'bg-blue-600 text-white shadow-xs'
+                              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                        >
+                          <span>{cat}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Expand / Collapse Icon (NO box, bare icon button) */}
+                  <button
+                    type="button"
+                    onClick={() => setIsTopicsExpanded((prev) => !prev)}
+                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors cursor-pointer shrink-0 mt-0.5"
+                    title={isTopicsExpanded ? 'Collapse topics' : 'Expand topics'}
+                  >
+                    {isTopicsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 text-left">
                 <thead className="bg-slate-50/80 font-black text-xs text-slate-500 uppercase tracking-wider">
