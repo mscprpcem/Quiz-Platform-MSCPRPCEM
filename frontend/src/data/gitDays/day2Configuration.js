@@ -92,7 +92,7 @@ Git stores its settings across three distinct configuration levels (or scopes). 
 If the exact same configuration variable is set at multiple levels, Git resolves settings in order of specificity:
 
 :::info Precedence Hierarchy
-**Local** (Highest Precedence) &nbsp;➔&nbsp; **Global** &nbsp;➔&nbsp; **System** (Lowest Precedence)
+**Local** (Highest Precedence) &nbsp;&rarr;&nbsp; **Global** &nbsp;&rarr;&nbsp; **System** (Lowest Precedence)
 :::
 
 > **Important Detail:** If you execute \`git config\` inside an existing repository without supplying an explicit scope flag (such as \`--global\` or \`--system\`), Git defaults to \`--local\`. If executed outside of a repository without flags, Git throws a fatal error because no \`.git/config\` file exists to modify.

@@ -4,7 +4,7 @@ import {
   BookOpen, Copy, Check, Table, CheckCircle2, CheckCheck, ChevronRight,
   ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Lightbulb, Code2, Menu, X, Maximize2,
   Server, Layers, ShieldCheck, Database, AlertTriangle, Shield, Zap, FileText,
-  Download, ExternalLink, Laptop, Clock, Sparkles
+  Download, ExternalLink, Laptop, Clock, Sparkles, Target
 } from 'lucide-react';
 import { TOTAL_TOPICS_COUNT } from '../data/sqlCurriculumData';
 import { 
@@ -842,7 +842,7 @@ export default function SqlLearningView({
                     {topicData.beginnerMentalModel.analogy && (
                       <div className="bg-white border border-slate-200 rounded-lg p-3.5 space-y-1.5 shadow-2xs">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
-                          <span>💡</span> Real-World Analogy
+                          <Lightbulb size={13} className="text-blue-600" /> Real-World Analogy
                         </span>
                         <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-normal">
                           {topicData.beginnerMentalModel.analogy}
@@ -852,7 +852,7 @@ export default function SqlLearningView({
                     {topicData.beginnerMentalModel.keyTrick && (
                       <div className="bg-white border border-slate-200 rounded-lg p-3.5 space-y-1.5 shadow-2xs">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
-                          <span>🎯</span> Essential Rule
+                          <Target size={13} className="text-emerald-600" /> Essential Rule
                         </span>
                         <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-normal">
                           {topicData.beginnerMentalModel.keyTrick}
@@ -862,7 +862,7 @@ export default function SqlLearningView({
                     {topicData.beginnerMentalModel.gotcha && (
                       <div className="bg-white border border-slate-200 rounded-lg p-3.5 space-y-1.5 shadow-2xs">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
-                          <span>⚠️</span> Common Trap
+                          <AlertTriangle size={13} className="text-amber-600" /> Common Trap
                         </span>
                         <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-normal">
                           {topicData.beginnerMentalModel.gotcha}

@@ -10,9 +10,9 @@ import {
 export default function StudentAuth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { 
-    studentAccount, studentLogin, studentRegister, studentLogout, 
-    forgotPassword, verifyOtp, resetPassword, checkUsername 
+  const {
+    studentAccount, studentLogin, studentRegister, studentLogout,
+    forgotPassword, verifyOtp, resetPassword, checkUsername
   } = useAuth();
 
   const verificationPortalUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_VERIFICATION_PORTAL_URL) || 'https://verify.mscprpcem.tech';
@@ -121,7 +121,7 @@ export default function StudentAuth() {
   const getReturnUrl = () => {
     const params = new URLSearchParams(location.search);
     const target = params.get('redirect') || params.get('returnUrl') || params.get('from') || location.state?.from || sessionStorage.getItem('msc_quiz_return_url');
-    
+
     if (target && typeof target === 'string' && target.startsWith('/') && !target.startsWith('//') && !target.startsWith('/login') && !target.startsWith('/register') && !target.startsWith('/student/login') && !target.startsWith('/student/register')) {
       sessionStorage.removeItem('msc_quiz_return_url');
       return target;
@@ -237,7 +237,7 @@ export default function StudentAuth() {
 
     if (res.success) {
       setSuccessMsg('Password updated! Signing you in...');
-      
+
       const loginRes = await studentLogin(formData.email.trim(), newPassword);
       setLoading(false);
 
@@ -338,9 +338,9 @@ export default function StudentAuth() {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-8 px-4 bg-slate-50 font-segoe">
         <div className="max-w-md w-full animate-fade-in space-y-4">
-          
+
           <div className="bg-white border border-slate-200/90 p-6 sm:p-8 rounded-3xl shadow-sm space-y-6 text-center">
-            
+
             <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center mx-auto shadow-md">
               <span className="text-2xl font-black">{studentAccount.name ? studentAccount.name.charAt(0).toUpperCase() : 'S'}</span>
               <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center border-2 border-white shadow-xs" title="Verified Member">
@@ -436,10 +436,10 @@ export default function StudentAuth() {
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-10 px-4 bg-slate-50 font-segoe">
       <div className="max-w-md w-full animate-fade-in">
-        
+
         {/* Clean, Focused White Card */}
         <div className="bg-white border border-slate-200/90 rounded-2xl p-7 sm:p-9 shadow-sm space-y-6 text-left">
-          
+
           {/* Header */}
           <div className="text-center space-y-2">
             <div className="flex items-center justify-center space-x-2 mb-2">
@@ -451,15 +451,15 @@ export default function StudentAuth() {
               {mode === 'forgot-password'
                 ? 'Reset Password'
                 : mode === 'register'
-                ? 'Create an Account'
-                : 'Sign In'}
+                  ? 'Create an Account'
+                  : 'Sign In'}
             </h1>
             <p className="text-xs text-slate-500 font-medium">
               {mode === 'forgot-password'
                 ? 'Enter your details to restore account access'
                 : mode === 'register'
-                ? 'Enter your information to get started'
-                : 'Enter your credentials to continue'}
+                  ? 'Enter your information to get started'
+                  : 'Enter your credentials to continue'}
             </p>
           </div>
 
@@ -469,7 +469,7 @@ export default function StudentAuth() {
               <Lock size={16} className="text-blue-600 shrink-0 mt-0.5" />
               <div className="text-xs leading-relaxed font-medium">
                 <strong className="font-extrabold text-blue-950">Authentication Required: </strong>
-                Please sign in or create an account to access learning courses, practice problemsets, and the interactive SQL lab.
+                Please sign in or create an account to access learning courses, practice problemsets.
               </div>
             </div>
           )}
@@ -480,22 +480,20 @@ export default function StudentAuth() {
               <button
                 type="button"
                 onClick={() => { setMode('login'); setError(''); setSuccessMsg(''); }}
-                className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  mode === 'login'
+                className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${mode === 'login'
                     ? 'bg-white text-blue-600 shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
-                }`}
+                  }`}
               >
                 Sign In
               </button>
               <button
                 type="button"
                 onClick={() => { setMode('register'); setError(''); setSuccessMsg(''); }}
-                className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  mode === 'register'
+                className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${mode === 'register'
                     ? 'bg-white text-blue-600 shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
-                }`}
+                  }`}
               >
                 Register
               </button>
@@ -777,13 +775,12 @@ export default function StudentAuth() {
                             onChange={handleChange}
                             placeholder="amityadav"
                             required={mode === 'register'}
-                            className={`w-full border rounded-xl pl-8 pr-8 py-2 text-xs font-mono font-bold text-slate-800 transition-all outline-none ${
-                              usernameStatus.available === true
+                            className={`w-full border rounded-xl pl-8 pr-8 py-2 text-xs font-mono font-bold text-slate-800 transition-all outline-none ${usernameStatus.available === true
                                 ? 'border-emerald-400 bg-emerald-50/30 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
                                 : usernameStatus.available === false
-                                ? 'border-rose-400 bg-rose-50/30 focus:border-rose-600 focus:ring-1 focus:ring-rose-600'
-                                : 'border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600'
-                            }`}
+                                  ? 'border-rose-400 bg-rose-50/30 focus:border-rose-600 focus:ring-1 focus:ring-rose-600'
+                                  : 'border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600'
+                              }`}
                           />
                           <div className="absolute right-3 flex items-center">
                             {usernameStatus.checking ? (

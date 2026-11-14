@@ -1179,7 +1179,7 @@ function GitLessonContent({ markdown }) {
           .replace(/\\textbf\{([^}]+)\}/g, '$1')
           .replace(/\\text\{([^}]+)\}/g, '$1')
           .replace(/\\[;,]/g, ' ')
-          .replace(/\s*>\s*/g, ' ➔ ')
+          .replace(/\s*>\s*/g, ' -> ')
           .trim();
         parts.push(
           <span key={match.index} className="inline-flex items-center font-bold text-slate-800 bg-blue-50/80 px-2.5 py-1 rounded border border-blue-200 text-xs my-0.5 shadow-2xs">

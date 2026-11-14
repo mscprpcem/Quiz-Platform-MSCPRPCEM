@@ -290,7 +290,7 @@ export default function Courses() {
                           ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse'
                           : 'bg-amber-100/80 text-amber-800 border border-amber-200'
                       }`}>
-                        {isDbms || isGit ? '⚡ Interactive Lab' : isPublished ? 'Quiz Available' : 'Coming Soon'}
+                        {isDbms || isGit ? 'Interactive Lab' : isPublished ? 'Quiz Available' : 'Coming Soon'}
                       </span>
                     </div>
 

@@ -88,7 +88,7 @@ When authenticated into GitHub, the application is organized into two primary sc
 
 \`\`\`
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ Top Nav: [Search or jump to...] [Pull requests] [Issues] [Codespaces] [🔔] [Avatar]│
+│ Top Nav: [Search or jump to...] [Pull requests] [Issues] [Codespaces] [Notifications] [Avatar]│
 ├───────────────────────────────┬─────────────────────────────────────────────┤
 │ Left Column:                  │ Center Feed:                                │
 │ • Top Repositories            │ • Activity feed of followed developers/repos│
@@ -101,7 +101,7 @@ When authenticated into GitHub, the application is organized into two primary sc
 
 #### Core Interface Terminology:
 * **Global Search (\`/\` keyboard shortcut):** Allows searching across repositories, code snippets, commits, issues, and users globally.
-* **Notification Inbox (\`🔔\`):** Aggregates mentions (\`@username\` or \`@mscprpcem\`), review requests on pull requests, CI/CD pipeline build failures, and thread assignments.
+* **Notification Inbox (\`Notifications\`):** Aggregates mentions (\`@username\` or \`@mscprpcem\`), review requests on pull requests, CI/CD pipeline build failures, and thread assignments.
 * **Command Palette (\`Ctrl+K\` on Windows/Linux or \`Cmd+K\` on macOS):** Provides instant keyboard navigation across organizations, repositories, settings, and pull requests without clicking menus.
 
 ---
@@ -157,8 +157,8 @@ Markdown (\`.md\`) is the universal formatting language for GitHub documentation
 | \`- Item\` or \`* Item\` | • Bulleted list item | Tech stack and project highlights |
 | \`1. First item\` | 1. Numbered list item | Ordered accomplishments or goals |
 | \`\`inline code\`\` | \`inline code\` | Tools, package names, command tags |
-| \`- [x] Task complete\` | ☑ Checked interactive checkbox | Completed roadmap milestones |
-| \`- [ ] Task incomplete\` | ☐ Unchecked checkbox | In-progress learning goals |
+| \`- [x] Task complete\` | [x] Checked interactive checkbox | Completed roadmap milestones |
+| \`- [ ] Task incomplete\` | [ ] Unchecked checkbox | In-progress learning goals |
 | \`> Quoted note\` | Blockquote callout box | Developer motto or featured quote |
 
 ---
@@ -188,7 +188,7 @@ Follow these sequential steps to complete your hands-on assignment:
 2. Paste the following production **MSC PRPCEM** template:
 
 \`\`\`markdown
-# Hi there, we are MSC PRPCEM 👋
+# Hi there, we are MSC PRPCEM
 
 <p align="left">
   <img src="https://img.shields.io/badge/Club-Microsoft_Student_Club-0078D4?style=for-the-badge&logo=microsoft&logoColor=white" />
@@ -196,23 +196,23 @@ Follow these sequential steps to complete your hands-on assignment:
   <img src="https://img.shields.io/badge/Community-Open_Source-107C41?style=for-the-badge&logo=github&logoColor=white" />
 </p>
 
-### 👨‍💻 About MSC PRPCEM
-- 🔭 **What we're building:** Open-source projects, coding platforms, interactive technical workshops, and student mentorship programs.
-- 🎯 **Curriculum Goal:** Master Git & GitHub collaborative workflows across the PRPCEM engineering cohort.
-- 💬 **Ask us about:** Web Development, Cloud Computing, Git/GitHub, SQL, and Community Hackathons.
-- 🌐 **Official Portal:** [mscprpcem.tech](https://mscprpcem.tech)
-- 📫 **Contact & Socials:** [LinkedIn](https://linkedin.com/company/mscprpcem) | [msc@prpcem.ac.in](mailto:msc@prpcem.ac.in)
+### About MSC PRPCEM
+- **What we're building:** Open-source projects, coding platforms, interactive technical workshops, and student mentorship programs.
+- **Curriculum Goal:** Master Git & GitHub collaborative workflows across the PRPCEM engineering cohort.
+- **Ask us about:** Web Development, Cloud Computing, Git/GitHub, SQL, and Community Hackathons.
+- **Official Portal:** [mscprpcem.tech](https://mscprpcem.tech)
+- **Contact & Socials:** [LinkedIn](https://linkedin.com/company/mscprpcem) | [msc@prpcem.ac.in](mailto:msc@prpcem.ac.in)
 
 ---
 
-### 🛠️ Tech Stack & Ecosystem
+### Tech Stack & Ecosystem
 - **Version Control:** Git, GitHub, GitHub Actions, GitHub Pages
 - **Frontend & Backend:** React, Node.js, Express, TailwindCSS, PostgreSQL, SQLite
 - **Tools & Environments:** VS Code, Git Bash, Terminal, Docker
 
 ---
 
-### 📈 GitHub Community & Contributor Stats
+### GitHub Community & Contributor Stats
 ![MSC PRPCEM GitHub Stats](https://github-readme-stats.vercel.app/api?username=mscprpcem&show_icons=true&theme=radical)
 ![Top Languages](https://github-readme-stats.vercel.app/api/top-langs/?username=mscprpcem&layout=compact&theme=radical)
 \`\`\`

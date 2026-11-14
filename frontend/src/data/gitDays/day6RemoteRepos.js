@@ -203,7 +203,7 @@ Inside your newly created \`task-tracker-cli\` repository, click the pencil icon
 Replace the default text with the following structured project documentation:
 
 \`\`\`\`markdown
-# 📋 Task Tracker CLI
+# Task Tracker CLI
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Status: Active](https://img.shields.io/badge/Status-Active-brightgreen.svg)
@@ -212,7 +212,7 @@ A fast, zero-dependency command-line interface (CLI) tool for tracking tasks, de
 
 ---
 
-## ✨ Features
+## Features
 
 - **Instant Task Creation:** Add, edit, and prioritize tasks with a single command.
 - **Status Filtering:** View all tasks or filter by \`todo\`, \`in-progress\`, and \`done\`.
@@ -220,14 +220,14 @@ A fast, zero-dependency command-line interface (CLI) tool for tracking tasks, de
 
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
 - **Git** (\`2.x\` or higher)
 - **Node.js** (\`v18.0+\`) or **Python** (\`3.10+\`)
 
 ---
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 1. **Clone the repository:**
    \`\`\`bash
@@ -246,7 +246,7 @@ A fast, zero-dependency command-line interface (CLI) tool for tracking tasks, de
 
 ---
 
-## 📖 Usage Examples
+## Usage Examples
 
 | Action | Command |
 | :--- | :--- |
@@ -258,7 +258,7 @@ A fast, zero-dependency command-line interface (CLI) tool for tracking tasks, de
 
 ---
 
-## 📄 License
+## License
 
 Distributed under the **MIT License**. See \`LICENSE\` for more information.
 \`\`\`\`
