@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  BookOpen, Copy, Check, Table, CheckCircle2, ChevronRight,
+  BookOpen, Copy, Check, Table, CheckCircle2, CheckCheck, ChevronRight,
   ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Lightbulb, Code2, Menu, X, Maximize2,
   Server, Layers, ShieldCheck, Database, AlertTriangle, Shield, Zap, FileText,
   Download, ExternalLink, Laptop, Clock, Sparkles
@@ -377,9 +377,7 @@ export default function SqlLearningView({
   };
 
   const handleCompleteAndNext = () => {
-    if (!isCurrentTopicRead) {
-      handleToggleRead(currentActiveTopicId);
-    }
+    // Navigates only; does not auto-mark completed
     if (nextTopic) {
       handleSelectTopic(nextTopic.id, nextTopic.moduleId);
     }
@@ -484,26 +482,41 @@ export default function SqlLearningView({
                         const label = SQL_TOPIC_SHORT_NAMES[t.id] || (t.lessonCode ? `Subchapter ${t.lessonCode}: ${t.title}` : t.title);
 
                         return (
-                          <button
+                          <div
                             key={t.id}
-                            type="button"
-                            onClick={() => handleSelectTopic(t.id, mod.id)}
-                            className={`w-full text-left px-2 py-1.5 rounded-md text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                            className={`w-full group rounded-md text-xs flex items-center justify-between transition-colors ${
                               isTopicSelected
                                 ? 'bg-blue-50 text-blue-600 font-bold'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal'
                             }`}
-                            title={label}
                           >
-                            <div className="flex items-center space-x-1.5 truncate pr-1">
-                              {isCompleted ? (
-                                <CheckCircle2 size={11} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
-                              ) : (
-                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isTopicSelected ? 'bg-blue-600' : 'bg-slate-300'}`} />
-                              )}
+                            <button
+                              type="button"
+                              onClick={() => handleSelectTopic(t.id, mod.id)}
+                              className="flex-1 text-left px-2 py-1.5 truncate flex items-center space-x-1.5 cursor-pointer min-w-0"
+                              title={label}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isTopicSelected ? 'bg-blue-600' : 'bg-slate-300'}`} />
                               <span className="truncate">{label}</span>
-                            </div>
-                          </button>
+                            </button>
+
+                            {/* Double-Tick Read/Unread Toggle Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleRead(t.id);
+                              }}
+                              className={`p-1 mr-1 rounded hover:bg-slate-200/60 transition-colors cursor-pointer shrink-0 ${
+                                isCompleted
+                                  ? 'text-emerald-600 hover:text-rose-600'
+                                  : 'text-slate-300 opacity-60 hover:opacity-100 hover:text-blue-600'
+                              }`}
+                              title={isCompleted ? "Read (Click to mark unread)" : "Mark as read"}
+                            >
+                              <CheckCheck size={13} strokeWidth={isCompleted ? 2.5 : 1.8} />
+                            </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -621,7 +634,7 @@ export default function SqlLearningView({
               )}
 
               {/* Bottom Navigation */}
-              <footer className="pt-8 pb-14 border-t border-slate-100 mt-10 flex items-center justify-between">
+              <footer className="pt-8 pb-14 border-t border-slate-100 mt-10 flex items-center justify-between gap-3">
                 {previousTopic ? (
                   <button
                     type="button"
@@ -640,6 +653,36 @@ export default function SqlLearningView({
                     <span>Previous</span>
                   </button>
                 )}
+
+                {/* Center Double Tick Button (Read / Unread) */}
+                <button
+                  type="button"
+                  onClick={() => handleToggleRead(currentActiveTopicId)}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border text-xs sm:text-[13px] font-bold transition-all shadow-2xs cursor-pointer group select-none ${
+                    isCurrentTopicRead
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50/50'
+                  }`}
+                  title={isCurrentTopicRead ? "Click to mark as unread" : "Mark this lesson as read"}
+                >
+                  <CheckCheck
+                    size={16}
+                    className={`shrink-0 transition-colors ${
+                      isCurrentTopicRead
+                        ? 'text-emerald-600 group-hover:text-rose-600'
+                        : 'text-slate-400 group-hover:text-blue-600'
+                    }`}
+                    strokeWidth={isCurrentTopicRead ? 2.5 : 2}
+                  />
+                  {isCurrentTopicRead ? (
+                    <>
+                      <span className="group-hover:hidden">Completed (Read)</span>
+                      <span className="hidden group-hover:inline">Mark as Unread</span>
+                    </>
+                  ) : (
+                    <span>Mark as Read</span>
+                  )}
+                </button>
 
                 {nextTopic ? (
                   <button
@@ -666,6 +709,48 @@ export default function SqlLearningView({
             </div>
           ) : (
             <div className="w-full max-w-5xl xl:max-w-6xl mx-auto space-y-4 animate-fadeIn text-slate-900">
+
+              {/* Top Meta Bar: Chapter Badge, Subchapter Label & Double-Tick Read/Unread Button */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-1 border-b border-slate-100/80">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 font-bold text-xs rounded-md border border-blue-200">
+                    Chapter {activeChapter.number}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium truncate max-w-[280px] sm:max-w-md">
+                    {SQL_TOPIC_SHORT_NAMES[topicData.id] || topicData.title}
+                  </span>
+                </div>
+
+                {/* Double Tick Read / Unread Button */}
+                <button
+                  type="button"
+                  onClick={() => handleToggleRead(topicData.id)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all shadow-2xs cursor-pointer group select-none ${
+                    isCurrentTopicRead
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50/50'
+                  }`}
+                  title={isCurrentTopicRead ? "Click to mark as unread" : "Mark this lesson as read"}
+                >
+                  <CheckCheck
+                    size={15}
+                    className={`shrink-0 transition-colors ${
+                      isCurrentTopicRead
+                        ? 'text-emerald-600 group-hover:text-rose-600'
+                        : 'text-slate-400 group-hover:text-blue-600'
+                    }`}
+                    strokeWidth={isCurrentTopicRead ? 2.5 : 2}
+                  />
+                  {isCurrentTopicRead ? (
+                    <>
+                      <span className="group-hover:hidden">Read</span>
+                      <span className="hidden group-hover:inline">Mark Unread</span>
+                    </>
+                  ) : (
+                    <span>Mark as Read</span>
+                  )}
+                </button>
+              </div>
 
               {/* Main Lesson Title (H1: Used only once per lesson) */}
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0a192f] tracking-tight leading-snug">
@@ -1374,7 +1459,7 @@ export default function SqlLearningView({
 
 
               {/* Bottom Navigation: Previous and Next lesson controls */}
-              <footer className="pt-8 pb-14 border-t border-slate-100 mt-10 flex items-center justify-between">
+              <footer className="pt-8 pb-14 border-t border-slate-100 mt-10 flex items-center justify-between gap-3">
                 {/* Previous Button */}
                 {previousTopic ? (
                   <button
@@ -1394,6 +1479,36 @@ export default function SqlLearningView({
                     <span>Previous</span>
                   </button>
                 )}
+
+                {/* Center Double Tick Button (Read / Unread) */}
+                <button
+                  type="button"
+                  onClick={() => handleToggleRead(currentActiveTopicId)}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border text-xs sm:text-[13px] font-bold transition-all shadow-2xs cursor-pointer group select-none ${
+                    isCurrentTopicRead
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50/50'
+                  }`}
+                  title={isCurrentTopicRead ? "Click to mark as unread" : "Mark this lesson as read"}
+                >
+                  <CheckCheck
+                    size={16}
+                    className={`shrink-0 transition-colors ${
+                      isCurrentTopicRead
+                        ? 'text-emerald-600 group-hover:text-rose-600'
+                        : 'text-slate-400 group-hover:text-blue-600'
+                    }`}
+                    strokeWidth={isCurrentTopicRead ? 2.5 : 2}
+                  />
+                  {isCurrentTopicRead ? (
+                    <>
+                      <span className="group-hover:hidden">Completed (Read)</span>
+                      <span className="hidden group-hover:inline">Mark as Unread</span>
+                    </>
+                  ) : (
+                    <span>Mark as Read</span>
+                  )}
+                </button>
 
                 {/* Next Button */}
                 {nextTopic ? (
@@ -1474,23 +1589,44 @@ export default function SqlLearningView({
                       <div className="space-y-0.5 pl-2">
                         {topics.map((t) => {
                           const isTopicSel = currentActiveTopicId === t.id && isSel;
+                          const isDone = localCompletedTopics.includes(t.id);
                           const label = SQL_TOPIC_SHORT_NAMES[t.id] || (t.lessonCode ? `Subchapter ${t.lessonCode}: ${t.title}` : t.title);
 
                           return (
-                            <button
+                            <div
                               key={t.id}
-                              onClick={() => {
-                                handleSelectTopic(t.id, mod.id);
-                                setMobileMenuOpen(false);
-                              }}
-                              className={`w-full text-left px-2.5 py-1 rounded-lg text-xs truncate block cursor-pointer ${
+                              className={`w-full rounded-lg text-xs flex items-center justify-between ${
                                 isTopicSel
                                   ? 'bg-blue-50 text-blue-600 font-bold'
                                   : 'text-slate-600 hover:bg-slate-50 font-normal'
                               }`}
                             >
-                              {label}
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleSelectTopic(t.id, mod.id);
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="flex-1 text-left px-2.5 py-1.5 truncate cursor-pointer min-w-0"
+                              >
+                                {label}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleRead(t.id);
+                                }}
+                                className={`p-1 mr-1 rounded cursor-pointer shrink-0 ${
+                                  isDone
+                                    ? 'text-emerald-600 hover:text-rose-600'
+                                    : 'text-slate-300 hover:text-blue-600'
+                                }`}
+                                title={isDone ? "Read (Click to mark unread)" : "Mark as read"}
+                              >
+                                <CheckCheck size={13} strokeWidth={isDone ? 2.5 : 1.8} />
+                              </button>
+                            </div>
                           );
                         })}
                       </div>

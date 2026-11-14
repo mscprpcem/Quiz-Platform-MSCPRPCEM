@@ -84,19 +84,21 @@ const INITIAL_COURSES = [
     category: 'Database Systems',
     desc: 'Learn relational database design, SQL querying, indexing, normalized schema design, and transaction management.',
     imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/database.svg',
-    status: 'coming_soon',
-    badge: 'Coming Soon',
+    status: 'published',
+    badge: 'Interactive Lab Active',
+    hasInteractiveLab: true,
     quizSettings: { ...DEFAULT_QUIZ_SETTINGS, timeLimitMinutes: 12, passingScore: 70 }
   },
   {
     id: 'c-git',
-    slug: 'frontend',
+    slug: 'git',
     title: 'Git & GitHub',
     category: 'Version Control & Open Source',
-    desc: 'Master Git branching, pull requests, merge conflict resolution, CI/CD workflows, and open-source collaboration.',
+    desc: 'Master Git branching, pull requests, merge conflict resolution, CI/CD workflows, and open-source collaboration in our virtual terminal.',
     imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/github.svg',
-    status: 'coming_soon',
-    badge: 'Coming Soon',
+    status: 'published',
+    badge: 'Interactive Lab Active',
+    hasInteractiveLab: true,
     quizSettings: { ...DEFAULT_QUIZ_SETTINGS, timeLimitMinutes: 8, passingScore: 70 }
   }
 ];

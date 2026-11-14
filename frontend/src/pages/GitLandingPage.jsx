@@ -456,7 +456,7 @@ export default function GitLandingPage({
             {/* Chapters Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {chaptersData.map((ch) => {
-                const isComingSoon = !['chapter-1', 'chapter-2', 'chapter-3', 'chapter-4', 'chapter-5'].includes(ch.id);
+                const isComingSoon = !['chapter-1', 'chapter-2', 'chapter-3', 'chapter-4', 'chapter-5', 'chapter-6', 'chapter-7'].includes(ch.id);
 
                 return (
                   <div

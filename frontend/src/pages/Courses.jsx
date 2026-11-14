@@ -76,6 +76,41 @@ const FALLBACK_COURSES = [
   }
 ];
 
+const normalizeCourses = (rawList) => {
+  if (!Array.isArray(rawList)) return FALLBACK_COURSES;
+  return rawList.map(c => {
+    const isGit = c.slug === 'git' || c.slug === 'frontend' || c.id === 'c-git' || (c.title && c.title.toLowerCase().includes('git'));
+    const isDbms = c.slug === 'dbms' || c.id === 'c-dbms' || (c.title && (c.title.toLowerCase().includes('database') || c.title.toLowerCase().includes('sql')));
+
+    if (isGit) {
+      return {
+        ...c,
+        id: 'c-git',
+        slug: 'git',
+        status: 'published',
+        badge: 'Interactive Lab Active',
+        hasInteractiveLab: true,
+        imageSrc: resolveCourseImage(c.imageSrc || 'https://mscprpcem.blob.core.windows.net/quiz/github.svg')
+      };
+    }
+    if (isDbms) {
+      return {
+        ...c,
+        id: 'c-dbms',
+        slug: 'dbms',
+        status: 'published',
+        badge: 'Interactive Lab Active',
+        hasInteractiveLab: true,
+        imageSrc: resolveCourseImage(c.imageSrc || 'https://mscprpcem.blob.core.windows.net/quiz/database.svg')
+      };
+    }
+    return {
+      ...c,
+      imageSrc: resolveCourseImage(c.imageSrc)
+    };
+  });
+};
+
 export default function Courses() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -88,10 +123,14 @@ export default function Courses() {
     if (!saved) return FALLBACK_COURSES;
     try {
       const parsed = JSON.parse(saved);
-      return parsed.map(c => ({
-        ...c,
-        imageSrc: resolveCourseImage(c.imageSrc)
-      }));
+      const normalized = normalizeCourses(parsed);
+      try {
+        const hasStale = parsed.some(c => (c.id === 'c-git' || c.slug === 'frontend') && (c.status !== 'published' || c.slug !== 'git'));
+        if (hasStale) {
+          localStorage.setItem('msc_admin_courses', JSON.stringify(normalized));
+        }
+      } catch (_) {}
+      return normalized;
     } catch {
       return FALLBACK_COURSES;
     }
@@ -103,10 +142,7 @@ export default function Courses() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          setCourses(parsed.map(c => ({
-            ...c,
-            imageSrc: resolveCourseImage(c.imageSrc)
-          })));
+          setCourses(normalizeCourses(parsed));
         } catch {
           // ignore
         }
@@ -223,7 +259,9 @@ export default function Courses() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {courses.map((course, idx) => {
-              const isPublished = course.status === 'published';
+              const isGit = course.slug === 'git' || course.slug === 'frontend' || course.id === 'c-git' || (course.title && course.title.toLowerCase().includes('git'));
+              const isDbms = course.slug === 'dbms' || course.id === 'c-dbms' || (course.title && (course.title.toLowerCase().includes('database') || course.title.toLowerCase().includes('sql')));
+              const isPublished = isGit || isDbms || course.status === 'published';
               const qs = course.quizSettings || {};
 
               return (
@@ -246,13 +284,13 @@ export default function Courses() {
                       </div>
 
                       <span className={`text-[10px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider ${
-                        course.slug === 'dbms' || course.slug === 'git'
+                        isDbms || isGit
                           ? 'bg-blue-100 text-blue-800 border border-blue-300'
                           : isPublished
                           ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse'
                           : 'bg-amber-100/80 text-amber-800 border border-amber-200'
                       }`}>
-                        {course.slug === 'dbms' || course.slug === 'git' ? '⚡ Interactive Lab' : isPublished ? 'Quiz Available' : 'Coming Soon'}
+                        {isDbms || isGit ? '⚡ Interactive Lab' : isPublished ? 'Quiz Available' : 'Coming Soon'}
                       </span>
                     </div>
 
@@ -265,7 +303,7 @@ export default function Courses() {
                     </div>
 
                     {/* SQL Lab Feature Badges */}
-                    {course.slug === 'dbms' && (
+                    {isDbms && (
                       <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold text-slate-600">
                         <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center gap-1">
                           <BookOpen size={10} /> 21 Modules & Concepts
@@ -283,7 +321,7 @@ export default function Courses() {
                     )}
 
                     {/* Git Lab Feature Badges */}
-                    {course.slug === 'git' && (
+                    {isGit && (
                       <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold text-slate-600">
                         <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center gap-1">
                           <BookOpen size={10} /> 34 Topics & Lessons
@@ -301,7 +339,7 @@ export default function Courses() {
                     )}
 
                     {/* Quiz parameters overview */}
-                    {isPublished && course.slug !== 'dbms' && course.slug !== 'git' && (
+                    {isPublished && !isDbms && !isGit && (
                       <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold text-slate-600">
                         {qs.requireFullScreen && (
                           <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-100 flex items-center gap-1">
@@ -321,7 +359,7 @@ export default function Courses() {
                   <div className="pt-2 border-t border-slate-200/60 flex justify-between items-center text-xs font-bold text-slate-500">
                     <span>Includes verified certificate</span>
                     
-                    {course.slug === 'dbms' ? (
+                    {isDbms ? (
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => navigate('/courses/sql')}
@@ -340,7 +378,7 @@ export default function Courses() {
                           <span>Code Lab</span>
                         </button>
                       </div>
-                    ) : course.slug === 'git' ? (
+                    ) : isGit ? (
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => navigate('/courses/git')}

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  CheckCircle2, Play, ChevronDown, ArrowLeft, ArrowRight,
+  CheckCircle2, CheckCheck, Play, ChevronDown, ArrowLeft, ArrowRight,
   Menu, X, Clock, Terminal, Copy, Check, ExternalLink,
-  Trophy, AlertTriangle, Info, GitBranch, BookOpen, Lightbulb
+  Trophy, AlertTriangle, Info, GitBranch, BookOpen, Lightbulb,
+  Code, Eye
 } from 'lucide-react';
 import { GIT_CURRICULUM } from '../data/gitCurriculumData';
 import { DAY_0_TOPIC, DAY_1_TOPIC, DAY_2_TOPIC, DAY_3_TOPIC, DAY_4_TOPIC, DAY_5_TOPIC } from '../data/gitDays/index.js';
@@ -20,72 +21,93 @@ export const GIT_CHAPTERS = [
   {
     id: 'chapter-1',
     number: 1,
-    title: 'Chapter 1: Orientation & VCS Fundamentals',
+    title: 'Chapter 1: Orientation & Version Control Fundamentals',
     shortTitle: 'Chapter 1: VCS Fundamentals',
     part: 'Part 1',
     partTitle: 'Part 1: Foundations & Daily Workflow',
     badge: 'Chapter 1',
-    topics: ['day-0-orientation', 'git-basics']
+    topics: ['day-0-orientation', 'git-basics', 'git-install-verify']
   },
   {
     id: 'chapter-2',
     number: 2,
-    title: 'Chapter 2: Git Configuration (git config, Local vs. Global)',
+    title: 'Chapter 2: Git Configuration & Identity Architecture',
     shortTitle: 'Chapter 2: Configuration',
     part: 'Part 1',
     partTitle: 'Part 1: Foundations & Daily Workflow',
     badge: 'Chapter 2',
-    topics: ['git-config-scopes', 'git-config-defaults']
+    topics: ['git-config-scopes', 'git-config-identity', 'git-config-defaults', 'git-config-aliases']
   },
   {
     id: 'chapter-3',
     number: 3,
-    title: 'Chapter 3: Repository Basics & The Three Trees',
-    shortTitle: 'Chapter 3: Repo Basics',
+    title: 'Chapter 3: Three Trees Architecture & Repository Initialization',
+    shortTitle: 'Chapter 3: Three Trees & Init',
     part: 'Part 1',
     partTitle: 'Part 1: Foundations & Daily Workflow',
     badge: 'Chapter 3',
-    topics: ['git-three-trees', 'git-init-anatomy']
+    topics: ['git-three-trees', 'git-file-lifecycles', 'git-init-repo', 'git-dotgit-anatomy']
   },
   {
     id: 'chapter-4',
     number: 4,
-    title: 'Chapter 4: Staging Area & Commits (git add, git commit, git status)',
-    shortTitle: 'Chapter 4: Staging & Commits',
+    title: 'Chapter 4: Staging Mechanics, Atomic Commits & History Inspection',
+    shortTitle: 'Chapter 4: Staging & Snapshots',
     part: 'Part 1',
     partTitle: 'Part 1: Foundations & Daily Workflow',
     badge: 'Chapter 4',
-    topics: ['git-staging-lifecycle', 'git-history-ignore']
+    topics: ['git-staging-mechanics', 'git-commit-crafting', 'git-log-inspection', 'git-gitignore-rules']
   },
   {
     id: 'chapter-5',
     number: 5,
-    title: 'Chapter 5: GitHub Essentials & Remote Repositories',
+    title: 'Chapter 5: GitHub Essentials & Developer Profile Branding',
     shortTitle: 'Chapter 5: GitHub Essentials',
     part: 'Part 1',
     partTitle: 'Part 1: Foundations & Daily Workflow',
     badge: 'Chapter 5',
-    topics: ['github-platform-security', 'github-profile-readme']
+    topics: [
+      'github-platform-overview',
+      'github-account-security',
+      'github-interface-navigation',
+      'github-profile-branding',
+      'github-secret-readme',
+      'github-profile-lab'
+    ]
   },
   {
     id: 'chapter-6',
     number: 6,
-    title: 'Chapter 6: Commit History Inspection (git log, formatting & filtering)',
-    shortTitle: 'Chapter 6: History & Logs',
+    title: 'Chapter 6: Repositories & Documentation (Public vs Private, Markdown, README & Conventional Commits)',
+    shortTitle: 'Chapter 6: Repos & Docs',
     part: 'Part 1',
     partTitle: 'Part 1: Foundations & Daily Workflow',
     badge: 'Chapter 6',
-    topics: ['git-log']
+    topics: [
+      'github-create-repo',
+      'public-vs-private-repos',
+      'markdown-readme-guide',
+      'project-readme-anatomy',
+      'git-conventional-commits',
+      'task-tracker-cli-lab'
+    ]
   },
   {
     id: 'chapter-7',
     number: 7,
-    title: 'Chapter 7: Comparing States & Diffing (git diff: Working vs Staged vs HEAD)',
-    shortTitle: 'Chapter 7: Comparing States',
+    title: 'Chapter 7: Git Remotes & Cloud Sync (Push, Fetch vs Pull, Remotes & Clones)',
+    shortTitle: 'Chapter 7: Remotes & Sync',
     part: 'Part 1',
     partTitle: 'Part 1: Foundations & Daily Workflow',
     badge: 'Chapter 7',
-    topics: ['git-diff']
+    topics: [
+      'git-remotes-concept',
+      'git-clone-vs-remote-add',
+      'git-auth-https-ssh',
+      'git-push-upstream',
+      'git-fetch-vs-pull',
+      'git-sync-clone-lab'
+    ]
   },
 
   // Part 2: Branching & History Manipulation (Chapters 8–14)
@@ -332,41 +354,83 @@ export const TOPIC_SHORT_NAMES = {
   // Chapter 1: Orientation & VCS Fundamentals
   'day-0-orientation': 'Subchapter 1.1: Orientation',
   'git-basics': 'Subchapter 1.2: VCS Fundamentals',
+  'git-vcs-fundamentals': 'Subchapter 1.2: VCS Fundamentals',
   'day-1-fundamentals': 'Subchapter 1.2: VCS Fundamentals',
+  'git-install-verify': 'Subchapter 1.3: Install & Verify',
+
   // Chapter 2: Configuration
   'git-config-scopes': 'Subchapter 2.1: Scopes & Precedence',
-  'git-config-defaults': 'Subchapter 2.2: Identity & Defaults',
+  'git-config-identity': 'Subchapter 2.2: User Identity',
+  'git-config-defaults': 'Subchapter 2.3: Environment Defaults',
+  'git-config-aliases': 'Subchapter 2.4: Aliases & Debugging',
   'git-config': 'Subchapter 2.1: Scopes & Precedence',
   'day-2-configuration': 'Subchapter 2.1: Scopes & Precedence',
+
   // Chapter 3: Repo Anatomy
   'git-three-trees': 'Subchapter 3.1: The Three Trees',
-  'git-init-anatomy': 'Subchapter 3.2: git init & Anatomy',
+  'git-file-lifecycles': 'Subchapter 3.2: File Lifecycles',
+  'git-init-repo': 'Subchapter 3.3: git init Mechanics',
+  'git-dotgit-anatomy': 'Subchapter 3.4: .git Anatomy',
+  'git-init-anatomy': 'Subchapter 3.4: .git Anatomy',
   'repo-init-git-folder': 'Subchapter 3.1: The Three Trees',
-  'git-init': 'Subchapter 3.1: The Three Trees',
+  'git-init': 'Subchapter 3.3: git init Mechanics',
   'day-3-repo-basics': 'Subchapter 3.1: The Three Trees',
+
   // Chapter 4: Staging & Commits
-  'git-staging-lifecycle': 'Subchapter 4.1: Staging & Snapshots',
-  'git-history-ignore': 'Subchapter 4.2: History & .gitignore',
-  'git-add-commit-status': 'Subchapter 4.1: Staging & Snapshots',
-  'git-status-add': 'Subchapter 4.1: Staging & Snapshots',
-  'day-4-basic-commands': 'Subchapter 4.1: Staging & Snapshots',
+  'git-staging-mechanics': 'Subchapter 4.1: Staging Mechanics',
+  'git-commit-crafting': 'Subchapter 4.2: Commit Crafting',
+  'git-log-inspection': 'Subchapter 4.3: git log Inspection',
+  'git-gitignore-rules': 'Subchapter 4.4: .gitignore Rules',
+  'git-staging-lifecycle': 'Subchapter 4.1: Staging Mechanics',
+  'git-history-ignore': 'Subchapter 4.4: .gitignore Rules',
+  'git-add-commit-status': 'Subchapter 4.1: Staging Mechanics',
+  'git-status-add': 'Subchapter 4.1: Staging Mechanics',
+  'day-4-basic-commands': 'Subchapter 4.1: Staging Mechanics',
+
   // Chapter 5: GitHub Essentials
-  'github-platform-security': 'Subchapter 5.1: Platform & 2FA Security',
-  'github-profile-readme': 'Subchapter 5.2: Profile & Secret README',
-  'github-remotes': 'Subchapter 5.1: Platform & 2FA Security',
-  'github-essentials': 'Subchapter 5.1: Platform & 2FA Security',
-  'day-5-github-essentials': 'Subchapter 5.1: Platform & 2FA Security',
-  'git-github': 'Subchapter 5.1: Platform & 2FA Security',
-  // Chapter 6: History & Logs
-  'git-log': 'Chapter 6: History & Logs',
-  // Chapter 7: Comparing States
-  'git-diff': 'Chapter 7: Comparing States',
-  // Chapter 8: Ignoring Files
-  'gitignore': 'Chapter 8: Ignoring Files',
-  // Chapter 9: Branching Basics
-  'branching-basics': 'Chapter 9: Branching Basics',
-  // Chapter 10: Switching Branches
-  'checkout-switch': 'Chapter 10: Switching Branches',
+  'github-platform-overview': 'Subchapter 5.1: Platform Architecture',
+  'github-account-security': 'Subchapter 5.2: Account & 2FA',
+  'github-interface-navigation': 'Subchapter 5.3: Interface Navigation',
+  'github-profile-branding': 'Subchapter 5.4: Profile Customization',
+  'github-secret-readme': 'Subchapter 5.5: Secret README',
+  'github-profile-lab': 'Subchapter 5.6: Profile Lab',
+  'github-platform-security': 'Subchapter 5.1: Platform Architecture',
+  'github-profile-readme': 'Subchapter 5.5: Secret README',
+  'github-remotes': 'Subchapter 5.1: Platform Architecture',
+  'github-essentials': 'Subchapter 5.1: Platform Architecture',
+  'day-5-github-essentials': 'Subchapter 5.1: Platform Architecture',
+  'git-github': 'Subchapter 5.1: Platform Architecture',
+
+  // Chapter 6: Repositories & Documentation
+  'github-create-repo': 'Subchapter 6.1: Remote Repo Setup',
+  'public-vs-private-repos': 'Subchapter 6.2: Public vs Private',
+  'markdown-readme-guide': 'Subchapter 6.3: Markdown Deep Dive',
+  'project-readme-anatomy': 'Subchapter 6.4: README Anatomy',
+  'git-conventional-commits': 'Subchapter 6.5: Conventional Commits',
+  'task-tracker-cli-lab': 'Subchapter 6.6: Task Tracker Lab',
+  'project-readme-commits': 'Subchapter 6.6: Task Tracker Lab',
+  'day-6-remote-repos': 'Subchapter 6.1: Remote Repo Setup',
+
+  // Chapter 7: Git Remotes & Cloud Sync
+  'git-remotes-concept': 'Subchapter 7.1: Remotes & origin',
+  'git-clone-vs-remote-add': 'Subchapter 7.2: clone vs remote add',
+  'git-auth-https-ssh': 'Subchapter 7.3: HTTPS vs SSH',
+  'git-push-upstream': 'Subchapter 7.4: push & Upstream',
+  'git-fetch-vs-pull': 'Subchapter 7.5: fetch vs pull',
+  'git-sync-clone-lab': 'Subchapter 7.6: Sync Practical Lab',
+  'day-7-cloud-sync': 'Subchapter 7.1: Remotes & origin',
+  'git-remotes': 'Subchapter 7.1: Remotes & origin',
+  'git-fetch': 'Subchapter 7.5: fetch vs pull',
+  'git-pull': 'Subchapter 7.5: fetch vs pull',
+  'git-push': 'Subchapter 7.4: push & Upstream',
+  'git-clone': 'Subchapter 7.2: clone vs remote add',
+
+  // Future Chapters
+  'git-log': 'Chapter 8: History & Logs',
+  'git-diff': 'Chapter 9: Comparing States',
+  'gitignore': 'Chapter 9: Ignoring Files',
+  'branching-basics': 'Chapter 10: Branching Basics',
+  'checkout-switch': 'Chapter 11: Switching Branches',
   // Chapter 11: Merging Mechanics
   'merging-mechanics': 'Chapter 11: Merging Mechanics',
   // Chapter 12: Merge Conflicts
@@ -414,10 +478,358 @@ export const TOPIC_SHORT_NAMES = {
 };
 
 /**
- * Code Block: Light-grey surface, syntax highlighting, language label, copy button
+ * Render inline markdown text (bold, italic, code, images/badges, links)
+ */
+function renderMarkdownInline(text) {
+  if (!text) return null;
+  const parts = [];
+  const regex = /(!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\([^)]+\)|https?:\/\/[^\s<)]+|\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/gi;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const token = match[0];
+    
+    // Image or badge: ![alt](src)
+    if (token.startsWith('![')) {
+      const imgMatch = token.match(/^!\[(.*?)\]\((.*?)\)$/);
+      if (imgMatch) {
+        const [, alt, src] = imgMatch;
+        parts.push(
+          <img
+            key={match.index}
+            src={src}
+            alt={alt}
+            className="inline-block mr-2 my-0.5 max-h-5 object-contain rounded-xs"
+            loading="lazy"
+          />
+        );
+      } else {
+        parts.push(token);
+      }
+    }
+    // Link: [label](url)
+    else if (token.startsWith('[') && token.includes('](') && token.endsWith(')')) {
+      const linkMatch = token.match(/^\[(.*?)\]\((.*?)\)$/);
+      if (linkMatch) {
+        const [, label, url] = linkMatch;
+        parts.push(
+          <a
+            key={match.index}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors cursor-pointer"
+          >
+            <span>{label}</span>
+            <ExternalLink size={10} className="inline-block shrink-0 opacity-70" />
+          </a>
+        );
+      } else {
+        parts.push(token);
+      }
+    }
+    // Raw URL
+    else if (token.startsWith('http://') || token.startsWith('https://')) {
+      parts.push(
+        <a
+          key={match.index}
+          href={token}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors cursor-pointer"
+        >
+          <span>{token}</span>
+          <ExternalLink size={10} className="inline-block shrink-0 opacity-70" />
+        </a>
+      );
+    }
+    // Bold: **text**
+    else if (token.startsWith('**') && token.endsWith('**')) {
+      parts.push(
+        <strong key={match.index} className="font-bold text-slate-900">
+          {token.slice(2, -2)}
+        </strong>
+      );
+    }
+    // Inline code: `code`
+    else if (token.startsWith('`') && token.endsWith('`')) {
+      parts.push(
+        <code key={match.index} className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 border border-slate-200/70 px-1.5 py-0.5 rounded whitespace-nowrap inline-block">
+          {token.slice(1, -1).trim()}
+        </code>
+      );
+    }
+    // Italic: *text*
+    else if (token.startsWith('*') && token.endsWith('*')) {
+      parts.push(
+        <em key={match.index} className="italic text-slate-700">
+          {token.slice(1, -1)}
+        </em>
+      );
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
+}
+
+/**
+ * Render Markdown content as a simulated GitHub README.md Preview
+ */
+function MarkdownPreviewBox({ content }) {
+  const elements = useMemo(() => {
+    if (!content) return [];
+    const lines = content.split('\n');
+    const items = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const raw = lines[i];
+      const trimmed = raw.trim();
+
+      if (!trimmed) {
+        i++;
+        continue;
+      }
+
+      // Code block inside README
+      if (trimmed.startsWith('```')) {
+        const lang = trimmed.replace('```', '').trim();
+        const codeLines = [];
+        i++;
+        while (i < lines.length && !lines[i].trim().startsWith('```')) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        if (i < lines.length) i++;
+        items.push({ type: 'code', lang, code: codeLines.join('\n') });
+        continue;
+      }
+
+      // Horizontal rule
+      if (/^---$|^___$|^\*\*\*$/.test(trimmed)) {
+        items.push({ type: 'hr' });
+        i++;
+        continue;
+      }
+
+      // Headings
+      if (trimmed.startsWith('# ')) {
+        items.push({ type: 'h1', text: trimmed.slice(2).trim() });
+        i++;
+        continue;
+      }
+      if (trimmed.startsWith('## ')) {
+        items.push({ type: 'h2', text: trimmed.slice(3).trim() });
+        i++;
+        continue;
+      }
+      if (trimmed.startsWith('### ')) {
+        items.push({ type: 'h3', text: trimmed.slice(4).trim() });
+        i++;
+        continue;
+      }
+
+      // Table
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        const tableLines = [trimmed];
+        i++;
+        while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+          tableLines.push(lines[i].trim());
+          i++;
+        }
+        items.push({ type: 'table', lines: tableLines });
+        continue;
+      }
+
+      // Blockquote
+      if (trimmed.startsWith('>')) {
+        const quoteLines = [trimmed.replace(/^>\s*/, '')];
+        i++;
+        while (i < lines.length && lines[i].trim().startsWith('>')) {
+          quoteLines.push(lines[i].trim().replace(/^>\s*/, ''));
+          i++;
+        }
+        items.push({ type: 'quote', text: quoteLines.join(' ') });
+        continue;
+      }
+
+      // Task list item
+      if (/^[-*]\s+\[([ xX])\]\s+/.test(trimmed)) {
+        const checked = /\[[xX]\]/.test(trimmed);
+        const text = trimmed.replace(/^[-*]\s+\[([ xX])\]\s+/, '');
+        items.push({ type: 'task', checked, text });
+        i++;
+        continue;
+      }
+
+      // List items
+      if (/^[-*]\s+/.test(trimmed)) {
+        items.push({ type: 'li', text: trimmed.replace(/^[-*]\s+/, '') });
+        i++;
+        continue;
+      }
+      if (/^\d+\.\s+/.test(trimmed)) {
+        items.push({ type: 'ol_item', text: trimmed.replace(/^\d+\.\s+/, '') });
+        i++;
+        continue;
+      }
+
+      // Regular paragraph / badges
+      items.push({ type: 'p', text: trimmed });
+      i++;
+    }
+
+    return items;
+  }, [content]);
+
+  return (
+    <div className="bg-white p-5 sm:p-6 border-t border-slate-200 text-slate-800 text-sm space-y-3 font-sans">
+      {/* GitHub Preview Subheader Banner */}
+      <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-200 text-xs text-slate-500 font-mono">
+        <span className="flex items-center gap-1.5 text-slate-700 font-bold">
+          <BookOpen size={13} className="text-blue-600" />
+          README.md Preview (Simulated GitHub Render)
+        </span>
+        <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">
+          Markdown View
+        </span>
+      </div>
+
+      {elements.map((el, idx) => {
+        if (el.type === 'h1') {
+          return (
+            <h1 key={idx} className="text-xl sm:text-2xl font-black text-slate-900 pb-2 border-b border-slate-200 pt-1">
+              {renderMarkdownInline(el.text)}
+            </h1>
+          );
+        }
+        if (el.type === 'h2') {
+          return (
+            <h2 key={idx} className="text-base sm:text-lg font-bold text-slate-900 pb-1.5 border-b border-slate-100 pt-3">
+              {renderMarkdownInline(el.text)}
+            </h2>
+          );
+        }
+        if (el.type === 'h3') {
+          return (
+            <h3 key={idx} className="text-sm sm:text-base font-bold text-slate-800 pt-2">
+              {renderMarkdownInline(el.text)}
+            </h3>
+          );
+        }
+        if (el.type === 'hr') {
+          return <hr key={idx} className="border-slate-200 my-4" />;
+        }
+        if (el.type === 'p') {
+          return (
+            <div key={idx} className="leading-relaxed text-slate-700">
+              {renderMarkdownInline(el.text)}
+            </div>
+          );
+        }
+        if (el.type === 'li') {
+          return (
+            <div key={idx} className="flex items-start space-x-2 pl-3 text-slate-700 leading-relaxed">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-2 shrink-0" />
+              <span>{renderMarkdownInline(el.text)}</span>
+            </div>
+          );
+        }
+        if (el.type === 'ol_item') {
+          return (
+            <div key={idx} className="flex items-start space-x-2 pl-3 text-slate-700 leading-relaxed">
+              <span className="font-bold text-blue-600 shrink-0 text-xs mt-0.5">•</span>
+              <span>{renderMarkdownInline(el.text)}</span>
+            </div>
+          );
+        }
+        if (el.type === 'task') {
+          return (
+            <div key={idx} className="flex items-center space-x-2 pl-3 text-slate-700 leading-relaxed">
+              <input
+                type="checkbox"
+                checked={el.checked}
+                readOnly
+                className="w-3.5 h-3.5 rounded text-blue-600 border-slate-300 focus:ring-0 cursor-default"
+              />
+              <span className={el.checked ? 'text-slate-500 line-through' : 'text-slate-800'}>
+                {renderMarkdownInline(el.text)}
+              </span>
+            </div>
+          );
+        }
+        if (el.type === 'quote') {
+          return (
+            <div key={idx} className="border-l-3 border-blue-500 bg-blue-50/50 rounded-r-lg p-3 text-xs sm:text-[13px] text-slate-700 italic my-2">
+              {renderMarkdownInline(el.text)}
+            </div>
+          );
+        }
+        if (el.type === 'code') {
+          return (
+            <div key={idx} className="my-2 rounded-lg border border-slate-200 bg-slate-900 text-slate-100 p-3 font-mono text-xs overflow-x-auto shadow-2xs">
+              <div className="text-[10px] uppercase font-bold text-slate-400 pb-1 border-b border-slate-800 mb-2">
+                {el.lang || 'terminal'}
+              </div>
+              <pre className="text-emerald-400 whitespace-pre">{el.code}</pre>
+            </div>
+          );
+        }
+        if (el.type === 'table') {
+          const lines = el.lines;
+          if (lines.length >= 2) {
+            const headerCols = lines[0].split('|').map(c => c.trim()).filter(Boolean);
+            const dataRows = lines.slice(2).map(l => l.split('|').map(c => c.trim()).filter(Boolean));
+            return (
+              <div key={idx} className="my-3 overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-2xs">
+                <table className="min-w-full divide-y divide-slate-200 text-xs text-left">
+                  <thead className="bg-slate-50 font-bold text-slate-800">
+                    <tr>
+                      {headerCols.map((h, i) => (
+                        <th key={i} className="px-3.5 py-2 border-r border-slate-100 last:border-r-0">
+                          {renderMarkdownInline(h)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-mono text-slate-700">
+                    {dataRows.map((row, rIdx) => (
+                      <tr key={rIdx} className="hover:bg-slate-50/70">
+                        {row.map((cell, cIdx) => (
+                          <td key={cIdx} className="px-3.5 py-2 border-r border-slate-100 last:border-r-0 font-medium">
+                            {renderMarkdownInline(cell)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          }
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
+/**
+ * Code Block: Light-grey surface, syntax highlighting, language label, copy button, and Markdown Preview
  */
 function TerminalCodeBlock({ code, title = 'bash', language = 'bash' }) {
   const [copied, setCopied] = useState(false);
+  const isMarkdown = (language || '').toLowerCase().includes('markdown') || (language || '').toLowerCase() === 'md';
+  const [viewMode, setViewMode] = useState(isMarkdown ? 'preview' : 'code');
 
   const handleCopy = () => {
     if (!code) return;
@@ -483,9 +895,40 @@ function TerminalCodeBlock({ code, title = 'bash', language = 'bash' }) {
   return (
     <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50/90 shadow-2xs my-4">
       <div className="flex items-center justify-between px-3.5 py-1.5 bg-slate-100/90 border-b border-slate-200 select-none">
-        <span className="text-[11px] font-mono font-semibold text-slate-500 uppercase tracking-wider">
-          {language || title || 'bash'}
-        </span>
+        <div className="flex items-center space-x-2">
+          <span className="text-[11px] font-mono font-semibold text-slate-500 uppercase tracking-wider">
+            {language || title || 'bash'}
+          </span>
+          {isMarkdown && (
+            <div className="flex items-center rounded-md bg-slate-200/80 p-0.5 text-[10.5px] font-bold">
+              <button
+                type="button"
+                onClick={() => setViewMode('code')}
+                className={`px-2 py-0.5 rounded transition-all cursor-pointer flex items-center space-x-1 ${
+                  viewMode === 'code'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Code size={11} />
+                <span>Raw Code</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('preview')}
+                className={`px-2 py-0.5 rounded transition-all cursor-pointer flex items-center space-x-1 ${
+                  viewMode === 'preview'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Eye size={11} />
+                <span>Preview (.md)</span>
+              </button>
+            </div>
+          )}
+        </div>
+
         <button
           type="button"
           onClick={handleCopy}
@@ -496,9 +939,13 @@ function TerminalCodeBlock({ code, title = 'bash', language = 'bash' }) {
         </button>
       </div>
 
-      <div className="p-3.5 overflow-x-auto selection:bg-blue-100 custom-scrollbar">
-        {code.split('\n').map((line, idx) => renderHighlightedLine(line, idx))}
-      </div>
+      {isMarkdown && viewMode === 'preview' ? (
+        <MarkdownPreviewBox content={code} />
+      ) : (
+        <div className="p-3.5 overflow-x-auto selection:bg-blue-100 custom-scrollbar">
+          {code.split('\n').map((line, idx) => renderHighlightedLine(line, idx))}
+        </div>
+      )}
     </div>
   );
 }
@@ -556,15 +1003,22 @@ function parseMarkdownBlocks(markdown) {
       continue;
     }
 
-    // 1. Code blocks: ```
-    if (trimmed.startsWith('```')) {
+    // 1. Code blocks: ``` or ```` or ~~~
+    const fenceMatch = trimmed.match(/^(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const fenceStr = fenceMatch[1];
+      const fenceChar = fenceStr[0];
+      const fenceLen = fenceStr.length;
       const codeLines = [rawLine];
       i++;
-      while (i < lines.length && !lines[i].trim().startsWith('```')) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      if (i < lines.length) {
+      while (i < lines.length) {
+        const curTrimmed = lines[i].trim();
+        const closeMatch = curTrimmed.match(/^(`{3,}|~{3,})$/);
+        if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLen) {
+          codeLines.push(lines[i]);
+          i++;
+          break;
+        }
         codeLines.push(lines[i]);
         i++;
       }
@@ -795,18 +1249,29 @@ function GitLessonContent({ markdown }) {
   return (
     <div className="space-y-4 text-slate-700 text-[14.5px] leading-relaxed font-normal">
       {blocks.map((block, idx) => {
-        // Image (scaled to a clean, non-bloated size)
+        // Image (scaled to a clean, readable size with authentic light theme framing)
         if (block.type === 'image') {
           return (
-            <figure key={idx} className="my-5 max-w-xl mx-auto rounded-lg overflow-hidden border border-slate-200 bg-white p-2 shadow-2xs">
-              <img
-                src={block.src}
-                alt={block.alt}
-                className="w-full h-auto max-h-64 sm:max-h-72 object-contain rounded-md mx-auto block"
-                loading="lazy"
-              />
+            <figure key={idx} className="my-6 max-w-4xl mx-auto rounded-xl overflow-hidden border border-slate-200/80 bg-white shadow-xs">
+              <div className="flex items-center justify-between px-3.5 py-2 border-b border-slate-100 bg-slate-50/70">
+                <div className="flex items-center gap-2">
+                  <img src="/logo.png" alt="MSC-PRPCEM" className="w-4 h-4 object-contain" />
+                  <span className="text-[11px] font-bold text-slate-700">MSC PRPCEM Curriculum</span>
+                </div>
+                <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-full">
+                  Light Theme Guide
+                </span>
+              </div>
+              <div className="p-2 sm:p-3 bg-white">
+                <img
+                  src={block.src}
+                  alt={block.alt}
+                  className="w-full h-auto max-h-[540px] object-contain rounded-lg mx-auto block"
+                  loading="lazy"
+                />
+              </div>
               {block.alt && (
-                <figcaption className="text-center text-[11px] text-slate-500 font-medium mt-1.5 italic">
+                <figcaption className="text-center text-[11px] sm:text-xs text-slate-500 font-medium py-1.5 px-3 bg-slate-50/40 border-t border-slate-100 italic">
                   {block.alt.replace(/[\u{1F300}-\u{1F9FF}]|[⚠️🚨⚡🔥🎯💡🧭🗺️]/gu, '')}
                 </figcaption>
               )}
@@ -1033,8 +1498,8 @@ export default function GitLearningView({
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // 1. Available chapters with rich lesson content (Chapters 1 to 5 from day0 to day5)
-  const AVAILABLE_CHAPTER_IDS = ['chapter-1', 'chapter-2', 'chapter-3', 'chapter-4', 'chapter-5'];
+  // 1. Available chapters with rich lesson content (Chapters 1 to 7 from day0 to day7)
+  const AVAILABLE_CHAPTER_IDS = ['chapter-1', 'chapter-2', 'chapter-3', 'chapter-4', 'chapter-5', 'chapter-6', 'chapter-7'];
 
   // Flatten all available lessons (10 subchapters across Chapters 1 to 5)
   const allTopicsFlat = useMemo(() => {
@@ -1059,23 +1524,22 @@ export default function GitLearningView({
   const rawParamTopic = searchParams.get('topic');
   const rawParamChapter = searchParams.get('chapter');
   
-  const initialResolved = rawParamTopic ? GIT_SUBCHAPTERS_MAP.get(rawParamTopic) : null;
-  const initialTopic = initialResolved?.slug || propTopicSlug || 'day-0-orientation';
+  const initialResolved = rawParamTopic ? (GIT_SUBCHAPTERS_MAP.get(rawParamTopic) || allTopicsFlat.find(t => t.slug === rawParamTopic)) : null;
   const initialChapter = rawParamChapter || initialResolved?.chapterId || (rawParamTopic?.startsWith('chapter-') ? rawParamTopic : 'chapter-1');
+  const initialTopic = initialResolved?.slug || (rawParamChapter ? allTopicsFlat.find(t => t.chapterId === rawParamChapter)?.slug : null) || propTopicSlug || 'day-0-orientation';
 
   const [selectedChapterId, setSelectedChapterId] = useState(initialChapter);
-  const [currentTopicSlug, setCurrentTopicSlug] = useState(initialTopic.startsWith('chapter-') ? 'day-0-orientation' : initialTopic);
+  const [currentTopicSlug, setCurrentTopicSlug] = useState(initialTopic);
 
   useEffect(() => {
     const paramTopic = searchParams.get('topic');
     const paramChapter = searchParams.get('chapter');
-    if (paramChapter) {
-      setSelectedChapterId(paramChapter);
-      const chTopic = allTopicsFlat.find(t => t.chapterId === paramChapter);
-      if (chTopic) setCurrentTopicSlug(chTopic.slug);
-    } else if (paramTopic) {
+
+    if (paramTopic) {
       if (paramTopic.startsWith('chapter-')) {
         setSelectedChapterId(paramTopic);
+        const chTopic = allTopicsFlat.find(t => t.chapterId === paramTopic);
+        if (chTopic) setCurrentTopicSlug(chTopic.slug);
       } else {
         const found = GIT_SUBCHAPTERS_MAP.get(paramTopic) || allTopicsFlat.find(t => t.slug === paramTopic);
         if (found) {
@@ -1083,6 +1547,10 @@ export default function GitLearningView({
           setCurrentTopicSlug(found.slug);
         }
       }
+    } else if (paramChapter) {
+      setSelectedChapterId(paramChapter);
+      const chTopic = allTopicsFlat.find(t => t.chapterId === paramChapter);
+      if (chTopic) setCurrentTopicSlug(chTopic.slug);
     }
   }, [searchParams, allTopicsFlat]);
 
@@ -1097,13 +1565,15 @@ export default function GitLearningView({
     return found || allTopicsFlat[0] || {};
   }, [allTopicsFlat, currentTopicSlug]);
 
-  // 3. Chapter Accordions State (Expand Chapters 1 to 5 by default)
+  // 3. Chapter Accordions State (Expand Chapters 1 to 7 by default)
   const [expandedChapters, setExpandedChapters] = useState({
     'chapter-1': true,
     'chapter-2': true,
     'chapter-3': true,
     'chapter-4': true,
-    'chapter-5': true
+    'chapter-5': true,
+    'chapter-6': true,
+    'chapter-7': true
   });
 
   const toggleChapter = (chapterId) => {
@@ -1157,7 +1627,9 @@ export default function GitLearningView({
     }
 
     if (!isCompleted) {
-      addToast && addToast('Lesson completed!', 'success');
+      addToast && addToast('Lesson marked as read!', 'success');
+    } else {
+      addToast && addToast('Lesson marked as unread', 'info');
     }
   };
 
@@ -1180,7 +1652,7 @@ export default function GitLearningView({
     if (readerEl) readerEl.scrollTop = 0;
   };
 
-  // 7. Navigation (Previous & Next Lesson)
+  // 7. Navigation (Previous & Next Lesson - No auto-completion!)
   const currentGlobalIndex = activeTopic?.globalIndex || 1; // 1-indexed
   const previousTopic = currentGlobalIndex > 1 ? allTopicsFlat[currentGlobalIndex - 2] : null;
   const nextTopic = currentGlobalIndex < totalTopicsCount ? allTopicsFlat[currentGlobalIndex] : null;
@@ -1194,15 +1666,6 @@ export default function GitLearningView({
   const handlePreviousLesson = () => {
     if (previousTopic) {
       handleSelectTopic(previousTopic.slug);
-    }
-  };
-
-  const handleCompleteAndNext = () => {
-    if (!isCurrentLessonCompleted) {
-      handleToggleCompleted(activeTopic.slug);
-    }
-    if (nextTopic) {
-      handleSelectTopic(nextTopic.slug);
     }
   };
 
@@ -1297,28 +1760,43 @@ export default function GitLearningView({
                         const isCompleted = completedLessons.includes(topic.slug);
 
                         return (
-                          <button
+                          <div
                             key={topic.slug}
-                            type="button"
-                            onClick={() => {
-                              handleSelectTopic(topic.slug);
-                            }}
-                            className={`w-full text-left px-2 py-1.5 rounded-md text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                            className={`w-full group rounded-md text-xs flex items-center justify-between transition-colors ${
                               isTopicSelected
                                 ? 'bg-blue-50 text-blue-600 font-bold'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal'
                             }`}
-                            title={topic.shortName}
                           >
-                            <div className="flex items-center space-x-1.5 truncate pr-1">
-                              {isCompleted ? (
-                                <CheckCircle2 size={11} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
-                              ) : (
-                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isTopicSelected ? 'bg-blue-600' : 'bg-slate-300'}`} />
-                              )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleSelectTopic(topic.slug);
+                              }}
+                              className="flex-1 text-left px-2 py-1.5 truncate flex items-center space-x-1.5 cursor-pointer min-w-0"
+                              title={topic.shortName}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isTopicSelected ? 'bg-blue-600' : 'bg-slate-300'}`} />
                               <span className="truncate">{topic.shortName}</span>
-                            </div>
-                          </button>
+                            </button>
+
+                            {/* Double-Tick Read/Unread Toggle Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleCompleted(topic.slug);
+                              }}
+                              className={`p-1 mr-1 rounded hover:bg-slate-200/60 transition-colors cursor-pointer shrink-0 ${
+                                isCompleted
+                                  ? 'text-emerald-600 hover:text-rose-600'
+                                  : 'text-slate-300 opacity-60 hover:opacity-100 hover:text-blue-600'
+                              }`}
+                              title={isCompleted ? "Read (Click to mark unread)" : "Mark as read"}
+                            >
+                              <CheckCheck size={13} strokeWidth={isCompleted ? 2.5 : 1.8} />
+                            </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -1383,8 +1861,8 @@ export default function GitLearningView({
             </button>
           </div>
 
-          <span className="text-xs font-bold text-slate-800 truncate max-w-[160px]">
-            {isComingSoon ? activeChapter.shortTitle : (TOPIC_SHORT_NAMES[activeTopic?.slug] || activeTopic?.title || 'Lesson')}
+          <span className="text-xs font-bold text-slate-800 truncate max-w-[220px]">
+            {isComingSoon ? activeChapter.shortTitle : (activeTopic?.shortName || TOPIC_SHORT_NAMES[activeTopic?.slug] || activeTopic?.title || 'Lesson')}
           </span>
         </header>
 
@@ -1447,6 +1925,48 @@ export default function GitLearningView({
             /* Active Available Lesson View (Chapter 1) */
             <div className="w-full max-w-5xl xl:max-w-6xl mx-auto space-y-4">
               
+              {/* Top Meta Bar: Chapter Badge, Subchapter Label & Double-Tick Read/Unread Button */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-1 border-b border-slate-100/80">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 font-bold text-xs rounded-md border border-blue-200">
+                    Chapter {activeChapter.number}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium truncate max-w-[280px] sm:max-w-md">
+                    {activeTopic?.shortName || activeTopic?.title}
+                  </span>
+                </div>
+
+                {/* Double Tick Read / Unread Button */}
+                <button
+                  type="button"
+                  onClick={() => handleToggleCompleted(activeTopic?.slug)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all shadow-2xs cursor-pointer group select-none ${
+                    isCurrentLessonCompleted
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50/50'
+                  }`}
+                  title={isCurrentLessonCompleted ? "Click to mark as unread" : "Mark this lesson as read"}
+                >
+                  <CheckCheck
+                    size={15}
+                    className={`shrink-0 transition-colors ${
+                      isCurrentLessonCompleted
+                        ? 'text-emerald-600 group-hover:text-rose-600'
+                        : 'text-slate-400 group-hover:text-blue-600'
+                    }`}
+                    strokeWidth={isCurrentLessonCompleted ? 2.5 : 2}
+                  />
+                  {isCurrentLessonCompleted ? (
+                    <>
+                      <span className="group-hover:hidden">Read</span>
+                      <span className="hidden group-hover:inline">Mark Unread</span>
+                    </>
+                  ) : (
+                    <span>Mark as Read</span>
+                  )}
+                </button>
+              </div>
+
               {/* Main Lesson Title (H1: Used only once per lesson) */}
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0a192f] tracking-tight leading-snug">
                 {activeTopic?.title ? activeTopic.title.replace(/^(?:Day\s*\d+:|\d+\.)\s*/, '') : 'Lesson'}
@@ -1465,8 +1985,8 @@ export default function GitLearningView({
               {/* Main Content Markdown */}
               <GitLessonContent markdown={activeTopic?.content || ''} />
 
-              {/* Bottom Navigation: Previous and Next lesson controls */}
-              <footer className="pt-8 pb-14 border-t border-slate-100 mt-10 flex items-center justify-between">
+              {/* Bottom Navigation: Previous, Double-Tick Read/Unread, and Next lesson controls */}
+              <footer className="pt-8 pb-14 border-t border-slate-100 mt-10 flex items-center justify-between gap-3">
                 
                 {/* Previous Button */}
                 {previousTopic ? (
@@ -1488,11 +2008,41 @@ export default function GitLearningView({
                   </button>
                 )}
 
-                {/* Next Button */}
+                {/* Center Double Tick Button (Read / Unread) */}
+                <button
+                  type="button"
+                  onClick={() => handleToggleCompleted(activeTopic?.slug)}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border text-xs sm:text-[13px] font-bold transition-all shadow-2xs cursor-pointer group select-none ${
+                    isCurrentLessonCompleted
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50/50'
+                  }`}
+                  title={isCurrentLessonCompleted ? "Click to mark as unread" : "Mark this lesson as read"}
+                >
+                  <CheckCheck
+                    size={16}
+                    className={`shrink-0 transition-colors ${
+                      isCurrentLessonCompleted
+                        ? 'text-emerald-600 group-hover:text-rose-600'
+                        : 'text-slate-400 group-hover:text-blue-600'
+                    }`}
+                    strokeWidth={isCurrentLessonCompleted ? 2.5 : 2}
+                  />
+                  {isCurrentLessonCompleted ? (
+                    <>
+                      <span className="group-hover:hidden">Completed (Read)</span>
+                      <span className="hidden group-hover:inline">Mark as Unread</span>
+                    </>
+                  ) : (
+                    <span>Mark as Read</span>
+                  )}
+                </button>
+
+                {/* Next Button (Navigates to next lesson without auto-marking completed) */}
                 {nextTopic ? (
                   <button
                     type="button"
-                    onClick={handleCompleteAndNext}
+                    onClick={handleNextLesson}
                     className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-xs sm:text-[13px] shadow-sm transition-all flex items-center space-x-1 cursor-pointer"
                   >
                     <span>Next</span>
@@ -1502,12 +2052,12 @@ export default function GitLearningView({
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedChapterId('chapter-6');
-                      setSearchParams({ chapter: 'chapter-6' }, { replace: true });
+                      setSelectedChapterId('chapter-8');
+                      setSearchParams({ chapter: 'chapter-8' }, { replace: true });
                     }}
                     className="px-4 py-2.5 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs sm:text-[13px] border border-blue-200 flex items-center space-x-1.5 cursor-pointer hover:bg-blue-100 transition-colors"
                   >
-                    <span>Chapter 6 (Coming Soon)</span>
+                    <span>Chapter 8 (Coming Soon)</span>
                     <span>›</span>
                   </button>
                 )}
@@ -1569,21 +2119,42 @@ export default function GitLearningView({
                       <div className="space-y-0.5 pl-2">
                         {subchapters.map((t) => {
                           const isTopicSel = selectedChapterId === chapter.id && currentTopicSlug === t.slug;
+                          const isDone = completedLessons.includes(t.slug);
                           return (
-                            <button
+                            <div
                               key={t.slug}
-                              onClick={() => {
-                                handleSelectTopic(t.slug);
-                                setMobileMenuOpen(false);
-                              }}
-                              className={`w-full text-left px-2.5 py-1 rounded-lg text-xs truncate block cursor-pointer ${
+                              className={`w-full rounded-lg text-xs flex items-center justify-between ${
                                 isTopicSel
                                   ? 'bg-blue-50 text-blue-600 font-bold'
                                   : 'text-slate-600 hover:bg-slate-50 font-normal'
                               }`}
                             >
-                              {t.shortName}
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleSelectTopic(t.slug);
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="flex-1 text-left px-2.5 py-1.5 truncate cursor-pointer min-w-0"
+                              >
+                                {t.shortName}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleCompleted(t.slug);
+                                }}
+                                className={`p-1 mr-1 rounded cursor-pointer shrink-0 ${
+                                  isDone
+                                    ? 'text-emerald-600 hover:text-rose-600'
+                                    : 'text-slate-300 hover:text-blue-600'
+                                }`}
+                                title={isDone ? "Read (Click to mark unread)" : "Mark as read"}
+                              >
+                                <CheckCheck size={13} strokeWidth={isDone ? 2.5 : 1.8} />
+                              </button>
+                            </div>
                           );
                         })}
                       </div>
