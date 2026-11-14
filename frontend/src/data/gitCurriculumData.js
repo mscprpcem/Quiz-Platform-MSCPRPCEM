@@ -2,24 +2,14 @@ import { DAY_0_TOPIC, DAY_1_TOPIC, DAY_2_TOPIC, DAY_3_TOPIC, DAY_4_TOPIC, DAY_5_
 
 export const GIT_CURRICULUM = [
   {
-    id: 'week-0',
-    level: 0,
-    title: 'Orientation: Mental Models & Fundamentals (Day 0)',
-    subtitle: 'The Big Picture, Save Points, Git vs GitHub, computer literacy & 30-day roadmap.',
-    badge: 'Day 0: Orientation',
-    color: 'from-amber-500 to-orange-500',
-    topics: [
-      DAY_0_TOPIC
-    ]
-  },
-  {
-    id: 'week-1',
+    id: 'tier-1',
     level: 1,
-    title: 'Week 1: Foundations & Daily Workflow (Days 1–7)',
+    title: 'Chapter 1: Git Foundations & Daily Workflow',
     subtitle: 'Understand snapshots, .git anatomy, staging, commits, diffs, and .gitignore.',
-    badge: 'Week 1: Days 1–7',
+    badge: 'Chapter 1',
     color: 'from-blue-600 to-cyan-600',
     topics: [
+      DAY_0_TOPIC,
       DAY_1_TOPIC,
       DAY_2_TOPIC,
       DAY_3_TOPIC,
@@ -27,7 +17,7 @@ export const GIT_CURRICULUM = [
       DAY_5_TOPIC,
       {
         slug: 'git-log',
-        title: '6. History Inspection (git log, formatting & filtering)',
+        title: '7. Commit History Inspection (git log, formatting & filtering)',
         summary: 'Explore history, visualize branches with --graph, filter commits by author and date, and inspect SHA-1 IDs.',
         readTime: '5 min read',
         content: `
@@ -67,7 +57,7 @@ git log --since="7 days ago"
       },
       {
         slug: 'git-diff',
-        title: '7. Comparing States (git diff: Working vs Staged vs HEAD)',
+        title: '8. Comparing States (git diff: Working vs Staged vs HEAD)',
         summary: 'Learn how to inspect line-by-line additions and deletions before staging or committing.',
         readTime: '5 min read',
         content: `
@@ -99,7 +89,7 @@ git diff main feature/login
       },
       {
         slug: 'gitignore',
-        title: '8. Ignoring Files (.gitignore Patterns & Rules)',
+        title: '9. Ignoring Files (.gitignore Patterns & Rules)',
         summary: 'Keep build artifacts, environment secrets, and editor caches out of source control forever.',
         readTime: '6 min read',
         content: `
@@ -1004,68 +994,69 @@ When dealing with conflicts across 50+ files during a major framework upgrade:
   }
 ];
 
-// 30-Day Developer Mastery Roadmap
+// 30-Chapter Developer Mastery Roadmap
 export const GIT_ROADMAP = [
   {
-    week: 'Orientation',
-    title: 'Orientation & Mental Models',
-    days: [
-      { day: 0, title: 'Day 0: The Big Picture, Git vs GitHub & Computer Literacy', topic: 'day-0-orientation' }
-    ]
+    week: 'Part 1',
+    partName: 'Part 1',
+    title: 'Foundations & Daily Workflow (Chapters 1–7)',
+    chapters: [
+      { chapter: 1, day: 1, title: 'Chapter 1: Orientation & VCS Fundamentals', topic: 'git-basics' },
+      { chapter: 2, day: 2, title: 'Chapter 2: Git Configuration (git config, Local vs. Global)', topic: 'git-config' },
+      { chapter: 3, day: 3, title: 'Chapter 3: Repository Basics & The Three Trees', topic: 'git-init' },
+      { chapter: 4, day: 4, title: 'Chapter 4: Basic Git Commands (add, commit, status, .gitignore)', topic: 'git-status-add' },
+      { chapter: 5, day: 5, title: 'Chapter 5: GitHub Essentials (Account, Interface, Profile README)', topic: 'github-essentials' },
+      { chapter: 6, day: 6, title: 'Chapter 6: Repositories & Documentation', topic: 'git-log' },
+      { chapter: 7, day: 7, title: 'Chapter 7: Git Remotes & Cloud Sync', topic: 'gitignore' }
+    ],
+    get days() { return this.chapters; }
   },
   {
-    week: 'Week 1',
-    title: 'Foundations & Daily Workflow',
-    days: [
-      { day: 1, title: 'Day 1: Version Control Fundamentals & Local Installation', topic: 'git-basics' },
-      { day: 2, title: 'Day 2: Git Configuration (git config, Local vs. Global)', topic: 'git-config' },
-      { day: 3, title: 'Day 3: Repository Basics & The Three Trees', topic: 'git-init' },
-      { day: 4, title: 'Day 4: Basic Git Commands (add, commit, log, .gitignore)', topic: 'git-status-add' },
-      { day: 5, title: 'Day 5: GitHub Essentials (Account, Interface, Profile & Profile README)', topic: 'github-essentials' },
-      { day: 6, title: 'Day 6: Repositories & Documentation', topic: 'git-log' },
-      { day: 7, title: 'Day 7: Git Remotes & Cloud Sync', topic: 'gitignore' }
-    ]
+    week: 'Part 2',
+    partName: 'Part 2',
+    title: 'Branching & History Manipulation (Chapters 8–14)',
+    chapters: [
+      { chapter: 8, day: 8, title: 'Chapter 8: Branch Pointers & Mechanics', topic: 'branching-basics' },
+      { chapter: 9, day: 9, title: 'Chapter 9: Branch Switching & Detached HEAD', topic: 'checkout-switch' },
+      { chapter: 10, day: 10, title: 'Chapter 10: Fast-Forward vs 3-Way Recursive Merges', topic: 'merging-mechanics' },
+      { chapter: 11, day: 11, title: 'Chapter 11: Linear Rebasing & The Golden Rule', topic: 'rebasing-linear' },
+      { chapter: 12, day: 12, title: 'Chapter 12: Context Switching with git stash', topic: 'stashing-changes' },
+      { chapter: 13, day: 13, title: 'Chapter 13: Undoing Changes: restore, reset & revert', topic: 'undoing-changes' },
+      { chapter: 14, day: 14, title: 'Chapter 14: Resolving Merge Conflicts Confidently', topic: 'merge-conflicts' }
+    ],
+    get days() { return this.chapters; }
   },
   {
-    week: 'Week 2',
-    title: 'Branching & History Manipulation',
-    days: [
-      { day: 8, title: 'Branch Pointers & Mechanics', topic: 'branching-basics' },
-      { day: 9, title: 'Branch Switching & Detached HEAD', topic: 'checkout-switch' },
-      { day: 10, title: 'Fast-Forward vs 3-Way Recursive Merges', topic: 'merging-mechanics' },
-      { day: 11, title: 'Linear Rebasing & The Golden Rule', topic: 'rebasing-linear' },
-      { day: 12, title: 'Context Switching with git stash', topic: 'stashing-changes' },
-      { day: 13, title: 'Undoing Changes: restore, reset & revert', topic: 'undoing-changes' },
-      { day: 14, title: 'Resolving Merge Conflicts Confidently', topic: 'merge-conflicts' }
-    ]
+    week: 'Part 3',
+    partName: 'Part 3',
+    title: 'GitHub & Team Collaboration (Chapters 15–21)',
+    chapters: [
+      { chapter: 15, day: 15, title: 'Chapter 15: Remote Configuration & Origin Conventions', topic: 'remotes-origin' },
+      { chapter: 16, day: 16, title: 'Chapter 16: Synchronization: fetch vs pull vs push', topic: 'fetch-pull-push' },
+      { chapter: 17, day: 17, title: 'Chapter 17: Upstream Tracking & Upstream Branches', topic: 'upstream-tracking' },
+      { chapter: 18, day: 18, title: 'Chapter 18: Open-Source Fork-and-Pull Workflows', topic: 'forks-sync' },
+      { chapter: 19, day: 19, title: 'Chapter 19: High-Impact Pull Requests & Issue Linking', topic: 'pull-requests' },
+      { chapter: 20, day: 20, title: 'Chapter 20: Professional Code Reviews & Suggestions', topic: 'code-reviews' },
+      { chapter: 21, day: 21, title: 'Chapter 21: GitHub Projects, Milestones & Backlogs', topic: 'issues-projects' }
+    ],
+    get days() { return this.chapters; }
   },
   {
-    week: 'Week 3',
-    title: 'GitHub & Team Collaboration',
-    days: [
-      { day: 15, title: 'Remote Configuration & Origin Conventions', topic: 'remotes-origin' },
-      { day: 16, title: 'Synchronization: fetch vs pull vs push', topic: 'fetch-pull-push' },
-      { day: 17, title: 'Upstream Tracking & Upstream Branches', topic: 'upstream-tracking' },
-      { day: 18, title: 'Open-Source Fork-and-Pull Workflows', topic: 'forks-sync' },
-      { day: 19, title: 'High-Impact Pull Requests & Issue Linking', topic: 'pull-requests' },
-      { day: 20, title: 'Professional Code Reviews & Suggestions', topic: 'code-reviews' },
-      { day: 21, title: 'GitHub Projects, Milestones & Backlogs', topic: 'issues-projects' }
-    ]
-  },
-  {
-    week: 'Week 4',
-    title: 'Power Tools & Production Mastery',
-    days: [
-      { day: 22, title: 'Interactive Rebase: Squash & Reword', topic: 'interactive-rebase' },
-      { day: 23, title: 'Disaster Recovery with git reflog', topic: 'git-reflog' },
-      { day: 24, title: 'Binary Bug Hunting with git bisect', topic: 'git-bisect' },
-      { day: 25, title: 'Semantic Versioning & Annotated Tags', topic: 'tags-semver' },
-      { day: 26, title: 'GitHub Actions CI/CD Automated Pipelines', topic: 'github-actions' },
-      { day: 27, title: 'Trunk-Based vs GitFlow Branching Models', topic: 'team-git-workflows' },
-      { day: 28, title: 'Emergency Hotfix Deployment Workflows', topic: 'emergency-hotfix' },
-      { day: 29, title: 'Scrubbing Leaked Secrets from Git History', topic: 'secret-scrubbing' },
-      { day: 30, title: 'Open Source Contribution, DCO & Commit Signing', topic: 'open-source-contributing' }
-    ]
+    week: 'Part 4',
+    partName: 'Part 4',
+    title: 'Power Tools & Production Mastery (Chapters 22–30)',
+    chapters: [
+      { chapter: 22, day: 22, title: 'Chapter 22: Interactive Rebase: Squash & Reword', topic: 'interactive-rebase' },
+      { chapter: 23, day: 23, title: 'Chapter 23: Disaster Recovery with git reflog', topic: 'git-reflog' },
+      { chapter: 24, day: 24, title: 'Chapter 24: Binary Bug Hunting with git bisect', topic: 'git-bisect' },
+      { chapter: 25, day: 25, title: 'Chapter 25: Semantic Versioning & Annotated Tags', topic: 'tags-semver' },
+      { chapter: 26, day: 26, title: 'Chapter 26: GitHub Actions CI/CD Automated Pipelines', topic: 'github-actions' },
+      { chapter: 27, day: 27, title: 'Chapter 27: Trunk-Based vs GitFlow Branching Models', topic: 'team-git-workflows' },
+      { chapter: 28, day: 28, title: 'Chapter 28: Emergency Hotfix Deployment Workflows', topic: 'emergency-hotfix' },
+      { chapter: 29, day: 29, title: 'Chapter 29: Scrubbing Leaked Secrets from Git History', topic: 'secret-scrubbing' },
+      { chapter: 30, day: 30, title: 'Chapter 30: Open Source Contribution, DCO & Ecosystem', topic: 'open-source-contributing' }
+    ],
+    get days() { return this.chapters; }
   }
 ];
 

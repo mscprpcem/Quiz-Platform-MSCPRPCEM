@@ -295,7 +295,7 @@ export default function Courses() {
                           <Terminal size={10} /> Virtual Git Engine
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200/80 flex items-center gap-1">
-                          <ShieldCheck size={10} /> 20+ Practice Labs
+                          <ShieldCheck size={10} /> 70 Practice Labs
                         </span>
                       </div>
                     )}

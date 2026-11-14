@@ -4,14 +4,14 @@
 
 export const DAY_3_METADATA = {
   day: 3,
-  week: 'Week 1',
-  weekTitle: 'Week 1: Foundations & Daily Workflow',
+  week: 'Chapter 1',
+  weekTitle: 'Chapter 1: Git Foundations & Daily Workflow',
   slug: 'git-init',
-  title: 'Day 3: Repository Basics & The Three Trees',
-  shortTitle: 'Day 3: Repository Basics',
+  title: 'Repository Basics & The Three Trees',
+  shortTitle: '4. Repo Anatomy',
   summary: 'Understand Git repositories, the Three-Stage Architecture (Working Directory, Staging Area, Local Repository), file lifecycles, and .git internal anatomy.',
   readTime: '7 min read',
-  badge: 'Day 3: Architecture',
+  badge: 'Chapter 1',
   color: 'from-blue-600 to-indigo-600',
   modules: [
     '1. What is a Git Repository?',
@@ -26,14 +26,14 @@ export const DAY_3_METADATA = {
 
 export const DAY_3_TOPIC = {
   slug: 'git-init',
-  title: 'Day 3: Repository Basics & The Three Trees (git init, .git Anatomy)',
+  title: 'Repository Basics & The Three Trees (git init, .git Anatomy)',
   summary: 'Explore what defines a Git repository, the three stages of Git architecture, untracked vs tracked file lifecycles, initializing repos with git init, and deep inspection of .git.',
   readTime: '7 min read',
-  badge: 'Day 3: Architecture',
+  badge: 'Chapter 1',
   content: `
 ### Overview: The Mechanics of a Git Repository
 
-Welcome to **Day 3** of the 30-Day Git & GitHub Developer Roadmap. Today, you unlock the core internal engine of Git.
+Welcome to Repository Basics and Architecture. In this lesson, you unlock the core internal engine of Git.
 
 Understanding how Git separates your files into three distinct areas and tracks their lifecycle is the single most important mental model in version control. Once you understand the **Three Trees**, Git commands like \`add\`, \`commit\`, \`status\`, and \`checkout\` become intuitive and predictable.
 
@@ -123,7 +123,7 @@ git init
 Running \`git init\` creates a hidden subfolder named \`.git\` at the root of your project directory:
 
 * It **does not alter, move, or overwrite** any of your existing code files.
-* It sets up the default tracking branch (configured as \`main\` on Day 2).
+* It sets up the default tracking branch (configured as \`main\` in your Git configuration).
 * **Destruction Warning:** If you delete the \`.git\` folder, your project reverts to a standard unversioned folder, and all commit history and branches are permanently erased.
 
 ---
@@ -163,11 +163,11 @@ Follow these terminal steps to create a practice repository, initialize tracking
 # Navigate to your workspace (e.g., Desktop or Projects)
 cd Desktop
 
-# Create a new directory for today's exercise
-mkdir day3-repo-practice
+# Create a new directory for this exercise
+mkdir git-repo-practice
 
 # Step inside the newly created directory
-cd day3-repo-practice
+cd git-repo-practice
 \`\`\`
 
 #### Step 2: Initialize the Repository
@@ -179,7 +179,7 @@ git init
 
 **Expected Terminal Output:**
 \`\`\`plaintext
-Initialized empty Git repository in /Users/<Username>/Desktop/day3-repo-practice/.git/
+Initialized empty Git repository in /Users/<Username>/Desktop/git-repo-practice/.git/
 \`\`\`
 
 #### Step 3: Inspect the Filesystem for Hidden Contents

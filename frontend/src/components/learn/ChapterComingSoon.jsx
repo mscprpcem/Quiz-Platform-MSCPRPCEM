@@ -88,7 +88,7 @@ export default function ChapterComingSoon({
                 <div className="flex items-center justify-between text-blue-800 font-black text-xs">
                   <div className="flex items-center space-x-1.5">
                     <Database size={14} />
-                    <span>0. Fundamentals</span>
+                    <span>Chapter 1: Fundamentals</span>
                   </div>
                   <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -105,7 +105,7 @@ export default function ChapterComingSoon({
                 <div className="flex items-center justify-between text-emerald-900 font-black text-xs">
                   <div className="flex items-center space-x-1.5">
                     <Layers size={14} />
-                    <span>1. DDL Deep Dive</span>
+                    <span>Chapter 3: DDL Deep Dive</span>
                   </div>
                   <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </div>

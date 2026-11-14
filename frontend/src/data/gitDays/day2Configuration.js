@@ -4,14 +4,14 @@
 
 export const DAY_2_METADATA = {
   day: 2,
-  week: 'Week 1',
-  weekTitle: 'Week 1: Foundations & Daily Workflow',
+  week: 'Chapter 1',
+  weekTitle: 'Chapter 1: Git Foundations & Daily Workflow',
   slug: 'git-config',
-  title: 'Day 2: Git Configuration (git config, Local vs. Global)',
-  shortTitle: 'Day 2: Git Configuration',
+  title: 'Git Configuration (git config, Local vs. Global)',
+  shortTitle: '3. Configuration',
   summary: 'Master configuration levels (System, Global, Local), precedence rules, author identity embedding, essential core defaults, and debugging with --show-origin.',
   readTime: '7 min read',
-  badge: 'Day 2: Configuration',
+  badge: 'Chapter 1',
   color: 'from-blue-600 to-indigo-600',
   modules: [
     '1. What is Git Configuration?',
@@ -27,14 +27,14 @@ export const DAY_2_METADATA = {
 
 export const DAY_2_TOPIC = {
   slug: 'git-config',
-  title: 'Day 2: Git Configuration (git config, Local vs. Global)',
+  title: 'Git Configuration (git config, Local vs. Global)',
   summary: 'Learn how Git tracks commit identity, how configuration scopes cascade from System to Global to Local, essential editor and newline settings, and configuration inspection.',
   readTime: '7 min read',
-  badge: 'Day 2: Configuration',
+  badge: 'Chapter 1',
   content: `
 ### Overview: Git Configuration & Identity Architecture
 
-Welcome to **Day 2** of the 30-Day Git & GitHub Developer Roadmap. Today, you configure your developer identity and establish reliable system-wide defaults.
+Welcome to Git Configuration. In this lesson, you configure your developer identity and establish reliable system-wide defaults.
 
 Git never operates anonymously. Before you record your first snapshot, Git requires an author identity that permanently attaches to every change you ever make.
 
@@ -83,15 +83,17 @@ Git stores its settings across three distinct configuration levels (or scopes). 
 
 | Scope Level | CLI Flag | File System Location | Typical Use Case |
 | :--- | :--- | :--- | :--- |
-| **System** | \`--system\` | **Unix/macOS:** \`/etc/gitconfig\`<br/>**Windows:** \`C:\\Program Files\\Git\\etc\\gitconfig\` | Applied across all user accounts on the physical computer. Rarely edited unless managing multi-user shared lab servers. |
-| **Global** | \`--global\` | **Unix/macOS:** \`~/.gitconfig\` or \`~/.config/git/config\`<br/>**Windows:** \`C:\\Users\\<Username>\\.gitconfig\` | General identity and baseline settings applied to every repository created or cloned by your computer profile. |
+| **System** | \`--system\` | **Unix/macOS:** \`/etc/gitconfig\` <br/> **Windows:** \`C:\\Program Files\\Git\\etc\\gitconfig\` | Applied across all user accounts on the physical computer. Rarely edited unless managing multi-user shared lab servers. |
+| **Global** | \`--global\` | **Unix/macOS:** \`~/.gitconfig\` or \`~/.config/git/config\` <br/> **Windows:** \`C:\\Users\\<Username>\\.gitconfig\` | General identity and baseline settings applied to every repository created or cloned by your computer profile. |
 | **Local** | \`--local\` | \`<Repository-Root>/.git/config\` | Applied strictly inside one individual project folder. Used when a specific project requires an alternate email address or custom remote settings. |
 
 #### Precedence Rule
 
 If the exact same configuration variable is set at multiple levels, Git resolves settings in order of specificity:
 
-$$\\textbf{Local} \\; (\\text{Highest Precedence}) \\;\\; > \\;\\; \\textbf{Global} \\;\\; > \\;\\; \\textbf{System} \\; (\\text{Lowest Precedence})$$
+:::info Precedence Hierarchy
+**Local** (Highest Precedence) &nbsp;➔&nbsp; **Global** &nbsp;➔&nbsp; **System** (Lowest Precedence)
+:::
 
 > **Important Detail:** If you execute \`git config\` inside an existing repository without supplying an explicit scope flag (such as \`--global\` or \`--system\`), Git defaults to \`--local\`. If executed outside of a repository without flags, Git throws a fatal error because no \`.git/config\` file exists to modify.
 
@@ -108,7 +110,7 @@ git config --global user.email "your.email@example.com"
 \`\`\`
 
 * **user.name:** Your professional name or public handle (e.g., Alex Morgan). It does not need to match your operating system account username.
-* **user.email:** The email address where your contributions are credited. For GitHub integration, this should match the verified email address linked to your GitHub account (which will be configured on Day 5).
+* **user.email:** The email address where your contributions are credited. For GitHub integration, this should match the verified email address linked to your GitHub account (which will be configured in the GitHub Essentials lesson).
 
 #### Setting a Local (Per-Repository) Identity
 When contributing to an employer codebase, client project, or institutional assignment that mandates a specific work/school email address (e.g., \`alex@university.edu\`), navigate inside that repository's directory and execute:
@@ -269,7 +271,7 @@ git config --global --edit
 
 ### 7. Practical Task Walkthrough
 
-Complete the following validation sequence in your terminal to fulfill the Day 2 practical assignment:
+Complete the following validation sequence in your terminal to fulfill the practical assignment:
 
 \`\`\`bash
 # Step 1: Set your global name

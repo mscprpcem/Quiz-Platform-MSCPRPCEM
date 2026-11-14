@@ -4,14 +4,14 @@
 
 export const DAY_1_METADATA = {
   day: 1,
-  week: 'Week 1',
-  weekTitle: 'Week 1: Foundations & Daily Workflow',
+  week: 'Chapter 1',
+  weekTitle: 'Chapter 1: Git Foundations & Daily Workflow',
   slug: 'git-basics',
-  title: 'Day 1: Version Control Fundamentals & Local Installation',
-  shortTitle: 'Day 1: VCS Fundamentals',
+  title: 'Version Control Fundamentals & Local Installation',
+  shortTitle: '2. VCS Fundamentals',
   summary: 'Understand the core definition of VCS, the 4 Ws of tracking, why version control replaces manual duplicates, Centralized vs Distributed architectures, OS installation, and terminal verification.',
   readTime: '7 min read',
-  badge: 'Day 1: Foundations',
+  badge: 'Chapter 1',
   color: 'from-blue-600 to-cyan-600',
   modules: [
     '1. What is Version Control? (The 4 Ws)',
@@ -25,194 +25,110 @@ export const DAY_1_METADATA = {
 
 export const DAY_1_TOPIC = {
   slug: 'git-basics',
-  title: 'Day 1: Version Control Fundamentals & Local Installation',
-  summary: 'Understand what version control is, why we use it, Centralized vs Distributed VCS architectures, how to install Git on Windows, macOS, and Linux, and terminal verification.',
-  readTime: '7 min read',
-  badge: 'Day 1: Foundations',
+  title: 'Version Control Fundamentals & Local Installation',
+  summary: 'Learning objective: Understand what version control is, why developers use it, and how to install and verify Git.',
+  readTime: '6 min read',
+  badge: 'Chapter 1',
   content: `
-### Overview: Version Control Fundamentals
+### Overview
 
-Welcome to **Day 1** of the 30-Day Git & GitHub Developer Roadmap. Today, you build the foundational bedrock for your entire software development career.
-
-Before running repository commands, you must understand what version control actually accomplishes behind the scenes, why manual file duplication is fundamentally flawed, how Git differs architecturally from older centralized tools, and how to properly install and verify Git across all major operating systems.
+Welcome to Chapter 1 of the Git & GitHub curriculum. In this lesson, you will learn the basics of version control and set up Git on your computer.
 
 ---
 
 ### 1. What is Version Control?
 
-A **Version Control System (VCS)** is a specialized software tool that tracks and manages every change made to computer files over time.
+A **Version Control System (VCS)** tracks and manages changes made to files over time.
 
-Whenever a change is recorded, the system saves an exact, permanent record answering the **4 Core Questions**:
+It helps answer four questions:
 
-* **What changed:** Which exact lines were added, altered, or deleted across every tracked file.
-* **Who made the change:** The exact author name and email attached to the modification.
-* **When it occurred:** The precise date, time, and timezone timestamp.
-* **Why it was done:** A mandatory, structured commit message explaining the technical intent and business justification.
+| Question | Meaning |
+| :--- | :--- |
+| **What changed?** | Which lines were added, modified, or deleted? |
+| **Who changed it?** | Who made the modification? |
+| **When did it happen?** | When was the change recorded? |
+| **Why was it changed?** | What was the purpose of the change? |
 
-![What is Version Control (VCS) and the 4 Core Metadata Pillars (What, Who, When, Why)](/assets/git-vcs-fundamentals.jpg)
+#### Example: Managing files without version control
 
-> **Key Architectural Insight:** In software development, code is not written once and forgotten. Code evolves continuously. Without a system answering What, Who, When, and Why, codebases rapidly decay into unmaintainable chaos.
+* Project.txt
+* Project_v2.txt
+* Project_final.txt
+* Project_final_latest.txt
+
+Maintaining multiple copies manually makes it difficult to identify the latest version and understand what changed.
+
+:::tip Key point
+Version control keeps a history of changes so developers do not need to manage project versions manually.
+:::
 
 ---
 
 ### 2. Why Use Version Control?
 
-Without version control, backups rely on duplicating files manually (e.g., \`script_v1.py\`, \`script_v2_final.py\`, \`script_final_real.py\`). Version control completely eliminates this fragile workflow by providing five core guarantees:
-
-* **Complete Historical Record:** Reverts any file or entire project back to a prior state without losing progress or rewriting working code.
-* **Traceability and Accountability:** Pinpoints the exact line where an error or regression was introduced, what caused it, and who committed it.
-* **Branching & Experimentation:** Allows developers to test new features, refactor modules, or explore experimental algorithms in isolated environments without risking production-ready code.
-* **Concurrent Collaboration:** Enables multiple engineers to work on the exact same codebase simultaneously, merging modifications together programmatically without overwriting each other's contributions.
-* **Audit Trail & Documentation:** Creates an organized, immutable change log that serves as living technical documentation for the entire project history.
+* **Collaboration:** Multiple developers can work on the same project.
+* **History:** Review previous changes.
+* **Recovery:** Restore an earlier version when needed.
+* **Experimentation:** Try changes without losing the stable version.
 
 ---
 
-### 3. Git vs. Other Version Control Systems
+### 3. Install Git
 
-Version control architectures fall into two primary models: **Centralized** and **Distributed**.
+Choose the instructions for your operating system.
 
-\`\`\`
-Centralized (CVCS):              Distributed (DVCS - Git):
-   [ Central Server ]               [ Central / Remote ]
-     /      |      \\                   ^        ^
-    v       v       v                  |        |
-[Dev A]  [Dev B]  [Dev C]           [Dev A]  [Dev B]
-(Working (Working (Working          (Full    (Full
- Copy)    Copy)    Copy)            Clone)   Clone)
-\`\`\`
+#### Windows
 
-#### Centralized Version Control Systems (CVCS)
-* **Examples:** Apache Subversion (SVN), CVS, Perforce.
-* **Architecture:** A single central server houses the entire version history and database. Individual clients check out only a single snapshot of the files locally (the working copy).
-* **Limitations:**
-  * **Single Point of Failure:** If the central server crashes, corrupts, or suffers hardware failure, the entire project history is lost unless an external backup exists.
-  * **Network Dependent:** Viewing commit history, creating branches, inspecting diffs, or saving versions requires an active, uninterrupted network connection to the server.
+Download and run the installer from the [official Git website](https://git-scm.com/downloads/win).
 
-#### Distributed Version Control Systems (DVCS)
-* **Examples:** Git, Mercurial.
-* **Architecture:** Every client clones the **entire repository**—including the full commit history, branches, tags, and cryptographic hashes—directly onto their local storage.
-
-![Centralized Version Control Systems (CVCS) vs Distributed Version Control Systems (DVCS like Git)](/assets/git-cvcs-vs-dvcs.jpg)
-
-#### Advantages of Git:
-* **Offline Capability:** Commits, branches, diffs, and logs execute locally on your machine without requiring network access.
-* **Redundancy & Safety:** Every developer's machine acts as a complete, independent backup of the entire repository history.
-* **Speed:** File operations happen directly on local disk storage rather than traversing a network connection.
-* **Lightweight Branching Model:** Git’s branching system is near-instantaneous and lightweight (a 41-byte pointer to a commit) compared to older systems where branching required duplicating entire folder trees.
-
----
-
-### 4. Practical Task: Installing Git Locally
-
-Follow the instructions corresponding to your operating system to install Git and verify the setup.
-
-#### Option A: Windows Installation
-
-**Method 1: Official Installer (Recommended for Beginners)**
-1. Navigate to the official installer page: [https://git-scm.com/install/windows](https://git-scm.com/install/windows).
-2. Download the 64-bit Git for Windows Setup executable.
-3. Run the Setup Wizard and configure the recommended defaults:
-   * **Default Editor:** When prompted to choose an editor, select **Visual Studio Code** (or your preferred editor).
-   * **Initial Branch Name:** Choose **Override the default branch name for new repositories** and set it to \`main\`.
-   * **PATH Environment:** Select **Git from the command line and also from 3rd-party software** (recommended).
-   * **Line Ending Conversions:** Select **Checkout Windows-style, commit Unix-style line endings** (\`core.autocrlf = true\`).
-   * **Terminal Emulator:** Choose **Use MinTTY (the default terminal of MSYS2)**.
-4. Leave the remaining options at their default settings and click **Install**.
-
-**Method 2: Windows Package Manager (Quickest via PowerShell)**
-Open PowerShell as an Administrator and execute:
-
-\`\`\`powershell
-winget install --id Git.Git -e --source winget
-\`\`\`
-
-*(After installation completes, close and restart your terminal session).*
-
----
-
-#### Option B: macOS Installation
-
-Choose one of the following methods:
-
-**Method 1: Apple Developer Command Line Tools (Quickest)**
-Open Terminal (\`Cmd + Space\`, search for \`Terminal\`) and run:
-
-\`\`\`bash
-xcode-select --install
-\`\`\`
-
-Click **Install** in the software update popup dialog and accept the license terms.
-
-**Method 2: Homebrew (Recommended for Latest Releases)**
-If Homebrew is installed on your Mac, run:
+#### macOS
 
 \`\`\`bash
 brew install git
 \`\`\`
 
----
+#### Linux (Ubuntu/Debian)
 
-#### Option C: Linux Installation
-
-Open your terminal and run the command tailored for your Linux distribution:
-
-**Debian / Ubuntu:**
 \`\`\`bash
 sudo apt update
-sudo apt install git -y
-\`\`\`
-
-**Fedora / RHEL / CentOS:**
-\`\`\`bash
-sudo dnf install git -y
-\`\`\`
-
-**Arch Linux:**
-\`\`\`bash
-sudo pacman -S git
+sudo apt install git
 \`\`\`
 
 ---
 
-### 5. Verifying the Installation
+### 4. Verify the Installation
 
-Once installation finishes, close any open terminal windows and launch a **new terminal session** (Command Prompt or PowerShell on Windows, Terminal on macOS/Linux).
-
-#### 1. Version Verification Command
-Run the version check in your terminal:
+Open a terminal and run:
 
 \`\`\`bash
 git --version
 \`\`\`
 
-**Expected Output:**
-The command must output the installed version string without errors:
-\`\`\`
-git version 2.x.x
-\`\`\`
-*(Any version \`2.x.x\` confirms that the Git binary is installed, functioning, and available in your system's PATH).*
-
-#### 2. Help Command to Inspect Core Subcommands
-Run the help command:
+Example output:
 
 \`\`\`bash
-git --help
+git version 2.x.x
 \`\`\`
 
-*(This confirms the Git executable is responsive and prints standard command-line options such as clone, init, add, status, diff, commit, and branch).*
-
-![Installing Git Locally and Verifying the Installation across Windows, macOS, and Linux](/assets/git-install-verify.jpg)
+The exact version may be different. If the command displays a Git version, the installation is working.
 
 ---
 
-### Quick Reference Summary
+### Key Takeaways
 
-| Concept | Definition |
-| :--- | :--- |
-| **VCS** | Software that records changes to a file or set of files over time. |
-| **CVCS** | Centralized VCS; depends on a single server for full history. |
-| **DVCS** | Distributed VCS; every client has a complete copy of repository history. |
-| **Git** | An open-source, local distributed version control software. |
-| **Verification Command** | \`git --version\` (used to verify successful installation). |
+* Version control tracks changes to files.
+* It records what changed, who changed it, when, and why.
+* Git helps developers collaborate, review history, recover work, and experiment safely.
+* Git can be installed on Windows, macOS, and Linux.
+
+---
+
+### Useful Resources
+
+* [Git official website](https://git-scm.com/)
+* [Git documentation](https://git-scm.com/doc)
+* [GitHub documentation](https://docs.github.com/)
+
+Next lesson: Continue to the next lesson using the Next button.
 `
 };

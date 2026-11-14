@@ -5,14 +5,14 @@
 
 export const DAY_0_METADATA = {
   day: 0,
-  week: 'Orientation',
-  weekTitle: 'Day 0: Orientation & Mental Models',
+  week: 'Chapter 1',
+  weekTitle: 'Chapter 1: Git Foundations & Daily Workflow',
   slug: 'day-0-orientation',
-  title: 'Day 0: The Big Picture & Orientation',
-  shortTitle: 'Day 0: Big Picture',
-  summary: 'Understand why version control exists, the snapshot mental model, Git versus GitHub, CLI versus GUI, and the 30-day curriculum structure.',
+  title: 'Orientation & Mental Models: What Problem Does Git Solve?',
+  shortTitle: '1. Orientation',
+  summary: 'Understand why version control exists, the snapshot mental model, Git versus GitHub, CLI versus GUI, and the chapter curriculum structure.',
   readTime: '6 min read',
-  badge: 'Day 0: Orientation',
+  badge: 'Chapter 1',
   color: 'from-blue-600 to-indigo-600',
   modules: [
     'The Problem: Manual Versioning Chaos',
@@ -20,16 +20,16 @@ export const DAY_0_METADATA = {
     'Git vs GitHub: Local Engine vs Cloud Hub',
     'Interface: Terminal CLI vs GUI',
     'Essential Git Terminology',
-    'The 30-Day Curriculum Structure'
+    'The 5-Chapter Curriculum Structure'
   ]
 };
 
 export const DAY_0_TOPIC = {
   slug: 'day-0-orientation',
-  title: 'The Big Picture & Orientation: What Problem Does Git Solve?',
-  summary: 'Understand why version control exists, the snapshot mental model, Git versus GitHub, CLI versus GUI, and the 30-day curriculum structure.',
+  title: 'Orientation & Mental Models: What Problem Does Git Solve?',
+  summary: 'Understand why version control exists, the snapshot mental model, Git versus GitHub, CLI versus GUI, and the chapter curriculum structure.',
   readTime: '6 min read',
-  badge: 'Day 0: Orientation',
+  badge: 'Chapter 1',
   content: `
 ### Overview: Why Version Control Matters
 
@@ -120,20 +120,23 @@ Familiarize yourself with these core technical terms before starting practical t
 
 ---
 
-### 6. The 30-Day Curriculum Roadmap
+### 6. The 5-Chapter Curriculum Structure
 
-The roadmap is structured across four progressive phases:
+The curriculum is structured across five progressive chapters:
 
-* **Week 1 (Days 1–7): Foundations and Local Workflow**
-  Installing Git, identity configuration, staging, atomic commits, diff inspection, and remote repository links.
+* **Chapter 1: Git Foundations & Daily Workflow**
+  Orientation, version control fundamentals, identity configuration, repository anatomy, staging, atomic commits, diff inspection, and ignoring files.
 
-* **Week 2 (Days 8–14): Branching, Merging, and History**
-  Isolated feature branches, fast-forward versus three-way merges, merge conflict resolution, and the stash cache.
+* **Chapter 2: Branching, Merging & History**
+  Branching strategies, switching branches, merge mechanics, linear rebasing, stashing, undoing changes, cherry-picking, and conflict resolution.
 
-* **Week 3 (Days 15–21): Collaboration and Open Source**
-  Forks, professional Pull Request lifecycles, structured code reviews, issue tracking, and release tags.
+* **Chapter 3: GitHub & Remote Collaboration**
+  Remote origins, push/pull mechanics, upstream tracking, forks, pull requests, code reviews, and project management.
 
-* **Week 4 (Days 22–30): Advanced Workflows and Automation**
-  Interactive rebasing, cherry-picking, reflog disaster recovery, submodules, and automated CI/CD with GitHub Actions.
+* **Chapter 4: Advanced Power Tools & Automation**
+  Interactive rebasing, reflog disaster recovery, binary search debugging (git bisect), tags, semantic versioning, and GitHub Actions CI/CD.
+
+* **Chapter 5: Production Workflows & Incident Recovery**
+  Team Git workflows (Trunk vs Gitflow), secret scrubbing, emergency hotfix pipelines, complex conflict resolution, and open-source contributions.
 `
 };

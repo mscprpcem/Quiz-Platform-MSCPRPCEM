@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BookOpen, Copy, Check, Table, CheckCircle2, ChevronRight,
   ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Lightbulb, Code2, Menu, X, Maximize2,
@@ -21,8 +22,56 @@ import InsertQuestionsBank from '../components/learn/InsertQuestionsBank';
 import NullLogicGuide from '../components/learn/NullLogicGuide';
 
 /**
- * SQL Syntax Colorizer
- * Highlights SQL keywords, data types, numbers, strings, comments, and identifiers on modern dark IDE background
+ * Clean, Concise Short Names for Sidebar & Navigation (Chapter & Subchapter format)
+ */
+export const SQL_TOPIC_SHORT_NAMES = {
+  // Chapter 1: SQL Fundamentals
+  'top-01-01': 'Subchapter 1.1: DBMS vs RDBMS',
+  'top-01-02': 'Subchapter 1.2: Tables, Rows & Schema',
+  'top-01-03': 'Subchapter 1.3: SQL Command Types',
+  'top-01-04': 'Subchapter 1.4: Install MySQL & Workbench',
+
+  // Chapter 2: Keywords, Data Types & Operators
+  'top-02-01': 'Subchapter 2.1: Keywords & Reserved Words',
+  'top-02-02': 'Subchapter 2.2: Data Types Deep Dive',
+  'top-02-03': 'Subchapter 2.3: Operators & Precedence',
+
+  // Chapter 3: Data Definition Language (DDL)
+  'top-create-table': 'Subchapter 3.1: CREATE Table',
+  'top-alter-table': 'Subchapter 3.2: ALTER Table',
+  'top-rename-table': 'Subchapter 3.3: RENAME Operations',
+  'top-truncate-table': 'Subchapter 3.4: TRUNCATE Table',
+  'top-drop-table': 'Subchapter 3.5: DROP Database & Table',
+  'top-ddl-50-questions': 'Subchapter 3.6: 50 DDL Practice Questions',
+
+  // Chapter 4: Data Manipulation Language (DML)
+  'top-04-01': 'Subchapter 4.1: DML Characteristics',
+  'top-04-02': 'Subchapter 4.2: INSERT Ingestion',
+  'top-04-03': 'Subchapter 4.3: UPDATE & Safe WHERE',
+  'top-04-04': 'Subchapter 4.4: DELETE vs TRUNCATE',
+  'top-04-05': 'Subchapter 4.5: SELECT Retrieval',
+  'top-04-06': 'Subchapter 4.6: 50 DML Practice Questions',
+
+  // Chapter 5: Advanced Filtering
+  'top-05-01': 'Subchapter 5.1: LIKE & Wildcards',
+  'top-05-02': 'Subchapter 5.2: IN Operator vs OR',
+  'top-05-03': 'Subchapter 5.3: BETWEEN Range Queries',
+  'top-05-04': 'Subchapter 5.4: Three-Valued NULL Logic',
+  'top-05-05': 'Subchapter 5.5: Compound Expressions',
+  'top-05-06': 'Subchapter 5.6: Top 5 Interview Questions',
+  'top-05-07': 'Subchapter 5.7: 40 Practice Questions',
+
+  // Chapter 6: INSERT and Bulk Data Ingestion
+  'top-day5-01': 'Subchapter 6.1: Ingestion Architecture',
+  'top-day5-02': 'Subchapter 6.2: Lab schema.sql Setup',
+  'top-day5-03': 'Subchapter 6.3: seed.sql Bulk Batching',
+  'top-day5-04': 'Subchapter 6.4: Constraint Traps & Errors',
+  'top-day5-05': 'Subchapter 6.5: Practice Sequence Checks',
+  'top-day5-questions-bank': 'Subchapter 6.6: 50 INSERT Practice Questions'
+};
+
+/**
+ * Clean Light-Grey SQL Code Block (Identical to Git learning view)
  */
 function HighlightedSql({ code }) {
   if (!code) return null;
@@ -30,18 +79,18 @@ function HighlightedSql({ code }) {
   const lines = code.split('\n');
 
   return (
-    <div className="font-mono text-[12px] sm:text-[13px] leading-relaxed select-text">
+    <div className="font-mono text-xs sm:text-[13px] leading-relaxed select-text">
       {lines.map((line, lineIdx) => {
-        // Handle comment line
-        if (line.trim().startsWith('--') || line.trim().startsWith('/*') || line.trim().startsWith('#')) {
+        const trimmed = line.trim();
+        // Comment
+        if (trimmed.startsWith('--') || trimmed.startsWith('/*') || trimmed.startsWith('#')) {
           return (
-            <div key={lineIdx} className="text-slate-400 italic font-medium">
+            <div key={lineIdx} className="text-slate-400 italic font-mono">
               {line}
             </div>
           );
         }
 
-        // Tokenize line with regex
         const tokens = line.split(/(\b(?:CREATE\s+TABLE|CREATE\s+DATABASE|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE|RENAME\s+TABLE|PRIMARY\s+KEY|FOREIGN\s+KEY|REFERENCES|NOT\s+NULL|UNIQUE|DEFAULT|CHECK|TRUE|FALSE|SELECT|FROM|WHERE|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET|JOIN|INNER\s+JOIN|LEFT\s+JOIN|RIGHT\s+JOIN|DESC|ASC|ADD\s+COLUMN|DROP\s+COLUMN|RENAME\s+COLUMN|RENAME\s+TO|MODIFY\s+COLUMN|CHANGE\s+COLUMN|INSERT\s+INTO|UPDATE|DELETE|SET|VALUES|COMMIT|ROLLBACK|SAVEPOINT|START\s+TRANSACTION|GRANT|REVOKE|SHOW\s+DATABASES|SHOW\s+TABLES|DESCRIBE|USE|VERSION|CURRENT_TIMESTAMP|USER|DATABASE|LIKE|NOT\s+LIKE|IN|NOT\s+IN|BETWEEN|NOT\s+BETWEEN|IS\s+NULL|IS\s+NOT\s+NULL|AND|OR|REGEXP|ESCAPE|INT|INTEGER|VARCHAR|DECIMAL|DATE|BOOLEAN|TEXT|FLOAT|DOUBLE|BIGINT|TIMESTAMP)\b|'[^']*'|\d+(?:\.\d+)?|[(),;]|\[constraints\]|\bdatatype\b|\btable_name\b|\bcolumn\d+\b|\bdatabase_name\b)/gi);
 
         return (
@@ -50,7 +99,7 @@ function HighlightedSql({ code }) {
               if (!token) return null;
               const upper = token.toUpperCase();
 
-              // SQL Keywords
+              // Keywords
               if (
                 ['CREATE TABLE', 'CREATE DATABASE', 'ALTER TABLE', 'DROP TABLE', 'TRUNCATE TABLE', 'RENAME TABLE',
                  'PRIMARY KEY', 'FOREIGN KEY', 'REFERENCES', 'NOT NULL', 'UNIQUE', 'DEFAULT', 'CHECK', 'TRUE', 'FALSE',
@@ -64,69 +113,45 @@ function HighlightedSql({ code }) {
                  'AND', 'OR', 'REGEXP', 'ESCAPE'].includes(upper)
               ) {
                 return (
-                  <span key={tIdx} className="text-blue-400 font-black">
+                  <span key={tIdx} className="text-blue-700 font-bold">
                     {token}
                   </span>
                 );
               }
 
-              // SQL Data Types
+              // Data types
               if (['INT', 'INTEGER', 'VARCHAR', 'DECIMAL', 'DATE', 'BOOLEAN', 'TEXT', 'FLOAT', 'DOUBLE', 'BIGINT', 'TIMESTAMP'].includes(upper)) {
                 return (
-                  <span key={tIdx} className="text-purple-400 font-bold">
+                  <span key={tIdx} className="text-purple-700 font-bold">
                     {token}
                   </span>
                 );
               }
 
-              // Placeholder syntax tags
+              // Placeholders
               if (token.toLowerCase() === 'datatype') {
-                return (
-                  <span key={tIdx} className="text-teal-300 font-medium">
-                    {token}
-                  </span>
-                );
+                return <span key={tIdx} className="text-teal-600 font-semibold">{token}</span>;
               }
               if (token.toLowerCase() === '[constraints]') {
-                return (
-                  <span key={tIdx} className="text-slate-400 font-medium">
-                    {token}
-                  </span>
-                );
+                return <span key={tIdx} className="text-slate-400 font-medium">{token}</span>;
               }
 
               // Strings
               if (token.startsWith("'") && token.endsWith("'")) {
-                return (
-                  <span key={tIdx} className="text-emerald-300 font-medium">
-                    {token}
-                  </span>
-                );
+                return <span key={tIdx} className="text-emerald-700 font-medium">{token}</span>;
               }
 
               // Numbers
               if (/^\d+(?:\.\d+)?$/.test(token)) {
-                return (
-                  <span key={tIdx} className="text-amber-400 font-bold">
-                    {token}
-                  </span>
-                );
+                return <span key={tIdx} className="text-amber-700 font-bold">{token}</span>;
               }
 
               // Punctuation
               if (['(', ')', ',', ';'].includes(token)) {
-                return (
-                  <span key={tIdx} className="text-slate-400 font-bold">
-                    {token}
-                  </span>
-                );
+                return <span key={tIdx} className="text-slate-500 font-bold">{token}</span>;
               }
 
-              return (
-                <span key={tIdx} className="text-slate-200 font-normal">
-                  {token}
-                </span>
-              );
+              return <span key={tIdx} className="text-slate-800">{token}</span>;
             })}
           </div>
         );
@@ -139,33 +164,21 @@ function CodeBlock({ code, title = 'SQL', language = 'sql', onCopy, isCopied }) 
   if (!code) return null;
 
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md my-4">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-950/90 border-b border-slate-800/80 select-none">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block" />
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
-          </div>
-          <span className="text-[11px] font-mono font-bold text-slate-300 tracking-wide">
-            {title}
-          </span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-[10px] font-mono font-bold uppercase text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/60">
-            {language}
-          </span>
-          <button
-            type="button"
-            onClick={onCopy}
-            className="flex items-center space-x-1 text-[11px] font-bold text-slate-300 hover:text-white px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700/60 transition-all cursor-pointer shadow-xs active:scale-95"
-          >
-            {isCopied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-            <span className={isCopied ? 'text-emerald-400 font-bold' : ''}>{isCopied ? 'Copied' : 'Copy'}</span>
-          </button>
-        </div>
+    <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50/90 shadow-2xs my-4">
+      <div className="flex items-center justify-between px-3.5 py-1.5 bg-slate-100/90 border-b border-slate-200 select-none">
+        <span className="text-[11px] font-mono font-semibold text-slate-500 uppercase tracking-wider">
+          {language || title || 'sql'}
+        </span>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="flex items-center space-x-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 px-2 py-0.5 rounded bg-white hover:bg-slate-200/70 border border-slate-200/90 transition-colors cursor-pointer"
+        >
+          {isCopied ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
+          <span>{isCopied ? 'Copied' : 'Copy'}</span>
+        </button>
       </div>
-      <div className="p-4 sm:p-5 overflow-x-auto text-[13px] leading-relaxed">
+      <div className="p-3.5 overflow-x-auto selection:bg-blue-100 custom-scrollbar">
         <HighlightedSql code={code} />
       </div>
     </div>
@@ -182,6 +195,8 @@ export default function SqlLearningView({
   onJumpToPractice,
   onBackToOverview
 }) {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [copiedSection, setCopiedSection] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedZoomImage, setSelectedZoomImage] = useState(null);
@@ -194,7 +209,33 @@ export default function SqlLearningView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Active topic state (defaults to top-01-01)
+  // 1. Flatten all available lessons across Chapters 1 to 6
+  const allTopicsFlat = useMemo(() => {
+    const list = [];
+    CHAPTER_CATALOG.forEach((mod) => {
+      if (mod.status === 'available' && mod.topics) {
+        mod.topics.forEach((t) => {
+          const details = ALL_TOPIC_DETAILS[t.id] || {};
+          list.push({
+            ...t,
+            ...details,
+            id: t.id,
+            moduleId: mod.id,
+            chapterNumber: mod.number,
+            chapterTitle: mod.title,
+            chapterShortTitle: mod.shortTitle || mod.title,
+            lessonCode: t.lessonCode || `${mod.number}.${t.lessonNumber || ''}`,
+            globalIndex: list.length + 1
+          });
+        });
+      }
+    });
+    return list;
+  }, []);
+
+  const totalTopicsCount = allTopicsFlat.length || 32;
+
+  // 2. Active topic state
   const [currentActiveTopicId, setCurrentActiveTopicId] = useState(selectedTopicId || 'top-01-01');
 
   // Synchronized completed topics
@@ -226,11 +267,37 @@ export default function SqlLearningView({
     }
   }, [selectedModuleId]);
 
-  // Accordion state for modules
+  // Accordion state for modules (All 6 available chapters open by default)
   const [expandedModules, setExpandedModules] = useState({
-    'mod-01': true, // Fundamentals expanded by default
-    'mod-02': true  // DDL expanded by default
+    'mod-01': true,
+    'mod-02': true,
+    'mod-03': true,
+    'mod-04': true,
+    'mod-05': true,
+    'mod-day5': true
   });
+
+  useEffect(() => {
+    const paramTopic = searchParams.get('topic');
+    const paramChapter = searchParams.get('chapter');
+    if (paramChapter) {
+      if (setSelectedModuleId) setSelectedModuleId(paramChapter);
+      setExpandedModules(prev => ({ ...prev, [paramChapter]: true }));
+      const chTopic = allTopicsFlat.find(t => t.moduleId === paramChapter);
+      if (chTopic) {
+        setCurrentActiveTopicId(chTopic.id);
+        if (setSelectedTopicId) setSelectedTopicId(chTopic.id);
+      }
+    } else if (paramTopic) {
+      const found = allTopicsFlat.find(t => t.id === paramTopic);
+      if (found) {
+        if (setSelectedModuleId) setSelectedModuleId(found.moduleId || 'mod-01');
+        setCurrentActiveTopicId(found.id);
+        if (setSelectedTopicId) setSelectedTopicId(found.id);
+        setExpandedModules(prev => ({ ...prev, [found.moduleId || 'mod-01']: true }));
+      }
+    }
+  }, [searchParams, allTopicsFlat]);
 
   const toggleModule = (modId) => {
     setExpandedModules((prev) => ({
@@ -239,11 +306,17 @@ export default function SqlLearningView({
     }));
   };
 
-  const handleSelectTopic = (topId, modId = 'mod-01') => {
+  const handleSelectTopic = (topId, modId) => {
+    const targetModId = modId || allTopicsFlat.find(t => t.id === topId)?.moduleId || selectedModuleId || 'mod-01';
     setCurrentActiveTopicId(topId);
     if (setSelectedTopicId) setSelectedTopicId(topId);
-    if (setSelectedModuleId) setSelectedModuleId(modId);
+    if (setSelectedModuleId) setSelectedModuleId(targetModId);
+    setExpandedModules(prev => ({ ...prev, [targetModId]: true }));
+    setSearchParams({ topic: topId, chapter: targetModId }, { replace: true });
     setMobileMenuOpen(false);
+
+    const readerEl = document.getElementById('sql-lesson-article-container');
+    if (readerEl) readerEl.scrollTop = 0;
   };
 
   const handleToggleRead = (topId) => {
@@ -272,7 +345,6 @@ export default function SqlLearningView({
     if (ALL_TOPIC_DETAILS[currentActiveTopicId]) {
       return ALL_TOPIC_DETAILS[currentActiveTopicId];
     }
-    // Fallback to first available topic in chapter or default
     if (activeChapter.topics && activeChapter.topics.length > 0) {
       const firstId = activeChapter.topics[0].id;
       if (ALL_TOPIC_DETAILS[firstId]) return ALL_TOPIC_DETAILS[firstId];
@@ -281,8 +353,37 @@ export default function SqlLearningView({
   }, [currentActiveTopicId, activeChapter]);
 
   const isCurrentTopicRead = localCompletedTopics.includes(topicData.id);
-  const totalTopicsCount = TOTAL_TOPICS_COUNT || 66;
-  const progressPercent = Math.min(100, Math.round((localCompletedTopics.length / totalTopicsCount) * 100));
+  const progressPercent = totalTopicsCount > 0 ? Math.min(100, Math.round((localCompletedTopics.length / totalTopicsCount) * 100)) : 0;
+
+  // Previous & Next navigation controls
+  const currentGlobalIndex = useMemo(() => {
+    const foundIdx = allTopicsFlat.findIndex(t => t.id === currentActiveTopicId);
+    return foundIdx !== -1 ? foundIdx + 1 : 1;
+  }, [allTopicsFlat, currentActiveTopicId]);
+
+  const previousTopic = currentGlobalIndex > 1 ? allTopicsFlat[currentGlobalIndex - 2] : null;
+  const nextTopic = currentGlobalIndex < allTopicsFlat.length ? allTopicsFlat[currentGlobalIndex] : null;
+
+  const handlePreviousLesson = () => {
+    if (previousTopic) {
+      handleSelectTopic(previousTopic.id, previousTopic.moduleId);
+    }
+  };
+
+  const handleNextLesson = () => {
+    if (nextTopic) {
+      handleSelectTopic(nextTopic.id, nextTopic.moduleId);
+    }
+  };
+
+  const handleCompleteAndNext = () => {
+    if (!isCurrentTopicRead) {
+      handleToggleRead(currentActiveTopicId);
+    }
+    if (nextTopic) {
+      handleSelectTopic(nextTopic.id, nextTopic.moduleId);
+    }
+  };
 
   const handleCopyCode = (code, sectionKey) => {
     navigator.clipboard.writeText(code);
@@ -305,194 +406,186 @@ export default function SqlLearningView({
   return (
     <div
       style={{ height: 'calc(100vh - 64px)', overflow: 'hidden' }}
-      className="w-full h-[calc(100vh-64px)] flex font-segoe text-slate-800 bg-white overflow-hidden"
+      className="w-full h-[calc(100vh-64px)] flex font-segoe text-slate-800 bg-white overflow-hidden relative selection:bg-blue-100 selection:text-blue-900"
     >
-      {/* =========================================================================
-          LEFT SIDEBAR: CURRICULUM SYLLABUS (MODULAR CHAPTERS + COMING SOON BUTTONS)
-         ========================================================================= */}
-      <aside className="w-80 border-r border-slate-200/90 bg-white flex flex-col shrink-0 h-full select-none z-10 shadow-xs hidden lg:flex">
+      {/* ═══════════════════════════════════════════════════════════════════════
+          LEFT SIDEBAR: ALL 30 CHAPTERS (COMPACT, SHORT NAMES, w-64 xl:w-72)
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <aside className="w-64 xl:w-72 border-r border-slate-100 bg-white flex flex-col shrink-0 h-full p-3 space-y-3 overflow-y-auto select-none custom-scrollbar hidden lg:flex">
         
-        {/* ── TOP HEADER: Reading Progress ── */}
-        <div className="p-4 border-b border-slate-100 space-y-1.5 shrink-0">
+        {/* Title & Counter */}
+        <div className="space-y-1.5 pb-2 border-b border-slate-100">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={onBackToOverview || (() => navigate('/courses/sql'))}
+              className="text-sm font-extrabold text-slate-900 tracking-tight hover:text-blue-600 transition-colors text-left cursor-pointer"
+            >
+              SQL Mastery
+            </button>
+          </div>
 
-          {/* Overall Reading Progress bar */}
-          <div className="space-y-1.5 pt-0.5">
-            <div className="flex items-center justify-between text-[11px] font-bold">
-              <span className="text-slate-600">Reading Progress</span>
-              <span className="text-blue-600 font-mono font-black">{localCompletedTopics.length} completed</span>
+          <div className="space-y-1">
+            <div className="text-[10.5px] font-medium text-slate-400">
+              {localCompletedTopics.length} / {totalTopicsCount} lessons completed
             </div>
-            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-300"
-                style={{ width: `${Math.max(5, progressPercent)}%` }}
+                className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                style={{ width: `${Math.max(3, progressPercent)}%` }}
               />
             </div>
           </div>
         </div>
 
-        {/* ── MIDDLE: Scrollable Module & Topic List ── */}
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5 custom-scrollbar">
+        {/* Chapters 1 through 30 (Clean, compact, short names) */}
+        <div className="space-y-1 flex-1">
           {CHAPTER_CATALOG.map((mod) => {
-            const isExpanded = expandedModules[mod.id] !== false;
             const isAvailable = mod.status === 'available';
+            const isExpanded = expandedModules[mod.id] !== false;
             const isSelected = selectedModuleId === mod.id;
 
-            if (!isAvailable) {
+            if (isAvailable) {
+              const topics = mod.topics || [];
+
               return (
-                <div key={mod.id} className="pb-1">
+                <div key={mod.id} className="space-y-0.5">
+                  {/* Chapter Accordion Header */}
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedModuleId && setSelectedModuleId(mod.id);
+                      toggleModule(mod.id);
+                      if (selectedModuleId !== mod.id && topics[0]) {
+                        handleSelectTopic(topics[0].id, mod.id);
+                      }
                     }}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-xs sm:text-[13px] font-black flex items-center justify-between transition-all cursor-pointer ${
+                    className={`w-full text-left py-1.5 px-2.5 flex items-center justify-between text-xs font-bold transition-colors cursor-pointer rounded-lg ${
                       isSelected
-                        ? 'bg-amber-50/90 border border-amber-200 text-amber-950 shadow-2xs'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        ? 'text-slate-900 bg-slate-100/90'
+                        : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50'
                     }`}
+                    title={mod.title}
                   >
-                    <div className="flex items-center space-x-2 truncate">
-                      <span className="w-5 h-5 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-black text-slate-500 flex items-center justify-center shrink-0">
-                        {mod.number}
-                      </span>
-                      <span className="truncate">
-                        {mod.shortTitle || mod.title}
-                      </span>
-                    </div>
-                    <span className="px-2 py-0.5 bg-amber-100/90 border border-amber-300 text-amber-900 rounded-lg text-[10px] font-extrabold tracking-wide shrink-0 shadow-2xs">
-                      Coming Soon
+                    <span className="truncate">
+                      Chapter {mod.number}: {mod.shortTitle || mod.title}
                     </span>
+                    <ChevronDown
+                      size={12}
+                      className={`text-slate-400 shrink-0 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                    />
                   </button>
+
+                  {/* Subchapters List */}
+                  {isExpanded && (
+                    <div className="space-y-0.5 pl-2.5 pt-0.5">
+                      {topics.map((t) => {
+                        const isTopicSelected = currentActiveTopicId === t.id && isSelected;
+                        const isCompleted = localCompletedTopics.includes(t.id);
+                        const label = SQL_TOPIC_SHORT_NAMES[t.id] || (t.lessonCode ? `Subchapter ${t.lessonCode}: ${t.title}` : t.title);
+
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => handleSelectTopic(t.id, mod.id)}
+                            className={`w-full text-left px-2 py-1.5 rounded-md text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                              isTopicSelected
+                                ? 'bg-blue-50 text-blue-600 font-bold'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal'
+                            }`}
+                            title={label}
+                          >
+                            <div className="flex items-center space-x-1.5 truncate pr-1">
+                              {isCompleted ? (
+                                <CheckCircle2 size={11} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                              ) : (
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isTopicSelected ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                              )}
+                              <span className="truncate">{label}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             }
 
+            // Chapters 7 through 30: Coming Soon items
             return (
-              <div key={mod.id} className="pb-2 mb-1 border-b border-slate-200/80 last:border-b-0 last:mb-0 last:pb-0">
-                {/* Available Chapter Header */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    toggleModule(mod.id);
-                    setSelectedModuleId && setSelectedModuleId(mod.id);
-                  }}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl text-xs sm:text-[13px] font-black flex items-center justify-between transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-indigo-50/80 text-indigo-950 font-black border border-indigo-200/80'
-                      : 'text-slate-800 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2 truncate">
-                    <span className={`w-5 h-5 rounded-md text-[10px] font-black flex items-center justify-center shrink-0 ${
-                      isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 border border-slate-200 text-slate-700'
-                    }`}>
-                      {mod.number}
-                    </span>
-                    <span className="truncate">
-                      {mod.title}
-                    </span>
-                  </div>
-
-                  {isExpanded ? (
-                    <ChevronUp size={15} className="text-indigo-600 shrink-0 ml-1.5" strokeWidth={2.2} />
-                  ) : (
-                    <ChevronRight size={15} className="text-slate-400 shrink-0 ml-1.5" strokeWidth={2.2} />
-                  )}
-                </button>
-
-                {isExpanded && mod.topics && (
-                  <div className="ml-3 pl-2.5 border-l-2 border-slate-200/80 space-y-0.5 pt-1 pb-1">
-                    {mod.topics.map((t, idx) => {
-                      const isTopicSelected = currentActiveTopicId === t.id && isAvailable;
-                      const isCompleted = localCompletedTopics.includes(t.id);
-
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => handleSelectTopic(t.id, mod.id)}
-                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all cursor-pointer leading-snug ${
-                            isTopicSelected
-                              ? 'bg-blue-50 text-blue-700 font-black border border-blue-200/80 shadow-2xs'
-                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className="flex items-center space-x-2 truncate">
-                            {isCompleted ? (
-                              <CheckCircle2 size={13} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
-                            ) : (
-                              <span className={`text-[10px] font-mono font-bold shrink-0 px-1.5 py-0.5 rounded ${
-                                isTopicSelected ? 'bg-blue-200/80 text-blue-900 font-black' : 'text-slate-500 bg-slate-100'
-                              }`}>
-                                {t.lessonCode || `${mod.number}.${idx + 1}`}
-                              </span>
-                            )}
-                            <span className="truncate">{t.title}</span>
-                          </div>
-                          {isCompleted && (
-                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded-xs shrink-0">Done</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <button
+                key={mod.id}
+                type="button"
+                onClick={() => {
+                  setSelectedModuleId && setSelectedModuleId(mod.id);
+                  setSearchParams({ chapter: mod.id }, { replace: true });
+                }}
+                className={`w-full text-left py-1.5 px-2.5 flex items-center justify-between text-xs font-semibold transition-colors cursor-pointer rounded-lg ${
+                  isSelected
+                    ? 'bg-blue-50 text-blue-600 font-bold'
+                    : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+                title={mod.title}
+              >
+                <div className="flex items-center space-x-2 truncate pr-1">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                  <span className="truncate">
+                    Chapter {mod.number}: {mod.shortTitle || mod.title}
+                  </span>
+                </div>
+                <span className="text-[9.5px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded shrink-0">
+                  Coming Soon
+                </span>
+              </button>
             );
           })}
         </div>
 
-        {/* ── BOTTOM: Practice Playground Shortcut Card ── */}
-        <div className="p-3 border-t border-slate-100 bg-slate-50/50 space-y-2 shrink-0">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-7 h-7 rounded-xl bg-white text-indigo-600 flex items-center justify-center shadow-xs border border-indigo-100 shrink-0">
-              <Lightbulb size={15} />
-            </div>
-            <div>
-              <div className="text-xs font-black text-slate-900">Need to practice?</div>
-              <div className="text-[10px] text-slate-500 font-medium">Try SQL challenges in the engine</div>
-            </div>
+        {/* Practice Playground Shortcut */}
+        {onJumpToPractice && (
+          <div className="pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => onJumpToPractice(topicData)}
+              className="w-full py-2 px-2.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
+            >
+              <Code2 size={13} className="text-blue-600" />
+              <span>Open SQL Practice Lab</span>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => onJumpToPractice && onJumpToPractice(topicData)}
-            className="w-full py-1.5 bg-white hover:bg-slate-50 text-indigo-600 font-black text-xs rounded-xl border border-indigo-200/80 shadow-2xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
-          >
-            <span className="font-mono text-xs font-bold">{`</>`}</span>
-            <span>Open Practice Lab</span>
-          </button>
-        </div>
+        )}
 
       </aside>
 
-      {/* =========================================================================
+      {/* ═══════════════════════════════════════════════════════════════════════
           RIGHT MAIN CONTENT: SCROLLABLE WORKSPACE
-         ========================================================================= */}
-      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-white">
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <main className="flex-1 h-full flex flex-col min-w-0 overflow-hidden bg-white">
         
-        {/* ── MOBILE TOP BAR (<1024px) ── */}
-        <div className="lg:hidden flex items-center justify-between px-4 py-2.5 bg-white border-b border-slate-200 shrink-0 shadow-2xs">
+        {/* Mobile top bar (<1024px) */}
+        <header className="lg:hidden h-12 border-b border-slate-100 bg-white px-3 flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs active:scale-95"
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 flex items-center gap-1.5 text-xs font-bold cursor-pointer"
           >
-            <BookOpen size={14} className="text-blue-600" />
-            <span>Course Syllabus</span>
-            <ChevronRight size={12} className="text-slate-400" />
+            <Menu size={15} />
+            <span>Chapters ({CHAPTER_CATALOG.length})</span>
           </button>
 
-          <div className="flex items-center space-x-2 text-xs font-bold text-slate-600">
-            <span className="text-[11px] font-mono text-blue-600 font-black">
-              {progressPercent}% Done
-            </span>
-          </div>
-        </div>
+          <span className="text-xs font-bold text-slate-800 truncate max-w-[200px]">
+            {!isChapterLive ? activeChapter.shortTitle || activeChapter.title : (topicData.lessonCode ? `Subchapter ${topicData.lessonCode}: ${topicData.title}` : topicData.title)}
+          </span>
+        </header>
 
-        {/* ── MAIN SCROLLABLE CONTENT ── */}
-        <main className="flex-1 overflow-y-auto bg-white custom-scrollbar">
+        {/* Scrollable Article Area with Proper Full Space */}
+        <div
+          id="sql-lesson-article-container"
+          className="flex-1 overflow-y-auto px-6 sm:px-12 lg:px-16 xl:px-20 py-8 custom-scrollbar"
+        >
           {!isChapterLive ? (
-            <div className="py-8 px-4 sm:px-8">
+            <div className="w-full max-w-4xl mx-auto py-10 space-y-6">
               <ChapterComingSoon
                 chapter={activeChapter}
                 onSelectChapter={(modId) => {
@@ -506,7 +599,17 @@ export default function SqlLearningView({
               />
             </div>
           ) : topicData.isQuestionsBankTopic ? (
-            <div className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-8">
+            <div className="w-full max-w-5xl xl:max-w-6xl mx-auto space-y-6">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0a192f] tracking-tight leading-snug">
+                {topicData.title}
+              </h1>
+              {topicData.subtitle && (
+                <p className="text-sm sm:text-[15px] text-slate-600 leading-relaxed font-normal pt-0.5">
+                  {topicData.subtitle}
+                </p>
+              )}
+              <hr className="border-slate-100 my-5" />
+
               {topicData.questionBankType === 'insert' ? (
                 <InsertQuestionsBank onJumpToPractice={onJumpToPractice} />
               ) : topicData.questionBankType === 'dml' ? (
@@ -516,102 +619,103 @@ export default function SqlLearningView({
               ) : (
                 <DdlQuestionsBank onJumpToPractice={onJumpToPractice} />
               )}
+
+              {/* Bottom Navigation */}
+              <footer className="pt-8 pb-14 border-t border-slate-100 mt-10 flex items-center justify-between">
+                {previousTopic ? (
+                  <button
+                    type="button"
+                    onClick={handlePreviousLesson}
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 font-medium text-xs sm:text-[13px] transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
+                  >
+                    <span>‹</span>
+                    <span>Previous</span>
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="px-4 py-2 rounded-lg border border-slate-200/60 text-slate-300 font-medium text-xs sm:text-[13px] cursor-not-allowed"
+                  >
+                    <span>‹</span>
+                    <span>Previous</span>
+                  </button>
+                )}
+
+                {nextTopic ? (
+                  <button
+                    type="button"
+                    onClick={handleCompleteAndNext}
+                    className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-xs sm:text-[13px] shadow-sm transition-all flex items-center space-x-1 cursor-pointer"
+                  >
+                    <span>Next</span>
+                    <span>›</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedModuleId && setSelectedModuleId('mod-06');
+                    }}
+                    className="px-4 py-2.5 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs sm:text-[13px] border border-blue-200 flex items-center space-x-1.5 cursor-pointer hover:bg-blue-100 transition-colors"
+                  >
+                    <span>Chapter 7 (Coming Soon)</span>
+                    <span>›</span>
+                  </button>
+                )}
+              </footer>
             </div>
           ) : (
-            <article className="w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-8 sm:py-10 space-y-10 animate-fadeIn text-slate-900">
+            <div className="w-full max-w-5xl xl:max-w-6xl mx-auto space-y-4 animate-fadeIn text-slate-900">
 
-              {/* 1. TOPIC HEADER */}
-              <div>
-                <header className="space-y-3.5 pb-6 border-b border-slate-200">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center space-x-2">
-                      <span className="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-black tracking-wide shadow-xs">
-                        {topicData.chapterNumber !== undefined && topicData.lessonNumber !== undefined
-                          ? `Chapter ${topicData.chapterNumber} • Lesson ${topicData.lessonNumber}`
-                          : (activeChapter?.title || 'SQL Topic')}
-                      </span>
-                      {topicData.lessonCode && (
-                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-mono font-bold border border-slate-200">
-                          {topicData.lessonCode}
-                        </span>
-                      )}
-                    </div>
+              {/* Main Lesson Title (H1: Used only once per lesson) */}
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0a192f] tracking-tight leading-snug">
+                {topicData.title ? topicData.title.replace(/^(?:Day\s*\d+:|\d+\.)\s*/, '') : 'SQL Lesson'}
+              </h1>
 
-                    {/* MARK AS COMPLETED BUTTON */}
-                    <button
-                      type="button"
-                      onClick={() => handleToggleRead(topicData.id)}
-                      className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer border ${
-                        isCurrentTopicRead
-                          ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 font-extrabold'
-                          : 'bg-white hover:bg-slate-50 text-slate-700 hover:text-blue-600 border-slate-200'
-                      }`}
-                    >
-                      <CheckCircle2
-                        size={15}
-                        className={isCurrentTopicRead ? 'text-emerald-600' : 'text-slate-400'}
-                        strokeWidth={isCurrentTopicRead ? 2.5 : 2}
-                      />
-                      <span>{isCurrentTopicRead ? 'Completed' : 'Mark as Read'}</span>
-                    </button>
-                  </div>
+              {/* Short Introductory Summary */}
+              {(topicData.subtitle || topicData.intro) && (
+                <p className="text-sm sm:text-[15px] text-slate-600 leading-relaxed font-normal pt-0.5">
+                  {topicData.subtitle || topicData.intro}
+                </p>
+              )}
 
-                  <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-                    {topicData.title}
-                  </h1>
+              {/* Horizontal Line Divider */}
+              <hr className="border-slate-100 my-5" />
 
-                  {topicData.subtitle && (
-                    <p className="text-base sm:text-lg text-slate-600 font-medium leading-normal">
-                      {topicData.subtitle}
-                    </p>
-                  )}
-
-                  {topicData.intro && (
-                    <p className="text-sm sm:text-base text-slate-700 leading-relaxed pt-1">
-                      {topicData.intro}
-                    </p>
-                  )}
-                </header>
-              </div>
-
-              {/* 2. INFOGRAPHIC IMAGE (Visual Guide for Beginners) */}
+              {/* 2. INFOGRAPHIC IMAGE (Visual Guide) */}
               {topicData.infographicImage && (
-                <figure className="space-y-3 my-8">
+                <figure className="space-y-3 my-6">
                   <div className="flex items-center justify-between pb-1">
-                    <div className="flex items-center space-x-2 text-slate-800">
-                      <BookOpen size={16} className="text-blue-600" />
-                      <span className="text-sm sm:text-base font-black">
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="w-1.5 h-4.5 bg-blue-600 rounded-xs inline-block shrink-0 translate-y-0.5" />
+                      <h2 className="text-lg sm:text-xl font-bold text-[#0a192f] tracking-tight">
                         {topicData.infographicTitle || 'Visual Architecture & Flow Diagram'}
-                      </span>
+                      </h2>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
                         type="button"
                         onClick={() => setSelectedZoomImage(topicData.infographicImage)}
-                        className="text-[11px] font-bold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-2.5 py-1 rounded-full border border-slate-200 hover:border-blue-200 transition-all flex items-center space-x-1 cursor-pointer"
+                        className="text-[11px] font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
                         title="Click to view full screen"
                       >
                         <Maximize2 size={12} />
                         <span>Zoom</span>
                       </button>
-                      <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-100">
-                        Visual Guide
-                      </span>
                     </div>
                   </div>
 
-                  {/* Seamless Card - perfectly matching image dimensions with zero letterbox padding */}
                   <div 
                     onClick={() => setSelectedZoomImage(topicData.infographicImage)}
-                    className="w-full rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm bg-white relative group cursor-zoom-in transition-all duration-300 hover:shadow-md hover:border-blue-300"
+                    className="w-full rounded-lg overflow-hidden border border-slate-200 shadow-2xs bg-white relative group cursor-zoom-in transition-all duration-300 hover:border-blue-300"
                   >
                     <img
                       src={topicData.infographicImage}
                       alt={topicData.infographicTitle || 'Visual Architecture & Flow Diagram'}
-                      className="w-full h-auto block rounded-2xl transition-transform duration-300 group-hover:scale-[1.006]"
+                      className="w-full h-auto block rounded-lg transition-transform duration-300 group-hover:scale-[1.006]"
                       loading="lazy"
                     />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors pointer-events-none rounded-2xl flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors pointer-events-none rounded-lg flex items-center justify-center">
                       <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/85 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl backdrop-blur-xs flex items-center space-x-1.5 shadow-lg">
                         <Maximize2 size={13} />
                         <span>Click to expand full size</span>
@@ -629,56 +733,53 @@ export default function SqlLearningView({
 
               {/* 2.5 CUSTOM INTERACTIVE CODE COMPONENT (e.g. NullLogicGuide) */}
               {(topicData.customComponent === 'NullLogicGuide' || topicData.id === 'top-05-04') && (
-                <section className="my-8 animate-fadeIn">
+                <section className="my-6 animate-fadeIn">
                   <NullLogicGuide />
                 </section>
               )}
 
-              {/* 2.6 NOOB DEVELOPER MENTAL MODEL (Explain Like I'm 5) */}
+              {/* 2.6 DEVELOPER MENTAL MODEL */}
               {topicData.beginnerMentalModel && (
-                <section className="my-8 bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-yellow-50/70 border-2 border-amber-300/80 rounded-2xl p-5 sm:p-6 shadow-sm">
-                  <div className="flex items-center space-x-2.5 pb-3 border-b border-amber-200/80">
-                    <span className="text-2xl">🐣</span>
+                <section className="my-6 rounded-lg p-5 border border-slate-200 bg-slate-50/80 shadow-2xs">
+                  <div className="flex items-baseline gap-2.5 pb-3 border-b border-slate-200">
+                    <span className="w-1.5 h-4.5 bg-blue-600 rounded-xs inline-block shrink-0 translate-y-0.5" />
                     <div>
-                      <h3 className="text-base sm:text-lg font-black text-amber-950 flex items-center gap-2">
-                        {topicData.beginnerMentalModel.title || "Noob Developer's Mental Model"}
-                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 uppercase tracking-wide">
-                          ELI5 • Simple & Visual
-                        </span>
+                      <h3 className="text-base sm:text-lg font-bold text-[#0a192f] flex items-center gap-2">
+                        {topicData.beginnerMentalModel.title || "Developer's Mental Model"}
                       </h3>
-                      <p className="text-xs text-amber-800/90 font-medium">
-                        Think of it this way so you never get confused in real code or technical interviews!
+                      <p className="text-xs text-slate-500 font-normal pt-0.5">
+                        Intuitive conceptual model for writing real-world queries and technical interviews
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-4">
                     {topicData.beginnerMentalModel.analogy && (
-                      <div className="bg-white/85 border border-amber-200 rounded-xl p-3.5 space-y-1.5 shadow-2xs">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                      <div className="bg-white border border-slate-200 rounded-lg p-3.5 space-y-1.5 shadow-2xs">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
                           <span>💡</span> Real-World Analogy
                         </span>
-                        <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-medium">
+                        <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-normal">
                           {topicData.beginnerMentalModel.analogy}
                         </p>
                       </div>
                     )}
                     {topicData.beginnerMentalModel.keyTrick && (
-                      <div className="bg-white/85 border border-emerald-200 rounded-xl p-3.5 space-y-1.5 shadow-2xs">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-                          <span>🎯</span> Beginner Cheat Code
+                      <div className="bg-white border border-slate-200 rounded-lg p-3.5 space-y-1.5 shadow-2xs">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
+                          <span>🎯</span> Essential Rule
                         </span>
-                        <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-medium">
+                        <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-normal">
                           {topicData.beginnerMentalModel.keyTrick}
                         </p>
                       </div>
                     )}
                     {topicData.beginnerMentalModel.gotcha && (
-                      <div className="bg-white/85 border border-rose-200 rounded-xl p-3.5 space-y-1.5 shadow-2xs">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
-                          <span>⚠️</span> The Trap That Tricks Noobs
+                      <div className="bg-white border border-slate-200 rounded-lg p-3.5 space-y-1.5 shadow-2xs">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+                          <span>⚠️</span> Common Trap
                         </span>
-                        <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-medium">
+                        <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-normal">
                           {topicData.beginnerMentalModel.gotcha}
                         </p>
                       </div>
@@ -696,35 +797,37 @@ export default function SqlLearningView({
 
               {/* 4. WHY DO WE NEED AN RDBMS (ACID Properties) */}
               {topicData.whyWeNeedItSection && (
-                <section className="pt-8 border-t border-slate-100 space-y-4">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-bold">
-                      <Shield size={16} />
-                    </div>
+                <section className="pt-6 border-t border-slate-100 space-y-4">
+                  <div className="flex items-baseline gap-2.5 pt-2 pb-1">
+                    <span className="w-1.5 h-4.5 bg-blue-600 rounded-xs inline-block shrink-0 translate-y-0.5" />
                     <div>
-                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-bold text-[#0a192f] tracking-tight">
                         {topicData.whyWeNeedItSection.title}
                       </h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                        {topicData.whyWeNeedItSection.subtitle}
-                      </p>
+                      {topicData.whyWeNeedItSection.subtitle && (
+                        <p className="text-xs sm:text-sm text-slate-500 font-normal pt-0.5">
+                          {topicData.whyWeNeedItSection.subtitle}
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  <p className="text-sm text-slate-700 leading-relaxed font-normal">
-                    {topicData.whyWeNeedItSection.intro}
-                  </p>
+                  {topicData.whyWeNeedItSection.intro && (
+                    <p className="text-slate-700 text-[14.5px] leading-relaxed font-normal">
+                      {topicData.whyWeNeedItSection.intro}
+                    </p>
+                  )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 pt-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 pt-1">
                     {topicData.whyWeNeedItSection.acidPillars.map((pillar) => {
                       const isA = pillar.letter === 'A';
                       const isC = pillar.letter === 'C';
                       const isI = pillar.letter === 'I';
 
-                      const borderCol = isA ? 'border-blue-200/90 hover:border-blue-400' :
-                                        isC ? 'border-emerald-200/90 hover:border-emerald-400' :
-                                        isI ? 'border-indigo-200/90 hover:border-indigo-400' :
-                                        'border-purple-200/90 hover:border-purple-400';
+                      const borderCol = isA ? 'border-blue-200 hover:border-blue-300' :
+                                        isC ? 'border-emerald-200 hover:border-emerald-300' :
+                                        isI ? 'border-indigo-200 hover:border-indigo-300' :
+                                        'border-purple-200 hover:border-purple-300';
 
                       const topBarCol = isA ? 'bg-blue-600' :
                                         isC ? 'bg-emerald-600' :
@@ -744,43 +847,38 @@ export default function SqlLearningView({
                       return (
                         <div
                           key={pillar.letter}
-                          className={`bg-white border ${borderCol} rounded-2xl p-5 sm:p-6 flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden`}
+                          className={`bg-white border ${borderCol} rounded-lg p-5 flex flex-col justify-between shadow-2xs hover:shadow-xs transition-all relative overflow-hidden`}
                         >
-                          {/* Top Accent Strip */}
-                          <div className={`absolute top-0 left-0 right-0 h-1.5 ${topBarCol}`} />
+                          <div className={`absolute top-0 left-0 right-0 h-1 ${topBarCol}`} />
 
-                          <div className="space-y-3 pt-2">
-                            {/* Card Top Row: Pillar Letter & Motto Badge */}
+                          <div className="space-y-2.5 pt-1">
                             <div className="flex items-center justify-between">
-                              <span className={`w-9 h-9 rounded-xl font-black text-sm flex items-center justify-center shadow-xs ${badgeBg}`}>
+                              <span className={`w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center ${badgeBg}`}>
                                 {pillar.letter}
                               </span>
 
                               {pillar.motto && (
-                                <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full border whitespace-nowrap ${mottoBg}`}>
+                                <span className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md border whitespace-nowrap ${mottoBg}`}>
                                   {pillar.motto}
                                 </span>
                               )}
                             </div>
 
-                            {/* Card Title */}
-                            <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                            <h3 className="text-base font-bold text-[#0a192f] leading-tight">
                               {pillar.name}
                             </h3>
 
-                            {/* Card Description with consistent height */}
-                            <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed font-normal min-h-[64px]">
+                            <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed font-normal min-h-[56px]">
                               {pillar.desc}
                             </p>
                           </div>
 
-                          {/* Production Example Box at bottom with matching height */}
                           {pillar.example && (
-                            <div className="pt-3 border-t border-slate-100 mt-4 space-y-1.5">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                            <div className="pt-2.5 border-t border-slate-100 mt-3 space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                                 Production Example:
                               </span>
-                              <div className="text-[11px] text-slate-700 font-medium leading-relaxed bg-slate-50 border-l-3 border-slate-300 rounded-r-lg p-2.5 min-h-[76px] flex items-center">
+                              <div className="text-[11px] text-slate-700 font-medium leading-relaxed bg-slate-50 border-l-2 border-slate-300 rounded-r p-2 min-h-[64px] flex items-center">
                                 {pillar.example}
                               </div>
                             </div>
@@ -794,28 +892,26 @@ export default function SqlLearningView({
 
               {/* 5. STRUCTURAL HIERARCHY DEFINITIONS (Table, Row, Column, Cell) */}
               {topicData.structuralDefinitions && (
-                <section className="pt-8 border-t border-slate-100 space-y-4">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
-                      <Layers size={16} />
-                    </div>
+                <section className="pt-6 border-t border-slate-100 space-y-4">
+                  <div className="flex items-baseline gap-2.5 pt-2 pb-1">
+                    <span className="w-1.5 h-4.5 bg-blue-600 rounded-xs inline-block shrink-0 translate-y-0.5" />
                     <div>
-                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-bold text-[#0a192f] tracking-tight">
                         The 6 Core Structural Layers
                       </h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-500 font-normal pt-0.5">
                         From physical database container down to an atomic data cell
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
                     {topicData.structuralDefinitions.map((t) => (
                       <div
                         key={t.term}
-                        className="bg-white border border-slate-200/90 rounded-2xl p-5 space-y-2 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between min-h-[110px]"
+                        className="bg-white border border-slate-200 rounded-lg p-4 space-y-1.5 shadow-2xs hover:border-slate-300 transition-colors flex flex-col justify-between"
                       >
-                        <span className="text-sm font-black text-slate-900 block">
+                        <span className="text-sm font-bold text-[#0a192f] block">
                           {t.term}
                         </span>
                         <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed font-normal">
@@ -829,54 +925,52 @@ export default function SqlLearningView({
 
               {/* 6. SQL COMMAND TYPES GRID (DDL, DML, DQL, DCL, TCL) */}
               {topicData.commandTypesGrid && (
-                <section className="pt-8 border-t border-slate-100 space-y-5">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-bold">
-                      <Code2 size={16} />
-                    </div>
+                <section className="pt-6 border-t border-slate-100 space-y-4">
+                  <div className="flex items-baseline gap-2.5 pt-2 pb-1">
+                    <span className="w-1.5 h-4.5 bg-blue-600 rounded-xs inline-block shrink-0 translate-y-0.5" />
                     <div>
-                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-bold text-[#0a192f] tracking-tight">
                         The 5 SQL Command Families (DDL, DML, DQL, DCL, TCL)
                       </h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-500 font-normal pt-0.5">
                         Comprehensive classification, operational scope, and transaction behavior
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
                     {topicData.commandTypesGrid.map((cmd) => (
                       <div
                         key={cmd.category}
-                        className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-4.5 flex flex-col justify-between space-y-3.5 shadow-xs hover:border-slate-300 transition-all"
+                        className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col justify-between space-y-3 shadow-2xs hover:border-slate-300 transition-colors"
                       >
-                        <div className="space-y-2.5">
+                        <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <span
-                              className={`px-2.5 py-0.5 rounded-lg text-xs font-black tracking-wide ${
+                              className={`px-2 py-0.5 rounded text-xs font-bold tracking-wide ${
                                 cmd.category === 'DDL'
-                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                   : cmd.category === 'DML'
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                   : cmd.category === 'DQL'
-                                  ? 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
                                   : cmd.category === 'DCL'
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                  : 'bg-purple-100 text-purple-800 border border-purple-200'
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  : 'bg-purple-50 text-purple-700 border border-purple-200'
                               }`}
                             >
                               {cmd.category}
                             </span>
-                            <span className="text-[11px] font-bold text-slate-500">
+                            <span className="text-[11px] font-semibold text-slate-400">
                               {cmd.target}
                             </span>
                           </div>
 
                           <div>
-                            <div className="text-xs sm:text-[13px] font-black text-slate-900">
+                            <div className="text-xs sm:text-[13px] font-bold text-slate-900">
                               {cmd.fullForm}
                             </div>
-                            <p className="text-xs text-slate-600 leading-relaxed font-medium mt-1">
+                            <p className="text-xs text-slate-600 leading-relaxed font-normal mt-1">
                               {cmd.purpose}
                             </p>
                           </div>
@@ -885,7 +979,7 @@ export default function SqlLearningView({
                             {cmd.commands.map((c) => (
                               <span
                                 key={c}
-                                className="font-mono text-[11px] font-bold px-2 py-0.5 bg-white border border-slate-200 text-slate-800 rounded-md shadow-2xs"
+                                className="font-mono text-[11px] font-semibold px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-800 rounded"
                               >
                                 {c}
                               </span>
@@ -893,18 +987,18 @@ export default function SqlLearningView({
                           </div>
                         </div>
 
-                        <div className="pt-2 border-t border-slate-200/60 space-y-1.5">
+                        <div className="pt-2 border-t border-slate-100 space-y-1.5">
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-bold text-slate-500">Rollback via TCL:</span>
+                            <span className="font-semibold text-slate-500">Rollback via TCL:</span>
                             <span
-                              className={`font-black ${
-                                cmd.category === 'DML' ? 'text-emerald-600' : 'text-slate-700'
+                              className={`font-bold ${
+                                cmd.category === 'DML' ? 'text-emerald-600' : 'text-slate-600'
                               }`}
                             >
                               {cmd.rollback}
                             </span>
                           </div>
-                          <div className="font-mono text-[11px] font-bold bg-slate-900 text-slate-100 p-2.5 rounded-lg overflow-x-auto whitespace-pre">
+                          <div className="font-mono text-[11px] font-medium bg-slate-50 border border-slate-200 text-slate-800 p-2.5 rounded-md overflow-x-auto whitespace-pre">
                             {cmd.example}
                           </div>
                         </div>
@@ -916,37 +1010,35 @@ export default function SqlLearningView({
 
               {/* 7. OS DOWNLOAD PANELS (Windows & macOS) */}
               {topicData.osDownloadPanels && (
-                <section className="pt-8 border-t border-slate-100 space-y-4">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
-                      <Download size={16} />
-                    </div>
+                <section className="pt-6 border-t border-slate-100 space-y-4">
+                  <div className="flex items-baseline gap-2.5 pt-2 pb-1">
+                    <span className="w-1.5 h-4.5 bg-blue-600 rounded-xs inline-block shrink-0 translate-y-0.5" />
                     <div>
-                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-bold text-[#0a192f] tracking-tight">
                         Official Downloads Matrix (Windows & macOS)
                       </h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-500 font-normal pt-0.5">
                         Direct official Oracle links for MySQL Server 8.0 & MySQL Workbench
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                     {/* WINDOWS CARD */}
-                    <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-4 shadow-xs">
+                    <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between space-y-4 shadow-2xs">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="font-black text-xs text-blue-700 bg-blue-50 px-3 py-0.5 rounded-full border border-blue-100">
+                          <span className="font-bold text-xs text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-100">
                             {topicData.osDownloadPanels.windows.osName}
                           </span>
-                          <span className="text-[11px] font-bold text-slate-500 bg-white px-2.5 py-0.5 rounded-md border border-slate-200">
+                          <span className="text-[11px] font-medium text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
                             {topicData.osDownloadPanels.windows.badge}
                           </span>
                         </div>
-                        <h3 className="text-sm sm:text-base font-black text-slate-900">
+                        <h3 className="text-sm sm:text-base font-bold text-[#0a192f]">
                           {topicData.osDownloadPanels.windows.packageTitle}
                         </h3>
-                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
                           {topicData.osDownloadPanels.windows.stepsOverview}
                         </p>
                       </div>
@@ -955,7 +1047,7 @@ export default function SqlLearningView({
                         href={topicData.osDownloadPanels.windows.downloadUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-xs transition-all text-center cursor-pointer active:scale-95"
+                        className="inline-flex items-center justify-center space-x-2 py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-2xs transition-colors text-center cursor-pointer"
                       >
                         <Download size={14} />
                         <span>Download Windows Installer (MSI)</span>
@@ -964,25 +1056,25 @@ export default function SqlLearningView({
                     </div>
 
                     {/* MACOS CARD */}
-                    <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-4 shadow-xs">
+                    <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between space-y-4 shadow-2xs">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="font-black text-xs text-slate-700 bg-slate-100 px-3 py-0.5 rounded-full border border-slate-200">
+                          <span className="font-bold text-xs text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
                             {topicData.osDownloadPanels.macos.osName}
                           </span>
-                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
+                          <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                             {topicData.osDownloadPanels.macos.badge}
                           </span>
                         </div>
-                        <h3 className="text-sm sm:text-base font-black text-slate-900">
+                        <h3 className="text-sm sm:text-base font-bold text-[#0a192f]">
                           {topicData.osDownloadPanels.macos.packageTitle}
                         </h3>
 
                         <div className="space-y-1.5 pt-1">
-                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                             Or via Terminal (Homebrew):
                           </span>
-                          <div className="bg-slate-900 text-slate-200 font-mono text-xs font-bold p-3 rounded-xl overflow-x-auto whitespace-pre shadow-xs">
+                          <div className="bg-slate-50 border border-slate-200 text-slate-800 font-mono text-xs font-semibold p-2.5 rounded-lg overflow-x-auto whitespace-pre">
                             {topicData.osDownloadPanels.macos.brewCommand}
                           </div>
                         </div>
@@ -993,7 +1085,7 @@ export default function SqlLearningView({
                           href={topicData.osDownloadPanels.macos.serverLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-black text-xs shadow-xs transition-all text-center"
+                          className="inline-flex items-center justify-center space-x-1.5 py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-semibold text-xs transition-colors text-center"
                         >
                           <Download size={13} />
                           <span>Server DMG</span>
@@ -1003,7 +1095,7 @@ export default function SqlLearningView({
                           href={topicData.osDownloadPanels.macos.workbenchLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-xs transition-all text-center"
+                          className="inline-flex items-center justify-center space-x-1.5 py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-2xs transition-colors text-center"
                         >
                           <Download size={13} />
                           <span>Workbench</span>
@@ -1017,28 +1109,26 @@ export default function SqlLearningView({
 
               {/* 8. STEP-BY-STEP SETUP GUIDE */}
               {topicData.setupGuide && (
-                <section className="pt-8 border-t border-slate-100 space-y-6">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
-                      <Laptop size={16} />
-                    </div>
+                <section className="pt-6 border-t border-slate-100 space-y-5">
+                  <div className="flex items-baseline gap-2.5 pt-2 pb-1">
+                    <span className="w-1.5 h-4.5 bg-blue-600 rounded-xs inline-block shrink-0 translate-y-0.5" />
                     <div>
-                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-bold text-[#0a192f] tracking-tight">
                         Step-by-Step Installation Walkthrough
                       </h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                        Follow these 5 steps to get MySQL Server and Workbench running locally
+                      <p className="text-xs sm:text-sm text-slate-500 font-normal pt-0.5">
+                        Follow these steps to get MySQL Server and Workbench running locally
                       </p>
                     </div>
                   </div>
 
-                  <div className="relative pl-6 sm:pl-8 border-l-2 border-slate-200 space-y-8 ml-3 sm:ml-4 pt-1">
+                  <div className="relative pl-6 border-l-2 border-slate-200 space-y-6 ml-3 pt-1">
                     {topicData.setupGuide.map((stepItem) => (
-                      <div key={stepItem.step} className="relative space-y-2.5">
-                        <span className="w-7 h-7 rounded-full bg-blue-600 text-white font-black text-xs flex items-center justify-center absolute -left-[37px] sm:-left-[45px] top-0 shadow-xs ring-4 ring-white">
+                      <div key={stepItem.step} className="relative space-y-2">
+                        <span className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center absolute -left-[31px] top-0 shadow-2xs ring-4 ring-white">
                           {stepItem.step}
                         </span>
-                        <h3 className="text-sm sm:text-base font-black text-slate-900 pt-0.5">
+                        <h3 className="text-sm sm:text-base font-bold text-[#0a192f] pt-0.5">
                           {stepItem.title}
                         </h3>
                         <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
@@ -1055,10 +1145,10 @@ export default function SqlLearningView({
                         )}
 
                         {stepItem.tip && (
-                          <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 flex items-start space-x-2.5 text-xs text-amber-950 font-medium">
-                            <Lightbulb size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                            <span><strong>Pro Tip: </strong>{stepItem.tip}</span>
-                          </div>
+                          <aside className="my-3 rounded-r-lg p-3 border-l-4 border-amber-500 bg-amber-50/70 text-slate-800 text-[13px] leading-relaxed">
+                            <span className="font-semibold text-slate-900">Pro Tip: </span>
+                            <span>{stepItem.tip}</span>
+                          </aside>
                         )}
                       </div>
                     ))}
@@ -1068,39 +1158,37 @@ export default function SqlLearningView({
 
               {/* 9. UNDER THE HOOD DATABASE ENGINE INTERNALS */}
               {topicData.underTheHood && (
-                <section className="pt-8 border-t border-slate-100 space-y-4">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
-                      <Server size={16} />
-                    </div>
+                <section className="pt-6 border-t border-slate-100 space-y-4">
+                  <div className="flex items-baseline gap-2.5 pt-2 pb-1">
+                    <span className="w-1.5 h-4.5 bg-blue-600 rounded-xs inline-block shrink-0 translate-y-0.5" />
                     <div>
-                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-bold text-[#0a192f] tracking-tight">
                         {topicData.underTheHood.title}
                       </h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-500 font-normal pt-0.5">
                         What physically happens inside MySQL Engine, System Catalog, and Disk Storage
                       </p>
                     </div>
                   </div>
 
                   {topicData.underTheHood.summary && (
-                    <p className="text-sm text-slate-700 leading-relaxed font-normal">
+                    <p className="text-slate-700 text-[14.5px] leading-relaxed font-normal">
                       {topicData.underTheHood.summary}
                     </p>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
                     {topicData.underTheHood.steps.map((st) => (
                       <div
                         key={st.step}
-                        className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-blue-300 hover:shadow-sm transition-all flex flex-col justify-between space-y-3"
+                        className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs hover:border-blue-300 transition-colors flex flex-col justify-between space-y-2.5"
                       >
-                        <div className="space-y-2">
-                          <div className="flex items-start space-x-3">
-                            <div className="w-7 h-7 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                        <div className="space-y-1.5">
+                          <div className="flex items-start space-x-2.5">
+                            <span className="w-6 h-6 rounded-md bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
                               {st.step}
-                            </div>
-                            <h3 className="text-sm font-black text-slate-900 leading-snug">
+                            </span>
+                            <h3 className="text-sm font-bold text-[#0a192f] leading-snug">
                               {st.title}
                             </h3>
                           </div>
@@ -1116,51 +1204,49 @@ export default function SqlLearningView({
 
               {/* 10. STEP-BY-STEP SQL QUERIES & ARCHITECTURE */}
               {topicData.sqlSteps && topicData.sqlSteps.length > 0 ? (
-                <section className="pt-8 border-t border-slate-100 space-y-6">
+                <section className="pt-6 border-t border-slate-100 space-y-5">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
-                        <Code2 size={18} />
-                      </div>
+                    <div className="flex items-baseline gap-2.5 pt-2 pb-1">
+                      <span className="w-1.5 h-4.5 bg-blue-600 rounded-xs inline-block shrink-0 translate-y-0.5" />
                       <div>
-                        <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                        <h2 className="text-lg sm:text-xl font-bold text-[#0a192f] tracking-tight">
                           Step-by-Step SQL Queries & Execution Guide
                         </h2>
-                        <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                          Each query is broken down into an isolated step with execution rationale, syntax breakdown, and dark IDE formatting
+                        <p className="text-xs sm:text-sm text-slate-500 font-normal pt-0.5">
+                          Each query is broken down into an isolated step with execution rationale and syntax breakdown
                         </p>
                       </div>
                     </div>
-                    <span className="text-xs font-black text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 hidden sm:inline-block">
+                    <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100 hidden sm:inline-block">
                       {topicData.sqlSteps.length} Steps
                     </span>
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {topicData.sqlSteps.map((st) => (
                       <div
                         key={st.step}
-                        className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs hover:border-slate-300 transition-all space-y-4"
+                        className="bg-white border border-slate-200 rounded-lg p-5 shadow-2xs space-y-3"
                       >
                         {/* Step Header */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                          <div className="flex items-center space-x-2.5">
+                            <span className="w-6 h-6 rounded-md bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
                               {st.step}
-                            </div>
-                            <h3 className="text-base sm:text-lg font-black text-slate-900">
+                            </span>
+                            <h3 className="text-sm sm:text-base font-bold text-[#0a192f]">
                               {st.title}
                             </h3>
                           </div>
                           {st.badge && (
-                            <span className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-lg border border-blue-100 shrink-0">
+                            <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-100 shrink-0">
                               {st.badge}
                             </span>
                           )}
                         </div>
 
                         {st.explanation && (
-                          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                          <p className="text-xs sm:text-[13.5px] text-slate-600 leading-relaxed font-normal">
                             {st.explanation}
                           </p>
                         )}
@@ -1181,10 +1267,10 @@ export default function SqlLearningView({
                 /* Fallback if topic only has syntax or example */
                 <>
                   {topicData.syntax && (
-                    <section className="pt-8 border-t border-slate-100 space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <Code2 size={18} className="text-blue-600" />
-                        <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                    <section className="pt-6 border-t border-slate-100 space-y-3">
+                      <div className="flex items-baseline gap-2.5 pt-2 pb-1">
+                        <span className="w-1.5 h-4.5 bg-blue-600 rounded-xs inline-block shrink-0 translate-y-0.5" />
+                        <h2 className="text-lg sm:text-xl font-bold text-[#0a192f] tracking-tight">
                           Syntax Specification
                         </h2>
                       </div>
@@ -1198,10 +1284,10 @@ export default function SqlLearningView({
                   )}
 
                   {topicData.example && (
-                    <section className="pt-8 border-t border-slate-100 space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <Sparkles size={18} className="text-emerald-600" />
-                        <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                    <section className="pt-6 border-t border-slate-100 space-y-3">
+                      <div className="flex items-baseline gap-2.5 pt-2 pb-1">
+                        <span className="w-1.5 h-4.5 bg-blue-600 rounded-xs inline-block shrink-0 translate-y-0.5" />
+                        <h2 className="text-lg sm:text-xl font-bold text-[#0a192f] tracking-tight">
                           Practical Working Example
                         </h2>
                       </div>
@@ -1218,40 +1304,43 @@ export default function SqlLearningView({
 
               {/* 11. ARCHITECTURAL NOTE */}
               {topicData.note && (
-                <aside className="my-6 bg-amber-50/60 border-l-4 border-amber-500 rounded-r-xl p-4 sm:p-5 flex items-start space-x-3 text-xs sm:text-sm leading-relaxed text-amber-950 shadow-xs">
-                  <Lightbulb size={20} className="text-amber-600 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <span className="font-black text-amber-900 uppercase tracking-wider text-xs block">
-                      Architectural Note
-                    </span>
-                    <p className="font-medium text-slate-800">{topicData.note}</p>
+                <aside className="my-4 rounded-r-lg p-3.5 border-l-4 border-blue-600 bg-blue-50/60 text-slate-800 text-[13.5px] leading-relaxed">
+                  <div className="flex items-center gap-1.5 font-bold text-xs uppercase tracking-wider text-slate-800 mb-1">
+                    <Lightbulb size={14} className="shrink-0 text-blue-600" />
+                    <span>Architectural Note</span>
                   </div>
+                  <div className="font-normal text-slate-700">{topicData.note}</div>
                 </aside>
               )}
 
               {/* 12. COMMON BEGINNER MISTAKES */}
               {topicData.mistakes && topicData.mistakes.length > 0 && (
-                <section className="pt-8 border-t border-slate-100 space-y-4">
-                  <div className="flex items-center space-x-2 text-rose-800 font-black text-base sm:text-lg">
-                    <AlertTriangle size={18} className="text-rose-600" />
-                    <span>Common Beginner Mistakes to Avoid</span>
+                <section className="pt-6 border-t border-slate-100 space-y-3.5">
+                  <div className="flex items-baseline gap-2.5 pt-2 pb-1">
+                    <span className="w-1.5 h-4.5 bg-amber-500 rounded-xs inline-block shrink-0 translate-y-0.5" />
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-bold text-[#0a192f] tracking-tight">
+                        Common Beginner Mistakes to Avoid
+                      </h2>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                     {topicData.mistakes.map((m, idx) => (
                       <div
                         key={idx}
-                        className="bg-rose-50/40 border border-rose-200/80 rounded-xl p-4 space-y-2.5 shadow-xs"
+                        className="bg-white border border-rose-200/80 rounded-lg p-4 space-y-2 shadow-2xs"
                       >
-                        <span className="text-xs font-black text-rose-900 flex items-center space-x-1.5">
-                          <span className="w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] flex items-center justify-center font-black">
+                        <span className="text-xs font-bold text-rose-800 flex items-center space-x-1.5">
+                          <span className="w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] flex items-center justify-center font-bold">
                             ✕
                           </span>
                           <span>{m.title}</span>
                         </span>
-                        <div className="bg-slate-900 text-rose-300 font-mono text-xs p-2.5 rounded-lg overflow-x-auto shadow-inner">
+                        <div className="bg-rose-50/60 border border-rose-200/60 text-rose-950 font-mono text-xs p-2.5 rounded-md overflow-x-auto">
                           {m.badCode}
                         </div>
-                        <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                        <p className="text-xs text-slate-600 leading-relaxed font-normal">
                           {m.explanation}
                         </p>
                       </div>
@@ -1263,166 +1352,173 @@ export default function SqlLearningView({
               {/* 13. KEY TAKEAWAYS */}
               {topicData.keyPoints && topicData.keyPoints.length > 0 && (
                 <section className="pt-6">
-                  <div className="bg-emerald-50/60 border-l-4 border-emerald-500 rounded-r-xl p-5 space-y-3 shadow-xs">
-                    <div className="flex items-center space-x-2 text-emerald-900 font-black text-sm uppercase tracking-wider">
-                      <CheckCircle2 size={18} className="text-emerald-600" />
+                  <aside className="my-4 rounded-r-lg p-3.5 border-l-4 border-emerald-600 bg-emerald-50/70 text-slate-800 text-[13.5px] leading-relaxed">
+                    <div className="flex items-center gap-1.5 font-bold text-xs uppercase tracking-wider text-slate-800 mb-2">
+                      <CheckCircle2 size={14} className="shrink-0 text-emerald-600" />
                       <span>Key Architectural Takeaways</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <ul className="space-y-1.5 pl-2">
                       {topicData.keyPoints.map((kp, idx) => (
-                        <div
+                        <li
                           key={idx}
-                          className="flex items-start space-x-2 text-xs sm:text-[13px] text-slate-800 font-medium leading-relaxed"
+                          className="flex items-start space-x-2 text-xs sm:text-[13px] text-slate-700 leading-relaxed"
                         >
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0 mt-2" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
                           <span>{kp}</span>
-                        </div>
+                        </li>
                       ))}
-                    </div>
-                  </div>
+                    </ul>
+                  </aside>
                 </section>
               )}
 
 
-              {/* Clean bottom termination (no prev/next topic buttons) */}
-              <div className="pb-16" />
+              {/* Bottom Navigation: Previous and Next lesson controls */}
+              <footer className="pt-8 pb-14 border-t border-slate-100 mt-10 flex items-center justify-between">
+                {/* Previous Button */}
+                {previousTopic ? (
+                  <button
+                    type="button"
+                    onClick={handlePreviousLesson}
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 font-medium text-xs sm:text-[13px] transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
+                  >
+                    <span>‹</span>
+                    <span>Previous</span>
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="px-4 py-2 rounded-lg border border-slate-200/60 text-slate-300 font-medium text-xs sm:text-[13px] cursor-not-allowed"
+                  >
+                    <span>‹</span>
+                    <span>Previous</span>
+                  </button>
+                )}
 
-            </article>
+                {/* Next Button */}
+                {nextTopic ? (
+                  <button
+                    type="button"
+                    onClick={handleCompleteAndNext}
+                    className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-xs sm:text-[13px] shadow-sm transition-all flex items-center space-x-1 cursor-pointer"
+                  >
+                    <span>Next</span>
+                    <span>›</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedModuleId && setSelectedModuleId('mod-06');
+                    }}
+                    className="px-4 py-2.5 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs sm:text-[13px] border border-blue-200 flex items-center space-x-1.5 cursor-pointer hover:bg-blue-100 transition-colors"
+                  >
+                    <span>Chapter 7 (Coming Soon)</span>
+                    <span>›</span>
+                  </button>
+                )}
+              </footer>
+
+            </div>
           )}
-        </main>
-      </div>
+        </div>
+      </main>
 
-      {/* =========================================================================
+      {/* ═══════════════════════════════════════════════════════════════════════
           MOBILE SLIDE-OVER DRAWER (<1024px)
-         ========================================================================= */}
+      ═══════════════════════════════════════════════════════════════════════ */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div 
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity" 
-            onClick={() => setMobileMenuOpen(false)} 
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            onClick={() => setMobileMenuOpen(false)}
           />
 
-          <div className="relative w-80 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col z-10">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <BookOpen size={16} className="text-blue-600" />
-                <span className="font-black text-sm text-slate-900">Course Syllabus</span>
-              </div>
-              <button 
-                type="button" 
+          <div className="relative w-80 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col z-10 p-4 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <span className="font-bold text-xs text-slate-900">SQL Chapters ({CHAPTER_CATALOG.length})</span>
+              <button
+                type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-              {CHAPTER_CATALOG.map((mod) => {
-                const isExpanded = expandedModules[mod.id] !== false;
-                const isAvailable = mod.status === 'available';
-                const isSelected = selectedModuleId === mod.id;
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold text-slate-400">
+                {localCompletedTopics.length} / {totalTopicsCount} lessons completed
+              </div>
+              <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.max(3, progressPercent)}%` }}
+                />
+              </div>
+            </div>
 
-                if (!isAvailable) {
+            <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar pt-1">
+              {CHAPTER_CATALOG.map((mod) => {
+                const isAvailable = mod.status === 'available';
+                const isSel = selectedModuleId === mod.id;
+
+                if (isAvailable) {
+                  const topics = mod.topics || [];
+
                   return (
-                    <div key={mod.id} className="pb-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedModuleId && setSelectedModuleId(mod.id);
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black flex items-center justify-between transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-amber-50/90 border border-amber-200 text-amber-950 shadow-2xs'
-                            : 'text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2 truncate">
-                          <span className="w-5 h-5 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-black text-slate-500 flex items-center justify-center shrink-0">
-                            {mod.number}
-                          </span>
-                          <span className="truncate">{mod.shortTitle || mod.title}</span>
-                        </div>
-                        <span className="px-2 py-0.5 bg-amber-100/90 border border-amber-300 text-amber-900 rounded-lg text-[10px] font-extrabold tracking-wide shrink-0 shadow-2xs">
-                          Coming Soon
-                        </span>
-                      </button>
+                    <div key={mod.id} className="space-y-0.5">
+                      <div className="text-[11px] font-bold text-slate-800 px-2 py-0.5">
+                        Chapter {mod.number}: {mod.shortTitle || mod.title}
+                      </div>
+                      <div className="space-y-0.5 pl-2">
+                        {topics.map((t) => {
+                          const isTopicSel = currentActiveTopicId === t.id && isSel;
+                          const label = SQL_TOPIC_SHORT_NAMES[t.id] || (t.lessonCode ? `Subchapter ${t.lessonCode}: ${t.title}` : t.title);
+
+                          return (
+                            <button
+                              key={t.id}
+                              onClick={() => {
+                                handleSelectTopic(t.id, mod.id);
+                                setMobileMenuOpen(false);
+                              }}
+                              className={`w-full text-left px-2.5 py-1 rounded-lg text-xs truncate block cursor-pointer ${
+                                isTopicSel
+                                  ? 'bg-blue-50 text-blue-600 font-bold'
+                                  : 'text-slate-600 hover:bg-slate-50 font-normal'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 }
 
                 return (
-                  <div key={mod.id} className="pb-2 mb-1 border-b border-slate-200/80 last:border-b-0 last:mb-0 last:pb-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toggleModule(mod.id);
-                        setSelectedModuleId && setSelectedModuleId(mod.id);
-                      }}
-                      className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black flex items-center justify-between transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-indigo-50 text-indigo-950 border border-indigo-200'
-                          : 'text-slate-800 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2 truncate">
-                        <span className={`w-5 h-5 rounded-md text-[10px] font-black flex items-center justify-center shrink-0 ${
-                          isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 border border-slate-200 text-slate-700'
-                        }`}>
-                          {mod.number}
-                        </span>
-                        <span className="truncate">{mod.title}</span>
-                      </div>
-
-                      {isExpanded ? (
-                        <ChevronUp size={15} className="text-indigo-600 shrink-0 ml-1.5" strokeWidth={2.2} />
-                      ) : (
-                        <ChevronRight size={15} className="text-slate-400 shrink-0 ml-1.5" strokeWidth={2.2} />
-                      )}
-                    </button>
-
-                    {isExpanded && mod.topics && (
-                      <div className="ml-3 pl-2.5 border-l-2 border-slate-200/80 space-y-0.5 pt-1 pb-1">
-                        {mod.topics.map((t, idx) => {
-                          const isTopicSelected = currentActiveTopicId === t.id && isAvailable;
-                          const isCompleted = localCompletedTopics.includes(t.id);
-
-                          return (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => {
-                                handleSelectTopic(t.id, mod.id);
-                                setMobileMenuOpen(false);
-                              }}
-                              className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
-                                isTopicSelected
-                                  ? 'bg-blue-50 text-blue-700 font-extrabold border border-blue-100 shadow-2xs'
-                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="flex items-center space-x-2 truncate">
-                                {isCompleted ? (
-                                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
-                                ) : (
-                                  <span className={`text-[10px] font-mono font-bold shrink-0 px-1.5 py-0.5 rounded ${
-                                    isTopicSelected ? 'bg-blue-200 text-blue-900 font-black' : 'text-slate-500 bg-slate-100'
-                                  }`}>
-                                    {t.lessonCode || `${mod.number}.${idx + 1}`}
-                                  </span>
-                                )}
-                                <span className="truncate">{t.title}</span>
-                              </div>
-                              {isCompleted && (
-                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-sm shrink-0">Done</span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    key={mod.id}
+                    onClick={() => {
+                      setSelectedModuleId && setSelectedModuleId(mod.id);
+                      setSearchParams({ chapter: mod.id }, { replace: true });
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold truncate flex items-center justify-between cursor-pointer ${
+                      isSel
+                        ? 'bg-blue-50 text-blue-600 font-bold'
+                        : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="truncate">
+                      Chapter {mod.number}: {mod.shortTitle || mod.title}
+                    </span>
+                    <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shrink-0">
+                      Coming Soon
+                    </span>
+                  </button>
                 );
               })}
             </div>

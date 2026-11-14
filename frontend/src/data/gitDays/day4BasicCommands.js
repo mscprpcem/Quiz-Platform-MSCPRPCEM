@@ -4,14 +4,14 @@
 
 export const DAY_4_METADATA = {
   day: 4,
-  week: 'Week 1',
-  weekTitle: 'Week 1: Foundations & Daily Workflow',
+  week: 'Chapter 1',
+  weekTitle: 'Chapter 1: Git Foundations & Daily Workflow',
   slug: 'git-status-add',
-  title: 'Day 4: Basic Git Commands (git add, git commit, git log, .gitignore)',
-  shortTitle: 'Day 4: Basic Commands',
+  title: 'Staging Area & Commits (git add, git commit, git status)',
+  shortTitle: '5. Staging & Commits',
   summary: 'Transitions from passive repository inspection to recording snapshots and managing file tracking: git add, git commit, viewing commit history (git log), and .gitignore.',
   readTime: '7 min read',
-  badge: 'Day 4: Daily Workflow',
+  badge: 'Chapter 1',
   color: 'from-blue-600 to-indigo-600',
   modules: [
     '1. The Core Lifecycle of a Commit',
@@ -26,16 +26,16 @@ export const DAY_4_METADATA = {
 
 export const DAY_4_TOPIC = {
   slug: 'git-status-add',
-  title: 'Day 4: Basic Git Commands (git add, git commit, git log, .gitignore)',
+  title: 'Staging Area & Commits (git add, git commit, git status)',
   summary: 'Master the daily Git recording cycle: two-step staging and committing, inspecting history with git log, and configuring .gitignore to safeguard sensitive files.',
   readTime: '7 min read',
-  badge: 'Day 4: Daily Workflow',
+  badge: 'Chapter 1',
   content: `
 ### Overview: Recording Snapshots & Managing File Tracking
 
-Welcome to **Day 4** of the 30-Day Git & GitHub Developer Roadmap. According to your 30-Day Roadmap, Day 4 transitions from passive repository inspection to recording snapshots and managing file tracking:
+Welcome to Staging & Commits. In this lesson, you transition from repository setup to recording snapshots and managing file tracking:
 
-* **Learning Module:** Basic Git Commands
+* **Learning Module:** Daily Staging & Commits
 * **Topics to Cover:** \`git add\`, \`git commit\`, viewing commit history (\`git log\`), \`.gitignore\`
 * **Practical Task:** Make commits and ignore unnecessary files
 
@@ -205,7 +205,7 @@ git commit -m "chore: remove tracked file from index"
 
 #### Step 1: Navigate to Your Practice Repository
 \`\`\`bash
-cd day3-repo-practice
+cd git-repo-practice
 git status
 \`\`\`
 

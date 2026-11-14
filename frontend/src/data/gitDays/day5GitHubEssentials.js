@@ -5,14 +5,14 @@
 
 export const DAY_5_METADATA = {
   day: 5,
-  week: 'Week 1',
-  weekTitle: 'Week 1: Foundations & Daily Workflow',
+  week: 'Chapter 1',
+  weekTitle: 'Chapter 1: Git Foundations & Daily Workflow',
   slug: 'github-essentials',
-  title: 'Day 5: GitHub Essentials (Account, Interface, Profile & Profile README)',
-  shortTitle: 'Day 5: GitHub Essentials',
+  title: 'GitHub Essentials & Remote Repositories',
+  shortTitle: '6. Remote Basics',
   summary: 'Transition from local Git to GitHub cloud collaboration: account setup, 2FA security, interface navigation, developer portfolio customization, and building a special Profile README repository with MSC PRPCEM examples.',
   readTime: '8 min read',
-  badge: 'Day 5: GitHub Platform',
+  badge: 'Chapter 1',
   color: 'from-purple-600 to-indigo-600',
   modules: [
     '1. What is GitHub & Why Does It Matter?',
@@ -28,14 +28,14 @@ export const DAY_5_METADATA = {
 
 export const DAY_5_TOPIC = {
   slug: 'github-essentials',
-  title: 'Day 5: GitHub Essentials (Account, Interface, Profile & Profile README)',
+  title: 'GitHub Essentials & Remote Repositories',
   summary: 'Explore GitHub as a remote collaboration platform, 2FA security, global dashboard navigation, developer portfolio customization, and the special secret Profile README repository using MSC PRPCEM examples.',
   readTime: '8 min read',
-  badge: 'Day 5: GitHub Platform',
+  badge: 'Chapter 1',
   content: `
 ### Overview: Transitioning from Local Git to GitHub's Cloud Platform
 
-Welcome to **Day 5** of the 30-Day Git & GitHub Developer Roadmap. Today marks a pivotal transition in your developer journey: shifting from local offline Git operations on your machine to **GitHub**, the global cloud collaboration platform hosting over 100 million developers and hundreds of millions of software repositories.
+Welcome to GitHub Essentials. This lesson marks a pivotal transition in your developer journey: shifting from local offline Git operations on your machine to **GitHub**, the global cloud collaboration platform hosting over 100 million developers and hundreds of millions of software repositories.
 
 A strong GitHub presence is more than an off-site backup—it functions as your living developer resume, technical portfolio, and collaborative workspace. Today, you will establish your identity, secure your credentials, master the web interface, and construct a personalized **Profile README** using GitHub's special repository feature with **MSC PRPCEM** community standards.
 
@@ -67,7 +67,7 @@ Your GitHub username forms your permanent developer URL: \`https://github.com/<u
 * Avoid informal handles, numbers, or temporary aliases, as recruiters and open-source maintainers associate your username with your technical identity.
 
 #### Step 3: Primary Email Matching (Critical Rule)
-* Enter the **exact email address** you configured locally on Day 2 with:
+* Enter the **exact email address** you configured locally in your Git configuration with:
 \`\`\`bash
 git config --global user.email "msc@prpcem.ac.in"
 \`\`\`
@@ -119,7 +119,7 @@ Your public profile (\`https://github.com/mscprpcem\`) introduces you to recruit
    > *"Microsoft Student Club @ PRPCEM | Empowering student developers with Git, open source & cloud engineering."*
 4. **Location & Time Zone:** e.g., \`Amravati, Maharashtra, India\`. Helps international distributed teams coordinate synchronous code reviews and events.
 5. **Website / Social Links:** \`https://mscprpcem.tech\` and \`https://linkedin.com/company/mscprpcem\`.
-6. **Pinned Repositories:** Up to **6 public repositories or gists** to showcase best work (e.g., \`Quiz-platform\`, \`30-Day-Git-Curriculum\`, \`sql-lab\`, \`campus-events-portal\`).
+6. **Pinned Repositories:** Up to **6 public repositories or gists** to showcase best work (e.g., \`Quiz-platform\`, \`Git-Curriculum\`, \`sql-lab\`, \`campus-events-portal\`).
 7. **Contribution Heatmap (Activity Graph):** A visual grid documenting commits, opened PRs, code reviews, and filed issues across the past 52 weeks in vibrant shades of green.
 
 ---
@@ -165,7 +165,7 @@ Markdown (\`.md\`) is the universal formatting language for GitHub documentation
 
 ### 7. Practical Task Walkthrough: Step-by-Step (MSC PRPCEM Example)
 
-Follow these sequential steps to complete your Day 5 hands-on assignment:
+Follow these sequential steps to complete your hands-on assignment:
 
 #### Step 1: Complete Account Metadata
 1. Click your profile avatar in the upper right corner > **Settings**.
@@ -198,7 +198,7 @@ Follow these sequential steps to complete your Day 5 hands-on assignment:
 
 ### 👨‍💻 About MSC PRPCEM
 - 🔭 **What we're building:** Open-source projects, coding platforms, interactive technical workshops, and student mentorship programs.
-- 🎯 **30-Day Goal:** Master Git & GitHub collaborative workflows across the PRPCEM engineering cohort.
+- 🎯 **Curriculum Goal:** Master Git & GitHub collaborative workflows across the PRPCEM engineering cohort.
 - 💬 **Ask us about:** Web Development, Cloud Computing, Git/GitHub, SQL, and Community Hackathons.
 - 🌐 **Official Portal:** [mscprpcem.tech](https://mscprpcem.tech)
 - 📫 **Contact & Socials:** [LinkedIn](https://linkedin.com/company/mscprpcem) | [msc@prpcem.ac.in](mailto:msc@prpcem.ac.in)
@@ -233,7 +233,7 @@ Follow these sequential steps to complete your Day 5 hands-on assignment:
 | **Email Attribution** | Profile email must match \`git config user.email\` to credit commits. | \`msc@prpcem.ac.in\` |
 | **Special Repo Name** | Must be \`<username>/<username>\` (exact case) to render. | \`mscprpcem/mscprpcem\` |
 | **Visibility Requirement** | Must be **Public**; setting to Private hides the profile README. | Set to Public |
-| **Pinned Items** | Maximum of **6 items** (Repositories or Gists) can be pinned. | \`Quiz-platform\`, \`30-Day-Git-Curriculum\` |
+| **Pinned Items** | Maximum of **6 items** (Repositories or Gists) can be pinned. | \`Quiz-platform\`, \`Git-Curriculum\` |
 | **Contribution Graph** | Tracks commits to default/gh-pages branches, opening PRs, and filing issues. | 52-week green activity heatmap |
 | **Official Profile URL** | Permanent public landing page for open-source identity. | \`https://github.com/mscprpcem\` |
 `

@@ -3,10 +3,12 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   BookOpen, Terminal, Copy, Check, Sparkles, ArrowRight, ArrowLeft,
   GitBranch, Code2, Clock, CheckCircle2, ChevronRight, FileText, Search,
-  Compass, HelpCircle, Lightbulb, X, Info
+  Compass, HelpCircle, Lightbulb, X, Info, ShieldCheck, Zap, Layers,
+  Play, ExternalLink, ChevronDown, Award
 } from 'lucide-react';
-import { GIT_CHEATSHEET } from '../data/gitCurriculumData';
-import GitLearningView from './GitLearningView';
+import { GIT_CHEATSHEET, GIT_CURRICULUM } from '../data/gitCurriculumData';
+import { GIT_SUBCHAPTERS } from '../data/gitSubchapters';
+import GitLearningView, { GIT_CHAPTERS, TOPIC_SHORT_NAMES } from './GitLearningView';
 import GitRoadmapView from './GitRoadmapView';
 import GitPracticeDashboard from './GitPracticeDashboard';
 
@@ -15,33 +17,21 @@ export default function GitCourseHub() {
   const location = useLocation();
   const { tab: urlTab } = useParams();
 
-  // Search filter for Cheat Sheet view
+  // Search & filters for Cheat Sheet view and Chapter explorer
   const [cheatSearch, setCheatSearch] = useState('');
   const [copiedCmd, setCopiedCmd] = useState(null);
+  const [chapterSearch, setChapterSearch] = useState('');
+  const [selectedChapterFilter, setSelectedChapterFilter] = useState('all');
 
-  // Tutor Guide visibility (persisted in localStorage)
-  const [showTutorGuide, setShowTutorGuide] = useState(() => {
+  // Completed lessons from localStorage
+  const [completedLessons, setCompletedLessons] = useState(() => {
     try {
-      const saved = localStorage.getItem('msc_git_tutor_guide_closed');
-      return saved !== 'true';
+      const saved = localStorage.getItem('msc_git_completed_lessons');
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return true;
+      return [];
     }
   });
-
-  const handleDismissTutorGuide = () => {
-    setShowTutorGuide(false);
-    try {
-      localStorage.setItem('msc_git_tutor_guide_closed', 'true');
-    } catch (_) {}
-  };
-
-  const handleOpenTutorGuide = () => {
-    setShowTutorGuide(true);
-    try {
-      localStorage.removeItem('msc_git_tutor_guide_closed');
-    } catch (_) {}
-  };
 
   // Check current view mode: 'learn' | 'practice' | 'roadmap' | 'cheatsheet' | 'overview'
   const currentView = useMemo(() => {
@@ -56,6 +46,79 @@ export default function GitCourseHub() {
     if (path.endsWith('/cheatsheet') || path === '/git/cheatsheet' || path === '/courses/git/cheatsheet') return 'cheatsheet';
     return 'overview';
   }, [urlTab, location.pathname]);
+
+  // Total lessons count
+  const totalLessonsCount = useMemo(() => {
+    return GIT_CURRICULUM.reduce((acc, tier) => acc + tier.topics.length, 0);
+  }, []);
+
+  // Filtered chapters for the redesigned Chapters page
+  const chaptersData = useMemo(() => {
+    // Map existing curriculum topic objects by slug
+    const topicsMap = new Map();
+
+    // Register all 10 subchapters from GIT_SUBCHAPTERS first
+    GIT_SUBCHAPTERS.forEach((sub) => {
+      topicsMap.set(sub.slug, sub);
+      if (sub.aliases) {
+        sub.aliases.forEach(a => topicsMap.set(a, sub));
+      }
+    });
+
+    GIT_CURRICULUM.forEach((tier) => {
+      tier.topics.forEach((t) => {
+        if (!topicsMap.has(t.slug)) {
+          topicsMap.set(t.slug, t);
+        }
+      });
+    });
+
+    return GIT_CHAPTERS.map(ch => {
+      const allTopics = ch.topics.map(slug => topicsMap.get(slug)).filter(Boolean);
+      
+      const filteredTopics = allTopics.filter(t => {
+        if (!chapterSearch.trim()) return true;
+        const q = chapterSearch.toLowerCase();
+        const shortName = TOPIC_SHORT_NAMES[t.slug] || '';
+        return (
+          t.title.toLowerCase().includes(q) ||
+          shortName.toLowerCase().includes(q) ||
+          (t.summary && t.summary.toLowerCase().includes(q)) ||
+          (t.slug && t.slug.toLowerCase().includes(q)) ||
+          ch.title.toLowerCase().includes(q)
+        );
+      });
+
+      const completedInChapter = allTopics.filter(t => completedLessons.includes(t.slug)).length;
+
+      return {
+        ...ch,
+        subtitle: ch.partTitle || ch.title,
+        topics: allTopics,
+        filteredTopics,
+        completedCount: completedInChapter,
+        totalCount: allTopics.length
+      };
+    }).filter(ch => {
+      if (selectedChapterFilter !== 'all') {
+        if (selectedChapterFilter.startsWith('part-')) {
+          const partName = selectedChapterFilter.replace('part-', 'Part ');
+          if (ch.part !== partName) return false;
+        } else if (ch.id !== selectedChapterFilter) {
+          return false;
+        }
+      }
+      if (chapterSearch.trim() && ch.filteredTopics.length === 0) return false;
+      return true;
+    });
+  }, [selectedChapterFilter, chapterSearch, completedLessons]);
+
+  // Handle command copy
+  const handleCopy = (cmd) => {
+    navigator.clipboard.writeText(cmd);
+    setCopiedCmd(cmd);
+    setTimeout(() => setCopiedCmd(null), 2000);
+  };
 
   // 1. LEARN VIEW (Dedicated Curriculum Workspace)
   if (currentView === 'learn') {
@@ -85,14 +148,7 @@ export default function GitCourseHub() {
     );
   }
 
-  // Handle command copy
-  const handleCopy = (cmd) => {
-    navigator.clipboard.writeText(cmd);
-    setCopiedCmd(cmd);
-    setTimeout(() => setCopiedCmd(null), 2000);
-  };
-
-  // 3. CHEAT SHEET VIEW (Dedicated Clean Light Theme Page)
+  // 4. CHEAT SHEET VIEW (Dedicated Clean Developer Reference Page)
   if (currentView === 'cheatsheet') {
     const filteredCategories = GIT_CHEATSHEET.map(cat => ({
       ...cat,
@@ -104,76 +160,71 @@ export default function GitCourseHub() {
 
     return (
       <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-segoe pb-20">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-8 space-y-6">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 space-y-5">
           
           {/* Top Navigation */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               onClick={() => navigate('/courses/git')}
-              className="inline-flex items-center space-x-2 text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer group bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-2xs"
+              className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs"
             >
-              <ArrowLeft size={15} className="group-hover:-translate-x-1 transition-transform" />
-              <span>Back to Git Course Hub</span>
+              <ArrowLeft size={14} />
+              <span>Back to Chapters</span>
             </button>
 
-            {/* Search Input */}
             <div className="relative w-full sm:w-72">
-              <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+              <Search size={13} className="absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search commands (e.g. commit, rebase)..."
+                placeholder="Search commands (e.g. rebase, commit)..."
                 value={cheatSearch}
                 onChange={(e) => setCheatSearch(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-500 shadow-2xs"
+                className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-2xs"
               />
             </div>
           </div>
 
           {/* Header */}
-          <div className="space-y-1.5 border-b border-slate-200 pb-4">
-            <div className="inline-flex items-center space-x-1.5 bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-0.5 rounded-md text-[11px] font-black tracking-wider uppercase">
-              <FileText size={12} className="text-blue-600" />
-              <span>Developer Reference</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Git Quick Reference Cheat Sheet
+          <div className="space-y-1 border-b border-slate-200 pb-3">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Git Command Field Cheat Sheet
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium">
-              Copyable commands for day-to-day software engineering and developer workflows.
+            <p className="text-xs text-slate-500 font-medium">
+              Copyable commands for day-to-day workflow, branching, and emergency incident recovery.
             </p>
           </div>
 
           {/* Categories Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {filteredCategories.map((cat, idx) => (
               <div
                 key={idx}
-                className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4"
+                className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3"
               >
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-sm font-black text-blue-600 uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-600" />
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
                     {cat.category}
                   </h3>
-                  <span className="text-[10px] font-mono font-bold text-slate-400">
+                  <span className="text-[10px] font-mono font-medium text-slate-400">
                     {cat.commands.length} commands
                   </span>
                 </div>
 
-                <div className="space-y-2 sm:space-y-2.5">
+                <div className="space-y-2">
                   {cat.commands.map((item, cIdx) => {
                     const isCopied = copiedCmd === item.cmd;
 
                     return (
                       <div
                         key={cIdx}
-                        className="p-2.5 sm:p-3 bg-slate-50/80 hover:bg-slate-100/90 rounded-xl border border-slate-200/80 transition-colors flex items-center justify-between gap-2.5 sm:gap-3 group"
+                        className="p-2.5 bg-slate-50 hover:bg-slate-100/80 rounded-lg border border-slate-200/70 transition-colors flex items-center justify-between gap-2.5"
                       >
-                        <div className="space-y-0.5 sm:space-y-1 min-w-0 flex-1">
-                          <code className="text-xs sm:text-[13px] font-mono font-bold text-blue-700 block break-all sm:break-normal sm:truncate">
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          <code className="text-xs font-mono font-bold text-blue-700 block truncate">
                             {item.cmd}
                           </code>
-                          <span className="text-[11px] sm:text-xs text-slate-500 font-medium block leading-snug">
+                          <span className="text-[11px] text-slate-500 block leading-snug">
                             {item.desc}
                           </span>
                         </div>
@@ -181,14 +232,14 @@ export default function GitCourseHub() {
                         <button
                           type="button"
                           onClick={() => handleCopy(item.cmd)}
-                          className={`p-2 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer border ${
+                          className={`p-1.5 rounded-md text-xs font-bold transition-all shrink-0 cursor-pointer border ${
                             isCopied
-                              ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                              : 'bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-slate-200 shadow-2xs active:scale-95'
+                              ? 'bg-emerald-50 text-emerald-600 border-emerald-300'
+                              : 'bg-white text-slate-500 hover:text-slate-800 border-slate-200 shadow-2xs'
                           }`}
                           title="Copy command"
                         >
-                          {isCopied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                          {isCopied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
                         </button>
                       </div>
                     );
@@ -203,285 +254,233 @@ export default function GitCourseHub() {
     );
   }
 
-  // 4. OVERVIEW / LANDING PAGE (Clean Light Theme, No Loaders, No Tracking, With Tutor Guide)
+  const progressPercent = Math.min(100, Math.round((completedLessons.length / totalLessonsCount) * 100));
+
+  // 5. REDESIGNED CHAPTERS PAGE: Clean, Elegant, Developer-Grade Course Catalog
   return (
-    <div className="min-h-screen bg-[#F5FAFF] text-slate-800 font-segoe pb-20">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-segoe pb-20 selection:bg-blue-100 selection:text-blue-900">
       
       {/* ═════════════════════════════════════════════════════════════════════
-          LIGHT THEME HERO HEADER
+          TOP HEADER: CLEAN COURSE SUMMARY & TRACK METRICS
       ═════════════════════════════════════════════════════════════════════ */}
-      <section className="w-full pt-10 sm:pt-14 pb-6 px-4 sm:px-6 flex flex-col items-center text-center">
-        <div className="max-w-3xl mx-auto space-y-3">
-          <div className="inline-flex items-center space-x-2 bg-blue-50 border border-blue-200/80 text-blue-700 px-3.5 py-1 rounded-full text-xs font-extrabold shadow-2xs">
-            <GitBranch size={13} className="text-blue-600" />
-            <span>MSC PRPCEM Learning Track</span>
+      <header className="w-full bg-white border-b border-slate-200 py-6 sm:py-8 px-4 sm:px-6">
+        <div className="max-w-5xl xl:max-w-6xl mx-auto space-y-4">
+          
+          {/* Top Breadcrumb & Status */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <button
+              onClick={() => navigate('/courses')}
+              className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              <span>All Courses</span>
+            </button>
+
+            <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/70">
+              Official MSC PRPCEM Curriculum
+            </span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-[46px] font-black text-slate-900 tracking-tight leading-tight">
-            Master <span className="text-blue-600">Git & GitHub</span>
-          </h1>
+          {/* Course Title & Intro */}
+          <div className="space-y-1.5">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Git &amp; GitHub <span className="text-blue-600">Chapters</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed font-normal">
+              Master version control chapter by chapter: mental models, staging architecture, branch topologies, interactive rebasing, emergency recovery, and CI/CD pipelines.
+            </p>
+          </div>
 
-          <p className="text-xs sm:text-sm lg:text-base text-slate-600 max-w-xl mx-auto leading-relaxed font-normal">
-            From core version control foundations to branching strategies, GitHub collaboration, and production workflows.
-          </p>
-
-          {!showTutorGuide && (
-            <button
-              onClick={handleOpenTutorGuide}
-              className="inline-flex items-center space-x-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 bg-white px-3 py-1 rounded-full border border-blue-200 shadow-2xs transition-all cursor-pointer"
-            >
-              <Lightbulb size={13} />
-              <span>Show Tutor Guide</span>
-            </button>
-          )}
-        </div>
-      </section>
-
-      {/* ═════════════════════════════════════════════════════════════════════
-          PROFESSIONAL TUTOR GUIDE FOR FIRST-TIME USERS
-      ═════════════════════════════════════════════════════════════════════ */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 space-y-10">
-        
-        {showTutorGuide && (
-          <div className="bg-white border-2 border-blue-200/80 rounded-3xl p-6 sm:p-7 shadow-sm space-y-5 animate-fadeIn relative overflow-hidden">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <div className="inline-flex items-center space-x-2 text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wider">
-                  <Sparkles size={12} className="text-blue-600" />
-                  <span>Student Quick-Start Tutor Guide</span>
-                </div>
-                <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
-                  How to Learn Git & GitHub Efficiently
-                </h2>
-                <p className="text-xs text-slate-500 font-medium max-w-xl">
-                  Follow this 4-step professional workflow designed by engineers to help you build intuition rather than just memorizing commands.
-                </p>
+          {/* Track Progress & Action Buttons */}
+          <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-slate-100">
+            <div className="space-y-1.5 sm:max-w-xs w-full">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-slate-600 flex items-center gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-500" />
+                  Course Progress
+                </span>
+                <span className="text-blue-600 font-mono font-bold">
+                  {completedLessons.length} / {totalLessonsCount} lessons ({progressPercent}%)
+                </span>
               </div>
+              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60">
+                <div
+                  className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.max(3, progressPercent)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/courses/git/learn')}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+              >
+                <BookOpen size={13} />
+                <span>Continue Reading</span>
+                <ArrowRight size={13} />
+              </button>
 
               <button
                 type="button"
-                onClick={handleDismissTutorGuide}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Dismiss guide"
+                onClick={() => navigate('/courses/git/practice')}
+                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl shadow-2xs transition-colors flex items-center space-x-1.5 cursor-pointer"
               >
-                <X size={18} />
+                <Terminal size={13} className="text-emerald-600" />
+                <span>70 Labs</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/courses/git/cheatsheet')}
+                className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl shadow-2xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+              >
+                <FileText size={13} />
+                <span>Cheat Sheet</span>
               </button>
             </div>
-
-            <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5 pt-1">
-              {/* Step 1 */}
-              <div
-                onClick={() => navigate('/courses/git/learn')}
-                className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-blue-50/50 hover:bg-blue-50 border border-blue-100 transition-all cursor-pointer space-y-2 group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="w-6 h-6 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center font-mono">
-                    1
-                  </span>
-                  <ArrowRight size={13} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <h3 className="text-xs font-black text-slate-900 group-hover:text-blue-600 transition-colors">
-                  Learn Curriculum
-                </h3>
-                <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                  Read topics step by step: understand snapshot models, pointers, and the 3 trees.
-                </p>
-              </div>
-
-              {/* Step 2 */}
-              <div
-                onClick={() => navigate('/courses/git/practice')}
-                className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 transition-all cursor-pointer space-y-2 group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center font-mono">
-                    2
-                  </span>
-                  <ArrowRight size={13} className="text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <h3 className="text-xs font-black text-slate-900 group-hover:text-emerald-600 transition-colors">
-                  Practice Problemset
-                </h3>
-                <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                  Solve 70 interactive challenges across Terminal foundations, Git architecture, and branch mechanics.
-                </p>
-              </div>
-
-              {/* Step 3 */}
-              <div
-                onClick={() => navigate('/courses/git/roadmap')}
-                className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-amber-50/50 hover:bg-amber-50 border border-amber-100 transition-all cursor-pointer space-y-2 group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="w-6 h-6 rounded-lg bg-amber-600 text-white font-black text-xs flex items-center justify-center font-mono">
-                    3
-                  </span>
-                  <ArrowRight size={13} className="text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <h3 className="text-xs font-black text-slate-900 group-hover:text-amber-600 transition-colors">
-                  30-Day Roadmap
-                </h3>
-                <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                  Follow a structured 4-week daily study schedule taking you from beginner to ninja.
-                </p>
-              </div>
-
-              {/* Step 4 */}
-              <div
-                onClick={() => navigate('/courses/git/cheatsheet')}
-                className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100 transition-all cursor-pointer space-y-2 group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-black text-xs flex items-center justify-center font-mono">
-                    4
-                  </span>
-                  <ArrowRight size={13} className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <h3 className="text-xs font-black text-slate-900 group-hover:text-indigo-600 transition-colors">
-                  Daily Cheat Sheet
-                </h3>
-                <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                  Use one-click copy commands for day-to-day workflow, remotes, and emergency undos.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ═════════════════════════════════════════════════════════════════════
-            PRIMARY ACTION CARDS (LEARN & PRACTICE)
-        ═════════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 items-stretch">
-          
-          {/* CARD 1: LEARNING */}
-          <div
-            onClick={() => navigate('/courses/git/learn')}
-            className="group bg-white hover:bg-gradient-to-b hover:from-blue-50/40 hover:to-white border-2 border-blue-100/90 hover:border-blue-400 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-9 flex flex-col items-center text-center shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden"
-          >
-            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-blue-400 via-blue-600 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            
-            <div className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 mb-4 sm:mb-5 group-hover:scale-105 transition-transform duration-300">
-              <BookOpen size={28} strokeWidth={2.2} className="text-white sm:w-8 sm:h-8" />
-            </div>
-
-            <h2 className="text-xl sm:text-2xl lg:text-[26px] font-black text-blue-600 tracking-tight mb-2 sm:mb-2.5">
-              Learning
-            </h2>
-
-            <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed mb-5 sm:mb-6 max-w-sm">
-              Learn Git & GitHub step by step with 34 comprehensive lessons. Understand the 3 trees, staging, branch mechanics, merge conflicts, and GitHub collaboration.
-            </p>
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate('/courses/git/learn');
-              }}
-              className="w-full sm:max-w-[220px] py-3 sm:py-3.5 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-black text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-md shadow-blue-500/20 group-hover:shadow-blue-500/35 transition-all cursor-pointer mt-auto"
-            >
-              <span>Start Learning</span>
-              <ArrowRight size={15} />
-            </button>
-          </div>
-
-          {/* CARD 2: PRACTICE */}
-          <div
-            onClick={() => navigate('/courses/git/practice')}
-            className="group bg-white hover:bg-gradient-to-b hover:from-emerald-50/40 hover:to-white border-2 border-emerald-100/90 hover:border-emerald-400 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-9 flex flex-col items-center text-center shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden"
-          >
-            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-600 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            
-            <div className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/25 mb-4 sm:mb-5 group-hover:scale-105 transition-transform duration-300">
-              <Terminal size={28} strokeWidth={2.2} className="text-white sm:w-8 sm:h-8" />
-            </div>
-
-            <h2 className="text-xl sm:text-2xl lg:text-[26px] font-black text-emerald-600 tracking-tight mb-2 sm:mb-2.5">
-              Practice Problemset
-            </h2>
-
-            <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed mb-5 sm:mb-6 max-w-sm">
-              70 hands-on in-browser simulated Git terminal challenges. Master POSIX shell commands, commits, tree navigation, and branching strategies.
-            </p>
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate('/courses/git/practice');
-              }}
-              className="w-full sm:max-w-[220px] py-3 sm:py-3.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-md shadow-emerald-500/20 group-hover:shadow-emerald-500/35 transition-all cursor-pointer mt-auto"
-            >
-              <span>Explore 70 Labs</span>
-              <ArrowRight size={15} />
-            </button>
           </div>
 
         </div>
+      </header>
 
-        {/* ═════════════════════════════════════════════════════════════════════
-            TWO DEDICATED TRACK LINKS: ROADMAP & CHEAT SHEET
-        ═════════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 pt-2">
-          
-          {/* LINK CARD 1: DEDICATED 30-DAY ROADMAP */}
-          <div
-            onClick={() => navigate('/courses/git/roadmap')}
-            className="bg-white hover:bg-amber-50/20 border border-slate-200/90 hover:border-amber-400 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group flex flex-col justify-between space-y-3 sm:space-y-4"
-          >
-            <div className="space-y-2.5 sm:space-y-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/80 flex items-center justify-center">
-                <Clock size={18} className="sm:w-5 sm:h-5" />
-              </div>
-
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-700">
-                  Structured 4-Week Schedule
-                </span>
-                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-amber-700 transition-colors mt-0.5">
-                  30-Day Developer Roadmap
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1">
-                  Dedicated page tracking 30 daily goals from basic repo initialization to CI/CD and emergency production hotfixes.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-700 group-hover:text-amber-800">
-              <span>View Dedicated Roadmap</span>
-              <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-            </div>
+      {/* ═════════════════════════════════════════════════════════════════════
+          MAIN CHAPTERS LIST: PROPER FULL SPACE
+      ═════════════════════════════════════════════════════════════════════ */}
+      <main className="max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+        
+        {/* Search & Chapter Quick Filter */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { id: 'all', label: `All Chapters (${GIT_CHAPTERS.length})` },
+              { id: 'part-1', label: 'Part 1: Foundations (1–7)' },
+              { id: 'part-2', label: 'Part 2: Branching (8–14)' },
+              { id: 'part-3', label: 'Part 3: GitHub (15–21)' },
+              { id: 'part-4', label: 'Part 4: Power Tools (22–30)' }
+            ].map(f => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setSelectedChapterFilter(f.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  selectedChapterFilter === f.id
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
 
-          {/* LINK CARD 2: DEDICATED CHEAT SHEET */}
-          <div
-            onClick={() => navigate('/courses/git/cheatsheet')}
-            className="bg-white hover:bg-indigo-50/20 border border-slate-200/90 hover:border-indigo-400 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group flex flex-col justify-between space-y-3 sm:space-y-4"
-          >
-            <div className="space-y-2.5 sm:space-y-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200/80 flex items-center justify-center">
-                <FileText size={18} className="sm:w-5 sm:h-5" />
-              </div>
-
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700">
-                  Quick Command Lookup
-                </span>
-                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-indigo-700 transition-colors mt-0.5">
-                  Git Command Cheat Sheet
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1">
-                  Dedicated reference with copyable commands for daily workflow, branching, remotes, and emergency incident recovery.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-indigo-700 group-hover:text-indigo-800">
-              <span>View Full Cheat Sheet</span>
-              <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-            </div>
+          <div className="relative w-full sm:w-64">
+            <Search size={13} className="absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search lessons or topics..."
+              value={chapterSearch}
+              onChange={(e) => setChapterSearch(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-2xs"
+            />
+            {chapterSearch && (
+              <button
+                onClick={() => setChapterSearch('')}
+                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
+        </div>
 
+        {/* Chapters Cards List */}
+        <div className="space-y-4">
+          {chaptersData.map((chapter) => {
+            const isFinished = chapter.completedCount === chapter.totalCount && chapter.totalCount > 0;
+
+            return (
+              <div
+                key={chapter.id}
+                className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-shadow space-y-4"
+              >
+                {/* Chapter Card Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-5 h-5 rounded-md bg-blue-600 text-white text-[11px] font-mono font-bold flex items-center justify-center shrink-0">
+                        {chapter.number}
+                      </span>
+                      <h2 className="text-sm sm:text-base font-extrabold text-slate-900">
+                        {chapter.title}
+                      </h2>
+                    </div>
+                    {chapter.subtitle && (
+                      <p className="text-xs text-slate-500 font-normal pl-7">
+                        {chapter.subtitle}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-2 shrink-0 sm:self-center pl-7 sm:pl-0">
+                    <span className="text-[11px] font-mono font-semibold text-slate-500 bg-slate-50 border border-slate-200/60 px-2 py-0.5 rounded-md">
+                      {chapter.number <= 5 ? `${chapter.completedCount}/${chapter.totalCount} completed` : 'Coming Soon'}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (chapter.number <= 5) {
+                          navigate(`/courses/git/learn?topic=${chapter.topics?.[0]?.slug || 'day-0-orientation'}`);
+                        } else {
+                          navigate(`/courses/git/learn?chapter=${chapter.id}`);
+                        }
+                      }}
+                      className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg border border-blue-200/80 transition-colors flex items-center space-x-1 cursor-pointer"
+                    >
+                      <span>{chapter.number <= 5 ? 'Start' : 'Preview'}</span>
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lessons Grid inside Chapter with Short Names */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {chapter.filteredTopics.map((topic) => {
+                    const isDone = completedLessons.includes(topic.slug);
+                    const shortTitle = TOPIC_SHORT_NAMES[topic.slug] || topic.shortTitle || topic.title.replace(/^(?:Day\s*\d+:|\d+\.)\s*/, '');
+
+                    return (
+                      <button
+                        key={topic.slug}
+                        type="button"
+                        onClick={() => navigate(`/courses/git/learn?topic=${topic.slug}`)}
+                        className="text-left p-2.5 rounded-xl border border-slate-100 hover:border-blue-200 bg-slate-50/60 hover:bg-blue-50/40 transition-colors flex items-center justify-between gap-2 group cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-2 truncate min-w-0">
+                          {isDone ? (
+                            <CheckCircle2 size={13} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                          ) : (
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-blue-600 shrink-0" />
+                          )}
+                          <span className="text-xs text-slate-700 group-hover:text-blue-700 font-medium truncate">
+                            {shortTitle}
+                          </span>
+                        </div>
+
+                        <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                          {topic.readTime ? topic.readTime.replace(' read', '') : '5m'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+              </div>
+            );
+          })}
         </div>
 
       </main>
