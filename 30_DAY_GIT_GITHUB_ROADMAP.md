@@ -1,10 +1,10 @@
-# 🚀 30-Chapter Git & GitHub Developer Curriculum
+# 30-Chapter Git & GitHub Developer Curriculum
 
 A structured, practical chapter-by-chapter curriculum designed for developers, students, and engineers to master Git version control, collaborative GitHub workflows, open-source contribution, and automated CI/CD pipelines.
 
 ---
 
-## 📖 Curriculum Overview (Chapters 1 to 30)
+## Curriculum Overview (Chapters 1 to 30)
 
 | Chapter | Curriculum Module | Core Topics & Subchapters | Practical Task | Status |
 | :---: | :--- | :--- | :--- | :---: |
@@ -41,9 +41,9 @@ A structured, practical chapter-by-chapter curriculum designed for developers, s
 
 ---
 
-## 📚 Detailed Chapter Curriculum Breakdown
+## Detailed Chapter Curriculum Breakdown
 
-### 🎯 Part 1: Git & GitHub Foundations (Chapters 1–7)
+### Part 1: Git & GitHub Foundations (Chapters 1–7)
 Focus: Understanding how Git models snapshots, setting up local and remote environments, making commits, and connecting to GitHub.
 
 - **Chapter 1: Version Control Fundamentals & Orientation**
@@ -70,7 +70,7 @@ Focus: Understanding how Git models snapshots, setting up local and remote envir
 
 ---
 
-### 🌿 Part 2: Branching, Merging & History (Chapters 8–14)
+### Part 2: Branching, Merging & History (Chapters 8–14)
 Focus: Branch management, merging strategies, resolving conflicts, and team collaboration workflows.
 
 - **Chapter 8: Branching Basics & Pointer Mechanics**
@@ -97,7 +97,7 @@ Focus: Branch management, merging strategies, resolving conflicts, and team coll
 
 ---
 
-### 🧰 Part 3: Collaboration & Advanced Team Operations (Chapters 15–21)
+### Part 3: Collaboration & Advanced Team Operations (Chapters 15–21)
 Focus: History manipulation, disaster recovery, open-source pull requests, and project management.
 
 - **Chapter 15: Cherry-Picking & Selective Commits**
@@ -124,7 +124,7 @@ Focus: History manipulation, disaster recovery, open-source pull requests, and p
 
 ---
 
-### ⚡ Part 4: Power Tools, CI/CD, APIs & Ecosystem (Chapters 22–30)
+### Part 4: Power Tools, CI/CD, APIs & Ecosystem (Chapters 22–30)
 Focus: Command-line productivity, GitHub Actions CI/CD pipelines, APIs, and production deployment.
 
 - **Chapter 22: Working in a Team & Organizations**
@@ -157,7 +157,7 @@ Focus: Command-line productivity, GitHub Actions CI/CD pipelines, APIs, and prod
 
 ---
 
-## 🏆 Completion Checklist
+## Completion Checklist
 
 - [ ] Part 1 Completed (Chapters 1–7: Foundations & Daily Workflow)
 - [ ] Part 2 Completed (Chapters 8–14: Branching, Merging & History)

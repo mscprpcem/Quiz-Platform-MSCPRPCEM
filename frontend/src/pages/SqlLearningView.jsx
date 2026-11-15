@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BookOpen, Copy, Check, Table, CheckCircle2, CheckCheck, ChevronRight,
-  ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Lightbulb, Code2, Menu, X, Maximize2,
+  ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Lightbulb, Code2, Menu, X,
   Server, Layers, ShieldCheck, Database, AlertTriangle, Shield, Zap, FileText,
   Download, ExternalLink, Laptop, Clock, Sparkles, Target
 } from 'lucide-react';
@@ -67,7 +67,13 @@ export const SQL_TOPIC_SHORT_NAMES = {
   'top-day5-03': 'Subchapter 6.3: seed.sql Bulk Batching',
   'top-day5-04': 'Subchapter 6.4: Constraint Traps & Errors',
   'top-day5-05': 'Subchapter 6.5: Practice Sequence Checks',
-  'top-day5-questions-bank': 'Subchapter 6.6: 50 INSERT Practice Questions'
+  'top-day5-questions-bank': 'Subchapter 6.6: 50 INSERT Practice Questions',
+
+  // Chapter 7: SELECT Expressions, Aliases, and DISTINCT
+  'top-ch07-01': 'Subchapter 7.1: SELECT & Execution Order',
+  'top-ch07-02': 'Subchapter 7.2: Lab Setup schema & seed',
+  'top-ch07-03': 'Subchapter 7.3: 10 Practice Queries',
+  'top-ch07-04': 'Subchapter 7.4: Common Pitfalls & Traps'
 };
 
 /**
@@ -199,15 +205,6 @@ export default function SqlLearningView({
   const [searchParams, setSearchParams] = useSearchParams();
   const [copiedSection, setCopiedSection] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [selectedZoomImage, setSelectedZoomImage] = useState(null);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setSelectedZoomImage(null);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   // 1. Flatten all available lessons across Chapters 1 to 6
   const allTopicsFlat = useMemo(() => {
@@ -280,21 +277,30 @@ export default function SqlLearningView({
   useEffect(() => {
     const paramTopic = searchParams.get('topic');
     const paramChapter = searchParams.get('chapter');
+
+    if (paramTopic) {
+      const found = allTopicsFlat.find(t => t.id === paramTopic);
+      if (found) {
+        const targetModId = found.moduleId || paramChapter || 'mod-01';
+        if (setSelectedModuleId) setSelectedModuleId(targetModId);
+        setCurrentActiveTopicId(found.id);
+        if (setSelectedTopicId) setSelectedTopicId(found.id);
+        setExpandedModules(prev => ({ ...prev, [targetModId]: true }));
+        return;
+      }
+    }
+
     if (paramChapter) {
       if (setSelectedModuleId) setSelectedModuleId(paramChapter);
       setExpandedModules(prev => ({ ...prev, [paramChapter]: true }));
-      const chTopic = allTopicsFlat.find(t => t.moduleId === paramChapter);
-      if (chTopic) {
-        setCurrentActiveTopicId(chTopic.id);
-        if (setSelectedTopicId) setSelectedTopicId(chTopic.id);
-      }
-    } else if (paramTopic) {
-      const found = allTopicsFlat.find(t => t.id === paramTopic);
-      if (found) {
-        if (setSelectedModuleId) setSelectedModuleId(found.moduleId || 'mod-01');
-        setCurrentActiveTopicId(found.id);
-        if (setSelectedTopicId) setSelectedTopicId(found.id);
-        setExpandedModules(prev => ({ ...prev, [found.moduleId || 'mod-01']: true }));
+      // Only default to the chapter's first topic if the current active topic doesn't belong to this chapter
+      const currentBelongs = allTopicsFlat.find(t => t.id === currentActiveTopicId && t.moduleId === paramChapter);
+      if (!currentBelongs) {
+        const chTopic = allTopicsFlat.find(t => t.moduleId === paramChapter);
+        if (chTopic) {
+          setCurrentActiveTopicId(chTopic.id);
+          if (setSelectedTopicId) setSelectedTopicId(chTopic.id);
+        }
       }
     }
   }, [searchParams, allTopicsFlat]);
@@ -777,35 +783,15 @@ export default function SqlLearningView({
                         {topicData.infographicTitle || 'Visual Architecture & Flow Diagram'}
                       </h2>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedZoomImage(topicData.infographicImage)}
-                        className="text-[11px] font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
-                        title="Click to view full screen"
-                      >
-                        <Maximize2 size={12} />
-                        <span>Zoom</span>
-                      </button>
-                    </div>
                   </div>
 
-                  <div 
-                    onClick={() => setSelectedZoomImage(topicData.infographicImage)}
-                    className="w-full rounded-lg overflow-hidden border border-slate-200 shadow-2xs bg-white relative group cursor-zoom-in transition-all duration-300 hover:border-blue-300"
-                  >
+                  <div className="w-full rounded-lg overflow-hidden border border-slate-200 shadow-2xs bg-white">
                     <img
                       src={topicData.infographicImage}
                       alt={topicData.infographicTitle || 'Visual Architecture & Flow Diagram'}
-                      className="w-full h-auto block rounded-lg transition-transform duration-300 group-hover:scale-[1.006]"
+                      className="w-full h-auto block rounded-lg"
                       loading="lazy"
                     />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors pointer-events-none rounded-lg flex items-center justify-center">
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/85 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl backdrop-blur-xs flex items-center space-x-1.5 shadow-lg">
-                        <Maximize2 size={13} />
-                        <span>Click to expand full size</span>
-                      </span>
-                    </div>
                   </div>
 
                   {topicData.infographicCaption && (
@@ -1657,35 +1643,6 @@ export default function SqlLearningView({
                   </button>
                 );
               })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* FULLSCREEN IMAGE LIGHTBOX MODAL */}
-      {selectedZoomImage && (
-        <div 
-          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fadeIn"
-          onClick={() => setSelectedZoomImage(null)}
-        >
-          <div className="relative max-w-6xl max-h-[90vh] w-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => setSelectedZoomImage(null)}
-              className="absolute -top-11 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer shadow-lg"
-              title="Close (ESC)"
-            >
-              <X size={20} />
-            </button>
-            <div className="rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-slate-900 w-full max-h-[85vh] flex items-center justify-center p-1">
-              <img
-                src={selectedZoomImage}
-                alt="Enlarged Visual Guide"
-                className="max-w-full max-h-[83vh] w-auto h-auto object-contain rounded-xl"
-              />
-            </div>
-            <div className="text-slate-400 text-xs font-medium mt-3">
-              Click anywhere outside or press ESC to close
             </div>
           </div>
         </div>

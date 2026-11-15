@@ -4,6 +4,7 @@ import { CHAPTER_1_METADATA, CHAPTER_1_TOPICS } from './chapter1Ddl.js';
 import { CHAPTER_3_METADATA, CHAPTER_3_TOPICS } from './chapter3Dml.js';
 import { CHAPTER_4_METADATA, CHAPTER_4_TOPICS } from './chapter4Filtering.js';
 import { CHAPTER_5_METADATA, CHAPTER_5_TOPICS } from './chapter5InsertBulk.js';
+import { CHAPTER_6_METADATA, CHAPTER_6_TOPICS } from './chapter6SelectExpressions.js';
 
 // All Chapters Catalog with Availability Status (Chapters 1 through 30)
 export const CHAPTER_CATALOG = [
@@ -13,17 +14,7 @@ export const CHAPTER_CATALOG = [
   CHAPTER_3_METADATA,
   CHAPTER_4_METADATA,
   CHAPTER_5_METADATA,
-  {
-    id: 'mod-06',
-    number: 7,
-    title: 'SQL Built-in Functions',
-    shortTitle: 'Built-in Functions',
-    status: 'coming_soon',
-    badge: 'In Production',
-    releaseDate: 'Coming Soon',
-    description: 'Deep dive into string formatting (CONCAT, SUBSTRING, UPPER, LOWER), date-time arithmetic (NOW, DATEDIFF, DATE_ADD), mathematical calculations (ROUND, CEIL, ABS), and conditional branching (CASE WHEN).',
-    plannedTopics: ['String Manipulation Functions', 'Date & Time Processing', 'Mathematical Operations', 'CASE WHEN Conditional Branching', 'COALESCE & NULLIF Handling']
-  },
+  CHAPTER_6_METADATA,
   {
     id: 'mod-07',
     number: 8,
@@ -286,7 +277,8 @@ export const ALL_TOPIC_DETAILS = {
   ...CHAPTER_1_TOPICS,
   ...CHAPTER_3_TOPICS,
   ...CHAPTER_4_TOPICS,
-  ...CHAPTER_5_TOPICS
+  ...CHAPTER_5_TOPICS,
+  ...CHAPTER_6_TOPICS
 };
 
 // Helper utilities
