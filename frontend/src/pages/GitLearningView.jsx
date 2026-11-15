@@ -1925,46 +1925,14 @@ export default function GitLearningView({
             /* Active Available Lesson View (Chapter 1) */
             <div className="w-full max-w-5xl xl:max-w-6xl mx-auto space-y-4">
               
-              {/* Top Meta Bar: Chapter Badge, Subchapter Label & Double-Tick Read/Unread Button */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-1 border-b border-slate-100/80">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 font-bold text-xs rounded-md border border-blue-200">
-                    Chapter {activeChapter.number}
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium truncate max-w-[280px] sm:max-w-md">
-                    {activeTopic?.shortName || activeTopic?.title}
-                  </span>
-                </div>
-
-                {/* Double Tick Read / Unread Button */}
-                <button
-                  type="button"
-                  onClick={() => handleToggleCompleted(activeTopic?.slug)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all shadow-2xs cursor-pointer group select-none ${
-                    isCurrentLessonCompleted
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700'
-                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50/50'
-                  }`}
-                  title={isCurrentLessonCompleted ? "Click to mark as unread" : "Mark this lesson as read"}
-                >
-                  <CheckCheck
-                    size={15}
-                    className={`shrink-0 transition-colors ${
-                      isCurrentLessonCompleted
-                        ? 'text-emerald-600 group-hover:text-rose-600'
-                        : 'text-slate-400 group-hover:text-blue-600'
-                    }`}
-                    strokeWidth={isCurrentLessonCompleted ? 2.5 : 2}
-                  />
-                  {isCurrentLessonCompleted ? (
-                    <>
-                      <span className="group-hover:hidden">Read</span>
-                      <span className="hidden group-hover:inline">Mark Unread</span>
-                    </>
-                  ) : (
-                    <span>Mark as Read</span>
-                  )}
-                </button>
+              {/* Top Meta Bar: Chapter Badge & Subchapter Label */}
+              <div className="flex items-center gap-2 pb-1 border-b border-slate-100/80">
+                <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 font-bold text-xs rounded-md border border-blue-200">
+                  Chapter {activeChapter.number}
+                </span>
+                <span className="text-xs text-slate-400 font-medium truncate max-w-[280px] sm:max-w-md">
+                  {activeTopic?.shortName || activeTopic?.title}
+                </span>
               </div>
 
               {/* Main Lesson Title (H1: Used only once per lesson) */}
@@ -2012,30 +1980,19 @@ export default function GitLearningView({
                 <button
                   type="button"
                   onClick={() => handleToggleCompleted(activeTopic?.slug)}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border text-xs sm:text-[13px] font-bold transition-all shadow-2xs cursor-pointer group select-none ${
+                  className={`inline-flex items-center justify-center w-10 h-10 rounded-lg border transition-all shadow-2xs cursor-pointer select-none group ${
                     isCurrentLessonCompleted
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700'
-                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50/50'
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600'
+                      : 'border-slate-200 bg-white text-slate-400 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50'
                   }`}
-                  title={isCurrentLessonCompleted ? "Click to mark as unread" : "Mark this lesson as read"}
+                  title={isCurrentLessonCompleted ? "Read (Click to mark unread)" : "Mark as read"}
+                  aria-label={isCurrentLessonCompleted ? "Mark unread" : "Mark as read"}
                 >
                   <CheckCheck
-                    size={16}
-                    className={`shrink-0 transition-colors ${
-                      isCurrentLessonCompleted
-                        ? 'text-emerald-600 group-hover:text-rose-600'
-                        : 'text-slate-400 group-hover:text-blue-600'
-                    }`}
+                    size={18}
+                    className="shrink-0 transition-colors"
                     strokeWidth={isCurrentLessonCompleted ? 2.5 : 2}
                   />
-                  {isCurrentLessonCompleted ? (
-                    <>
-                      <span className="group-hover:hidden">Completed (Read)</span>
-                      <span className="hidden group-hover:inline">Mark as Unread</span>
-                    </>
-                  ) : (
-                    <span>Mark as Read</span>
-                  )}
                 </button>
 
                 {/* Next Button (Navigates to next lesson without auto-marking completed) */}
